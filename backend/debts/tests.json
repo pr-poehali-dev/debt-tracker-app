@@ -1,0 +1,28 @@
+{
+  "tests": [
+    {
+      "name": "Create debt",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "title": "Тест займ",
+        "amount": 5000,
+        "lender_name": "Иван Иванов",
+        "lender_phone": "+7 999 000 00 00",
+        "note": "Тестовый долг",
+        "due_date": "2026-06-01"
+      },
+      "expectedStatus": 201,
+      "expectedBody": { "share_token": "string", "amount": 5000 },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Get debt by token (not found)",
+      "method": "GET",
+      "path": "/?token=NOTEXIST",
+      "expectedStatus": 404,
+      "expectedBody": { "error": "string" },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

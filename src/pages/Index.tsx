@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import Icon from "@/components/ui/icon";
+import NewDebtModal, { SharedDebtView } from "@/components/NewDebtModal";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type Section = "dashboard" | "lent" | "borrowed" | "calendar" | "notifications" | "archive" | "contacts";
@@ -709,6 +710,11 @@ function InstallBanner() {
 export default function Index() {
   const [section, setSection] = useState<Section>("dashboard");
   const [contacts, setContacts] = useState<Contact[]>(INIT_CONTACTS);
+  const [showNewDebt, setShowNewDebt] = useState(false);
+
+  // Обработка QR-ссылки: /?debt=TOKEN
+  const debtToken = new URLSearchParams(window.location.search).get("debt");
+  if (debtToken) return <SharedDebtView token={debtToken} />;
 
   function handleColorChange(id: number, color: ContactColor) {
     setContacts(prev => prev.map(c => c.id === id ? { ...c, color } : c));
@@ -717,6 +723,7 @@ export default function Index() {
   return (
     <div className="min-h-screen bg-[#0d0f1a] text-foreground flex flex-col">
       <div className="mesh-bg" />
+      <NewDebtModal open={showNewDebt} onClose={() => setShowNewDebt(false)} />
 
       <header className="relative z-10 px-4 pt-5 pb-3">
         <div className="max-w-lg mx-auto flex items-center justify-between">
@@ -733,8 +740,11 @@ export default function Index() {
                 <div className="absolute -top-0.5 -right-0.5 w-4 h-4 gradient-purple rounded-full flex items-center justify-center text-[9px] font-bold text-white">3</div>
               </button>
             )}
-            <button className="w-9 h-9 glass rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors">
-              <Icon name="Plus" size={17} />
+            <button
+              onClick={() => setShowNewDebt(true)}
+              className="w-9 h-9 rounded-xl flex items-center justify-center transition-colors gradient-purple glow-purple"
+            >
+              <Icon name="Plus" size={17} className="text-white" />
             </button>
           </div>
         </div>
