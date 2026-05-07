@@ -218,9 +218,10 @@ interface Props {
   open: boolean;
   onClose: () => void;
   myName?: string;
+  myPhone?: string;
 }
 
-export default function NewDebtModal({ open, onClose, myName = "" }: Props) {
+export default function NewDebtModal({ open, onClose, myName = "", myPhone = "" }: Props) {
   const [step, setStep] = useState<"form" | "qr">("form");
   const [loading, setLoading] = useState(false);
   const [createdDebt, setCreatedDebt] = useState<Record<string, string | number | null> | null>(null);
@@ -229,8 +230,6 @@ export default function NewDebtModal({ open, onClose, myName = "" }: Props) {
   const [form, setForm] = useState({
     title: "",
     amount: "",
-    lender_name: myName,
-    lender_phone: "",
     borrower_name: "",
     note: "",
     due_date: "",
@@ -264,7 +263,7 @@ export default function NewDebtModal({ open, onClose, myName = "" }: Props) {
   const returnCalc = calcReturn();
 
   async function create() {
-    if (!form.title || !form.amount || !form.lender_name) return;
+    if (!form.title || !form.amount) return;
     setLoading(true);
     try {
       const r = await fetch(API_URL, {
@@ -273,8 +272,8 @@ export default function NewDebtModal({ open, onClose, myName = "" }: Props) {
         body: JSON.stringify({
           title: form.title,
           amount: parseFloat(form.amount.replace(/\s/g, "")),
-          lender_name: form.lender_name,
-          lender_phone: form.lender_phone || undefined,
+          lender_name: myName,
+          lender_phone: myPhone || undefined,
           borrower_name: form.borrower_name || undefined,
           note: form.note || undefined,
           due_date: form.due_date || undefined,
@@ -307,7 +306,7 @@ export default function NewDebtModal({ open, onClose, myName = "" }: Props) {
     } else copyLink();
   }
 
-  function close() { setStep("form"); setCreatedDebt(null); setForm({ title: "", amount: "", lender_name: myName, lender_phone: "", borrower_name: "", note: "", due_date: "", interest_rate: "", interest_type: "simple" }); onClose(); }
+  function close() { setStep("form"); setCreatedDebt(null); setForm({ title: "", amount: "", borrower_name: "", note: "", due_date: "", interest_rate: "", interest_type: "simple" }); onClose(); }
 
   if (!open) return null;
 
@@ -341,6 +340,25 @@ export default function NewDebtModal({ open, onClose, myName = "" }: Props) {
         {/* Form step */}
         {step === "form" && (
           <div className="px-5 pb-6 space-y-3">
+
+            {/* Кредитор из профиля */}
+            {myName ? (
+              <div className="flex items-center gap-3 rounded-xl px-4 py-3" style={{ background: "rgba(168,85,247,0.08)", border: "1px solid rgba(168,85,247,0.2)" }}>
+                <div className="w-8 h-8 gradient-purple rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Icon name="User" size={15} className="text-white" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground">Кредитор (вы)</p>
+                  <p className="text-sm font-semibold text-foreground truncate">{myName}{myPhone ? ` · ${myPhone}` : ""}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3 rounded-xl px-4 py-3" style={{ background: "rgba(234,179,8,0.08)", border: "1px solid rgba(234,179,8,0.2)" }}>
+                <Icon name="AlertCircle" size={16} className="text-yellow-400 flex-shrink-0" />
+                <p className="text-xs text-yellow-300">Заполните профиль в <strong>Настройках</strong>, чтобы ваше имя подставлялось автоматически</p>
+              </div>
+            )}
+
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Название / описание *</label>
               <input value={form.title} onChange={e => set("title", e.target.value)} placeholder="Займ на ремонт" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-purple-500/50 transition-colors" />
@@ -348,14 +366,6 @@ export default function NewDebtModal({ open, onClose, myName = "" }: Props) {
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Сумма (₽) *</label>
               <input value={form.amount} onChange={e => set("amount", e.target.value)} placeholder="10 000" type="number" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-purple-500/50 transition-colors" />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Ваше имя (кредитор) *</label>
-              <input value={form.lender_name} onChange={e => set("lender_name", e.target.value)} placeholder="Иван Иванов" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-purple-500/50 transition-colors" />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Ваш телефон</label>
-              <input value={form.lender_phone} onChange={e => set("lender_phone", e.target.value)} placeholder="+7 999 000 00 00" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-purple-500/50 transition-colors" />
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Имя должника (необязательно)</label>
@@ -426,7 +436,7 @@ export default function NewDebtModal({ open, onClose, myName = "" }: Props) {
 
             <button
               onClick={create}
-              disabled={loading || !form.title || !form.amount || !form.lender_name}
+              disabled={loading || !form.title || !form.amount}
               className="w-full py-3.5 rounded-xl font-semibold text-white disabled:opacity-40 transition-all mt-2"
               style={{ background: "linear-gradient(135deg, #a855f7, #6366f1)" }}
             >

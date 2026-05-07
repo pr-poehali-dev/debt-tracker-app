@@ -622,7 +622,20 @@ function Dashboard({ onNav, contacts }: { onNav: (s: Section) => void; contacts:
 }
 
 // ─── Section: Settings ────────────────────────────────────────────────────────
-function SettingsSection({ theme, onThemeChange }: { theme: Theme; onThemeChange: (t: Theme) => void }) {
+function SettingsSection({ theme, onThemeChange, profile, onProfileChange }: {
+  theme: Theme;
+  onThemeChange: (t: Theme) => void;
+  profile: { name: string; phone: string };
+  onProfileChange: (p: { name: string; phone: string }) => void;
+}) {
+  const [local, setLocal] = useState(profile);
+  const [saved, setSaved] = useState(false);
+
+  function save() {
+    onProfileChange(local);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }
   const themes: { id: Theme; label: string; desc: string; icon: string; bg: string; preview: string[] }[] = [
     {
       id: "dark",
@@ -644,6 +657,46 @@ function SettingsSection({ theme, onThemeChange }: { theme: Theme; onThemeChange
 
   return (
     <div className="animate-fade-in space-y-5">
+      {/* Profile */}
+      <div className="glass rounded-2xl p-5">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-9 h-9 gradient-purple rounded-xl flex items-center justify-center">
+            <Icon name="User" size={18} className="text-white" />
+          </div>
+          <div>
+            <p className="font-semibold text-foreground">Мой профиль</p>
+            <p className="text-xs text-muted-foreground">Данные кредитора по умолчанию</p>
+          </div>
+        </div>
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">Имя</label>
+            <input
+              value={local.name}
+              onChange={e => setLocal(l => ({ ...l, name: e.target.value }))}
+              placeholder="Иван Иванов"
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-purple-500/50 transition-colors"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">Телефон</label>
+            <input
+              value={local.phone}
+              onChange={e => setLocal(l => ({ ...l, phone: e.target.value }))}
+              placeholder="+7 999 000 00 00"
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-purple-500/50 transition-colors"
+            />
+          </div>
+          <button
+            onClick={save}
+            className="w-full py-2.5 rounded-xl font-semibold text-white text-sm transition-all"
+            style={{ background: "linear-gradient(135deg, #a855f7, #6366f1)" }}
+          >
+            {saved ? "Сохранено ✓" : "Сохранить"}
+          </button>
+        </div>
+      </div>
+
       {/* Theme picker */}
       <div className="glass rounded-2xl p-5">
         <div className="flex items-center gap-3 mb-4">
@@ -837,6 +890,18 @@ export default function Index() {
     return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
   });
 
+  const [profile, setProfile] = useState<{ name: string; phone: string }>(() => {
+    try {
+      const saved = localStorage.getItem("df-profile");
+      return saved ? JSON.parse(saved) : { name: "", phone: "" };
+    } catch { return { name: "", phone: "" }; }
+  });
+
+  function handleProfileChange(p: { name: string; phone: string }) {
+    setProfile(p);
+    localStorage.setItem("df-profile", JSON.stringify(p));
+  }
+
   // Применяем класс темы на <html>
   useEffect(() => {
     const html = document.documentElement;
@@ -856,7 +921,7 @@ export default function Index() {
   return (
     <div className={`min-h-screen text-foreground flex flex-col`} style={{ background: "var(--app-bg)" }}>
       <div className="mesh-bg" />
-      <NewDebtModal open={showNewDebt} onClose={() => setShowNewDebt(false)} />
+      <NewDebtModal open={showNewDebt} onClose={() => setShowNewDebt(false)} myName={profile.name} myPhone={profile.phone} />
 
       <header className="relative z-10 px-4 pt-5 pb-3">
         <div className="max-w-lg mx-auto flex items-center justify-between">
@@ -897,7 +962,7 @@ export default function Index() {
           {section === "notifications" && <NotificationsSection />}
           {section === "archive"       && <ArchiveSection contacts={contacts} />}
           {section === "contacts"      && <ContactsSection contacts={contacts} onColorChange={handleColorChange} />}
-          {section === "settings"      && <SettingsSection theme={theme} onThemeChange={setTheme} />}
+          {section === "settings"      && <SettingsSection theme={theme} onThemeChange={setTheme} profile={profile} onProfileChange={handleProfileChange} />}
         </div>
       </main>
 
