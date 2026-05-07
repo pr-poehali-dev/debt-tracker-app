@@ -748,7 +748,6 @@ const navItems: { id: Section; icon: string; label: string; badge?: number }[] =
   { id: "notifications", icon: "Bell",             label: "Уведомления", badge: 3 },
   { id: "archive",       icon: "Archive",          label: "Архив"       },
   { id: "contacts",      icon: "Users",            label: "Контакты"    },
-  { id: "settings",      icon: "Settings",         label: "Настройки"   },
 ];
 
 const sectionTitles: Record<Section, string> = {
@@ -874,6 +873,9 @@ export default function Index() {
                 <div className="absolute -top-0.5 -right-0.5 w-4 h-4 gradient-purple rounded-full flex items-center justify-center text-[9px] font-bold text-white">3</div>
               </button>
             )}
+            <button onClick={() => setSection("settings")} className={`w-9 h-9 glass rounded-xl flex items-center justify-center transition-colors ${section === "settings" ? "gradient-purple" : "hover:bg-white/10"}`}>
+              <Icon name="Settings" size={17} className={section === "settings" ? "text-white" : ""} />
+            </button>
             <button
               onClick={() => setShowNewDebt(true)}
               className="w-9 h-9 rounded-xl flex items-center justify-center transition-colors gradient-purple glow-purple"
