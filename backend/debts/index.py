@@ -52,7 +52,7 @@ def send_decision_email(to_email: str, lender_name: str, borrower_name: str, deb
     </div>
     """
     payload = json.dumps({
-        "from": "Debt-Debt <onboarding@resend.dev>",
+        "from": "Debt-Debt <noreply@debt-debt.ru>",
         "to": [to_email],
         "subject": f"{emoji} {borrower_name} {status_text} долг «{debt_title}»",
         "html": body_html,

@@ -46,7 +46,7 @@ def send_email(to_email: str, code: str, full_name: str = None):
     </div>
     """
     payload = json.dumps({
-        "from": "Debt-Debt <onboarding@resend.dev>",
+        "from": "Debt-Debt <noreply@debt-debt.ru>",
         "to": [to_email],
         "subject": "Код подтверждения — Debt-Debt",
         "html": body_html,
