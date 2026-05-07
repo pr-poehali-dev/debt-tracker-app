@@ -32,7 +32,7 @@ def send_email(to_email: str, code: str, full_name: str = None):
     </div>
     """
     payload = json.dumps({
-        "from": "Debt-Debt <noreply@debt-debt.ru>",
+        "from": "Debt-Debt <onboarding@resend.dev>",
         "to": [to_email],
         "subject": subject,
         "html": body_html,
