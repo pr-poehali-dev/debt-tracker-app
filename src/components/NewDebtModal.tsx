@@ -234,11 +234,34 @@ export default function NewDebtModal({ open, onClose, myName = "" }: Props) {
     borrower_name: "",
     note: "",
     due_date: "",
+    interest_rate: "",
+    interest_type: "simple" as "simple" | "compound",
   });
 
   function set(k: string, v: string) { setForm(f => ({ ...f, [k]: v })); }
 
   function fmt(n: number) { return n.toLocaleString("ru-RU") + " ₽"; }
+
+  function calcReturn(): { total: number; interest: number; days: number } | null {
+    const amount = parseFloat(form.amount.replace(/\s/g, ""));
+    const rate = parseFloat(form.interest_rate);
+    if (!amount || !rate || rate <= 0) return null;
+    if (!form.due_date) return null;
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const due = new Date(form.due_date); due.setHours(0, 0, 0, 0);
+    const days = Math.round((due.getTime() - today.getTime()) / 86400000);
+    if (days <= 0) return null;
+    const years = days / 365;
+    let total: number;
+    if (form.interest_type === "compound") {
+      total = amount * Math.pow(1 + rate / 100, years);
+    } else {
+      total = amount * (1 + (rate / 100) * years);
+    }
+    return { total: Math.round(total), interest: Math.round(total - amount), days };
+  }
+
+  const returnCalc = calcReturn();
 
   async function create() {
     if (!form.title || !form.amount || !form.lender_name) return;
@@ -255,6 +278,9 @@ export default function NewDebtModal({ open, onClose, myName = "" }: Props) {
           borrower_name: form.borrower_name || undefined,
           note: form.note || undefined,
           due_date: form.due_date || undefined,
+          interest_rate: form.interest_rate ? parseFloat(form.interest_rate) : undefined,
+          interest_type: form.interest_rate ? form.interest_type : undefined,
+          total_with_interest: returnCalc?.total || undefined,
         }),
       });
       const d = await r.json();
@@ -281,7 +307,7 @@ export default function NewDebtModal({ open, onClose, myName = "" }: Props) {
     } else copyLink();
   }
 
-  function close() { setStep("form"); setCreatedDebt(null); setForm({ title: "", amount: "", lender_name: myName, lender_phone: "", borrower_name: "", note: "", due_date: "" }); onClose(); }
+  function close() { setStep("form"); setCreatedDebt(null); setForm({ title: "", amount: "", lender_name: myName, lender_phone: "", borrower_name: "", note: "", due_date: "", interest_rate: "", interest_type: "simple" }); onClose(); }
 
   if (!open) return null;
 
@@ -339,6 +365,60 @@ export default function NewDebtModal({ open, onClose, myName = "" }: Props) {
               <label className="text-xs text-muted-foreground mb-1 block">Срок возврата</label>
               <input value={form.due_date} onChange={e => set("due_date", e.target.value)} type="date" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-foreground outline-none focus:border-purple-500/50 transition-colors" style={{ colorScheme: "dark" }} />
             </div>
+
+            {/* Процентная ставка */}
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Процентная ставка (% годовых)</label>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <input
+                    value={form.interest_rate}
+                    onChange={e => set("interest_rate", e.target.value)}
+                    placeholder="0"
+                    type="number"
+                    min="0"
+                    max="1000"
+                    step="0.1"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 pr-8 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-purple-500/50 transition-colors"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">%</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => set("interest_type", form.interest_type === "simple" ? "compound" : "simple")}
+                  className="px-3 py-2.5 rounded-xl text-xs font-medium glass border border-white/10 hover:bg-white/10 transition-colors whitespace-nowrap"
+                  title="Тип начисления"
+                >
+                  {form.interest_type === "simple" ? "Простые" : "Сложные"}
+                </button>
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                {form.interest_type === "simple" ? "Простые проценты — начисляются только на основную сумму" : "Сложные проценты — начисляются на сумму с процентами"}
+              </p>
+            </div>
+
+            {/* Карточка пересчёта */}
+            {returnCalc && (
+              <div className="rounded-xl p-3.5 space-y-2" style={{ background: "rgba(168,85,247,0.08)", border: "1px solid rgba(168,85,247,0.25)" }}>
+                <div className="flex items-center gap-2 mb-1">
+                  <Icon name="Calculator" size={14} className="text-purple-400" />
+                  <span className="text-xs font-semibold text-purple-300">Итого к возврату</span>
+                </div>
+                <div className="flex items-end justify-between">
+                  <div>
+                    <div className="text-2xl font-black font-heading text-gradient-purple">{fmt(returnCalc.total)}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      Основной долг: {fmt(parseFloat(form.amount.replace(/\s/g, "")))}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm font-semibold text-emerald-400">+{fmt(returnCalc.interest)}</div>
+                    <div className="text-[10px] text-muted-foreground">за {returnCalc.days} дн.</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Заметка</label>
               <textarea value={form.note} onChange={e => set("note", e.target.value)} placeholder="Дополнительные условия..." rows={2} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-purple-500/50 transition-colors resize-none" />
