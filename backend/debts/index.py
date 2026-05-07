@@ -10,6 +10,7 @@ import json
 import os
 import random
 import string
+import urllib.request
 import psycopg2
 from datetime import datetime, date
 
@@ -31,6 +32,42 @@ def json_resp(data, status=200):
 
 def err(msg, status=400):
     return json_resp({"error": msg}, status)
+
+def send_decision_email(to_email: str, lender_name: str, borrower_name: str, debt_title: str, amount: float, decision: str):
+    accepted = decision == "accepted"
+    color = "#22c55e" if accepted else "#f43f5e"
+    status_text = "принял" if accepted else "отклонил"
+    emoji = "✅" if accepted else "❌"
+    body_html = f"""
+    <div style="font-family:sans-serif;max-width:420px;margin:0 auto;padding:24px">
+      <h2 style="color:#a855f7;margin-bottom:8px">Debt-Debt</h2>
+      <p style="color:#555">Привет, {lender_name}!</p>
+      <p style="color:#555"><strong>{borrower_name}</strong> {status_text} ваш долг:</p>
+      <div style="background:#f5f0ff;border-radius:12px;padding:20px;margin:20px 0;border-left:4px solid {color}">
+        <p style="margin:0 0 4px 0;font-weight:bold;color:#333">{debt_title}</p>
+        <p style="margin:0;font-size:24px;font-weight:900;color:{color}">{emoji} {amount:,.0f} ₽</p>
+      </div>
+      {"<p style='color:#555'>Теперь вы можете общаться в чате прямо в приложении.</p>" if accepted else "<p style='color:#999'>Долг остался у вас со статусом «Отклонён». Вы можете удалить его в приложении.</p>"}
+      <p style="color:#999;font-size:12px;margin-top:24px">Debt-Debt — управление долгами и займами</p>
+    </div>
+    """
+    payload = json.dumps({
+        "from": "Debt-Debt <onboarding@resend.dev>",
+        "to": [to_email],
+        "subject": f"{emoji} {borrower_name} {status_text} долг «{debt_title}»",
+        "html": body_html,
+    }).encode()
+    req = urllib.request.Request(
+        "https://api.resend.com/emails",
+        data=payload,
+        headers={"Authorization": f"Bearer {os.environ['RESEND_API_KEY']}", "Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req) as r:
+            return r.status
+    except Exception:
+        pass
 
 def gen_token(n=8):
     chars = string.ascii_uppercase + string.digits
@@ -176,6 +213,19 @@ def handler(event: dict, context) -> dict:
                     vals
                 )
                 row = cur.fetchone()
+                # Отправляем email кредитору если должник принял/отклонил
+                if row and body.get("borrower_decision") in ("accepted", "rejected") and row[13]:
+                    cur.execute(f"SELECT email FROM {SCHEMA}.users WHERE id = %s", (row[13],))
+                    lender_row = cur.fetchone()
+                    if lender_row:
+                        send_decision_email(
+                            to_email=lender_row[0],
+                            lender_name=str(row[6]),
+                            borrower_name=body.get("borrower_name") or str(row[8] or "Должник"),
+                            debt_title=str(row[2]),
+                            amount=float(row[3]),
+                            decision=body["borrower_decision"],
+                        )
             conn.commit()
         if not row:
             return err("Долг не найден", 404)
