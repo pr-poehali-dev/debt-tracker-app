@@ -51,7 +51,7 @@ export function SharedDebtView({ token }: { token: string }) {
   useEffect(() => {
     const saved = localStorage.getItem("df-token");
     if (saved) {
-      fetch(`${AUTH_URL}/me`, { headers: { Authorization: `Bearer ${saved}` } })
+      fetch(`${AUTH_URL}?action=me`, { headers: { Authorization: `Bearer ${saved}` } })
         .then(r => r.ok ? r.json() : null)
         .then(u => {
           if (u?.id) { setAuthToken(saved); setUserId(u.id); setUserName(u.full_name); }
@@ -81,7 +81,7 @@ export function SharedDebtView({ token }: { token: string }) {
     const e = email.trim().toLowerCase();
     if (!e.includes("@")) { setAuthError("Введите корректный email"); return; }
     setAuthLoading(true); setAuthError("");
-    const res = await fetch(`${AUTH_URL}/send-code`, {
+    const res = await fetch(`${AUTH_URL}?action=send-code`, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: e }),
     });
@@ -95,7 +95,7 @@ export function SharedDebtView({ token }: { token: string }) {
     if (!fullName.trim()) { setAuthError("Введите ФИО"); return; }
     if (!phone.trim()) { setAuthError("Введите телефон"); return; }
     setAuthLoading(true); setAuthError("");
-    const res = await fetch(`${AUTH_URL}/send-code`, {
+    const res = await fetch(`${AUTH_URL}?action=send-code`, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: email.trim().toLowerCase(), full_name: fullName.trim(), phone: phone.trim() }),
     });
@@ -110,7 +110,7 @@ export function SharedDebtView({ token }: { token: string }) {
     setAuthLoading(true); setAuthError("");
     const body: Record<string, string> = { email: email.trim().toLowerCase(), code: c };
     if (isNewUser) { body.full_name = fullName.trim(); body.phone = phone.trim(); }
-    const res = await fetch(`${AUTH_URL}/verify`, {
+    const res = await fetch(`${AUTH_URL}?action=verify`, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });

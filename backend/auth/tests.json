@@ -1,10 +1,10 @@
 {
   "tests": [
     {
-      "name": "GET / returns 404",
+      "name": "GET ?action=me without token returns 401",
       "method": "GET",
-      "path": "/",
-      "expectedStatus": 404,
+      "path": "/?action=me",
+      "expectedStatus": 401,
       "expectedBody": {"error": "string"},
       "bodyMatcher": "partial"
     }

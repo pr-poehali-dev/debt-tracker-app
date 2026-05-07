@@ -66,9 +66,19 @@ def handler(event: dict, context) -> dict:
 
     method = event.get("httpMethod", "GET")
     path = (event.get("path") or "/").rstrip("/")
+    qs = event.get("queryStringParameters") or {}
 
-    # ── GET /me ──────────────────────────────────────────────────────────────
-    if method == "GET" and path.endswith("/me"):
+    # Роутинг: по пути ИЛИ по query ?action=
+    def get_action():
+        for suffix in ["me", "send-code", "verify"]:
+            if path.endswith(f"/{suffix}"):
+                return suffix
+        return qs.get("action", "")
+
+    action = get_action()
+
+    # ── GET me ───────────────────────────────────────────────────────────────
+    if method == "GET" and action == "me":
         headers = event.get("headers") or {}
         auth = headers.get("X-Authorization") or headers.get("Authorization") or ""
         token = auth.replace("Bearer ", "").strip()
@@ -87,8 +97,8 @@ def handler(event: dict, context) -> dict:
             return err("Сессия истекла", 401)
         return resp({"id": row[0], "full_name": row[1], "phone": row[2], "email": row[3]})
 
-    # ── POST /send-code ───────────────────────────────────────────────────────
-    if method == "POST" and path.endswith("/send-code"):
+    # ── POST send-code ────────────────────────────────────────────────────────
+    if method == "POST" and action == "send-code":
         body = json.loads(event.get("body") or "{}")
         email = (body.get("email") or "").strip().lower()
         full_name = (body.get("full_name") or "").strip()
@@ -123,8 +133,8 @@ def handler(event: dict, context) -> dict:
         send_email(email, code, full_name if full_name else None)
         return resp({"ok": True, "message": "Код отправлен на email"})
 
-    # ── POST /verify ──────────────────────────────────────────────────────────
-    if method == "POST" and path.endswith("/verify"):
+    # ── POST verify ───────────────────────────────────────────────────────────
+    if method == "POST" and action == "verify":
         body = json.loads(event.get("body") or "{}")
         email = (body.get("email") or "").strip().lower()
         code = (body.get("code") or "").strip()

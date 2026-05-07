@@ -38,7 +38,7 @@ export default function Auth({ onAuth }: Props) {
     const e = email.trim().toLowerCase();
     if (!e || !e.includes("@")) { setError("Введите корректный email"); return; }
     setLoading(true); setError("");
-    const res = await fetch(`${AUTH_URL}/send-code`, {
+    const res = await fetch(`${AUTH_URL}?action=send-code`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: e }),
@@ -67,7 +67,7 @@ export default function Auth({ onAuth }: Props) {
     if (!fn) { setError("Введите ФИО"); return; }
     if (!ph) { setError("Введите телефон"); return; }
     setLoading(true); setError("");
-    const res = await fetch(`${AUTH_URL}/send-code`, {
+    const res = await fetch(`${AUTH_URL}?action=send-code`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: email.trim().toLowerCase(), full_name: fn, phone: ph }),
@@ -88,7 +88,7 @@ export default function Auth({ onAuth }: Props) {
     setLoading(true); setError("");
     const body: Record<string, string> = { email: email.trim().toLowerCase(), code: c };
     if (isNewUser) { body.full_name = fullName.trim(); body.phone = phone.trim(); }
-    const res = await fetch(`${AUTH_URL}/verify`, {
+    const res = await fetch(`${AUTH_URL}?action=verify`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
