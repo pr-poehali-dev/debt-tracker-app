@@ -385,8 +385,12 @@ function CalendarSection({ contacts, t, debts }: { contacts: Contact[]; t: Retur
 }
 
 // ─── Section: Notifications ───────────────────────────────────────────────────
-function NotificationsSection({ t }: { t: ReturnType<typeof getT> }) {
-  const [notifs, setNotifs] = useState<Notification[]>([]);
+function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t }: {
+  notifs: Notification[];
+  onMarkAllRead: () => void;
+  onMarkRead: (id: number) => void;
+  t: ReturnType<typeof getT>;
+}) {
   const unread = notifs.filter(n => !n.read).length;
 
   return (
@@ -401,7 +405,7 @@ function NotificationsSection({ t }: { t: ReturnType<typeof getT> }) {
               <p className="font-semibold text-red-400">{unread} {t.unreadNotifs}</p>
               <p className="text-xs text-muted-foreground">{t.needAttention}</p>
             </div>
-            <button onClick={() => setNotifs(notifs.map(n => ({ ...n, read: true })))} className="text-xs text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap">
+            <button onClick={onMarkAllRead} className="text-xs text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap">
               {t.markAllRead}
             </button>
           </div>
@@ -411,12 +415,17 @@ function NotificationsSection({ t }: { t: ReturnType<typeof getT> }) {
         <div className="glass rounded-2xl p-8 flex flex-col items-center text-center gap-3">
           <Icon name="Bell" size={32} className="text-purple-400" />
           <p className="font-semibold text-foreground">Уведомлений нет</p>
-          <p className="text-xs text-muted-foreground">Здесь будут появляться напоминания о платежах</p>
+          <p className="text-xs text-muted-foreground">Здесь будут появляться уведомления о ваших долгах</p>
         </div>
       )}
       <div className="space-y-3">
         {notifs.map((n, i) => (
-          <div key={n.id} className={`glass rounded-2xl p-4 flex items-start gap-3 transition-all duration-200 hover:bg-white/[0.06] ${!n.read ? "border border-white/10" : "opacity-60"}`} style={{ animationDelay: `${i * 0.04}s` }}>
+          <div
+            key={n.id}
+            onClick={() => onMarkRead(n.id)}
+            className={`glass rounded-2xl p-4 flex items-start gap-3 transition-all duration-200 hover:bg-white/[0.06] cursor-pointer ${!n.read ? "border border-white/10" : "opacity-60"}`}
+            style={{ animationDelay: `${i * 0.04}s` }}
+          >
             <NotifIcon type={n.type} />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-0.5">
@@ -429,10 +438,6 @@ function NotificationsSection({ t }: { t: ReturnType<typeof getT> }) {
           </div>
         ))}
       </div>
-      <button className="mt-4 w-full py-3 rounded-2xl glass border border-dashed border-purple-500/30 text-purple-400 hover:bg-purple-500/10 transition-all duration-200 font-medium flex items-center justify-center gap-2">
-        <Icon name="Settings" size={16} />
-        {t.configureNotifs}
-      </button>
     </div>
   );
 }
@@ -989,6 +994,57 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
   const [archiveDebts, setArchiveDebts] = useState<Debt[]>(isDemo ? DEMO_ARCHIVE : []);
   const [showNewDebt, setShowNewDebt] = useState(false);
   const [activeChat, setActiveChat] = useState<{ debtId: string; title: string } | null>(null);
+  const [notifs, setNotifs] = useState<Notification[]>([]);
+
+  // Загружаем долги из бэкенда и формируем уведомления о решениях должников
+  useEffect(() => {
+    if (isDemo) return;
+    import("../../backend/func2url.json").then(({ default: urls }) => {
+      fetch(`${urls["debts"]}?user_id=${user.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then(r => r.ok ? r.json() : [])
+        .then((debts: Array<Record<string, unknown>>) => {
+          const seenKey = "df-seen-decisions";
+          const seen: string[] = JSON.parse(localStorage.getItem(seenKey) || "[]");
+          const newNotifs: Notification[] = [];
+          let idCounter = Date.now();
+
+          debts.forEach((d) => {
+            const decision = d.borrower_decision as string;
+            const debtId = d.id as string;
+            const isLender = d.lender_user_id === user.id;
+            if (!isLender || !decision || seen.includes(debtId + "_" + decision)) return;
+
+            const accepted = decision === "accepted";
+            newNotifs.push({
+              id: idCounter++,
+              type: accepted ? "success" : "warning",
+              title: accepted ? `${d.borrower_name} принял долг` : `${d.borrower_name} отклонил долг`,
+              message: `«${d.title}» — ${Number(d.amount).toLocaleString("ru-RU")} ₽`,
+              date: new Date(d.updated_at as string).toLocaleDateString("ru-RU", { day: "numeric", month: "long" }),
+              read: false,
+            });
+          });
+
+          if (newNotifs.length > 0) {
+            setNotifs(prev => [...newNotifs, ...prev]);
+          }
+        });
+    });
+  }, [isDemo, user.id, token]);
+
+  function handleMarkAllRead() {
+    const seenKey = "df-seen-decisions";
+    // помечаем все как прочитанные
+    setNotifs(prev => prev.map(n => ({ ...n, read: true })));
+  }
+
+  function handleMarkRead(id: number) {
+    setNotifs(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+  }
+
+  const unreadCount = notifs.filter(n => !n.read).length;
   const [theme, setTheme] = useState<Theme>(() => {
     const saved = localStorage.getItem("df-theme") as Theme | null;
     if (saved) return saved;
@@ -1082,6 +1138,11 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
             {section !== "notifications" && (
               <button onClick={() => setSection("notifications")} className="relative w-9 h-9 glass rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors">
                 <Icon name="Bell" size={17} />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white leading-none">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
               </button>
             )}
             <button onClick={() => setSection("settings")} className={`w-9 h-9 glass rounded-xl flex items-center justify-center transition-colors ${section === "settings" ? "gradient-purple" : "hover:bg-white/10"}`}>
@@ -1105,7 +1166,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
           {section === "lent"          && <DebtList debts={lentDebts} dir="lent" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => setActiveChat({ debtId: id, title })} />}
           {section === "borrowed"      && <DebtList debts={borrowedDebts} dir="borrowed" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => setActiveChat({ debtId: id, title })} />}
           {section === "calendar"      && <CalendarSection contacts={contacts} t={t} debts={[...lentDebts, ...borrowedDebts]} />}
-          {section === "notifications" && <NotificationsSection t={t} />}
+          {section === "notifications" && <NotificationsSection notifs={notifs} onMarkAllRead={handleMarkAllRead} onMarkRead={handleMarkRead} t={t} />}
           {section === "archive"       && <ArchiveSection contacts={contacts} t={t} locale={locale} archiveDebts={archiveDebts} />}
           {section === "contacts"      && <ContactsSection contacts={contacts} onColorChange={handleColorChange} t={t} />}
           {section === "settings"      && <SettingsSection theme={theme} onThemeChange={setTheme} profile={profile} onProfileChange={handleProfileChange} t={t} lang={lang} onLangChange={handleLangChange} email={user.email} onLogout={onLogout} isDemo={isDemo} />}
