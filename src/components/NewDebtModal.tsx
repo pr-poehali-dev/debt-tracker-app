@@ -353,9 +353,10 @@ interface Props {
   onClose: () => void;
   myName?: string;
   myPhone?: string;
+  onCreated?: (debt: Record<string, string | number | null>) => void;
 }
 
-export default function NewDebtModal({ open, onClose, myName = "", myPhone = "" }: Props) {
+export default function NewDebtModal({ open, onClose, myName = "", myPhone = "", onCreated }: Props) {
   const [step, setStep] = useState<"form" | "qr">("form");
   const [loading, setLoading] = useState(false);
   const [createdDebt, setCreatedDebt] = useState<Record<string, string | number | null> | null>(null);
@@ -400,9 +401,13 @@ export default function NewDebtModal({ open, onClose, myName = "", myPhone = "" 
     if (!form.title || !form.amount) return;
     setLoading(true);
     try {
+      const token = localStorage.getItem("df-token") || "";
       const r = await fetch(API_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           title: form.title,
           amount: parseFloat(form.amount.replace(/\s/g, "")),
@@ -417,7 +422,11 @@ export default function NewDebtModal({ open, onClose, myName = "", myPhone = "" 
         }),
       });
       const d = await r.json();
-      if (d.share_token) { setCreatedDebt(d); setStep("qr"); }
+      if (d.share_token) {
+        setCreatedDebt(d);
+        setStep("qr");
+        onCreated?.(d);
+      }
     } finally {
       setLoading(false);
     }

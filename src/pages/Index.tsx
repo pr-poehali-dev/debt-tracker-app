@@ -1130,10 +1130,25 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
     setContacts(prev => prev.map(c => c.id === id ? { ...c, color } : c));
   }
 
+  function handleDebtCreated(d: Record<string, string | number | null>) {
+    const newDebt: Debt = {
+      id: Date.now(),
+      contactId: 0,
+      name: String(d.title),
+      amount: Number(d.amount),
+      dueDate: String(d.due_date || new Date().toISOString().slice(0, 10)),
+      status: "active",
+      avatar: String(d.borrower_name || "?").slice(0, 2).toUpperCase(),
+      note: d.note ? String(d.note) : undefined,
+      debtDbId: String(d.id),
+    };
+    setLentDebts(prev => [newDebt, ...prev]);
+  }
+
   return (
     <div className={`min-h-screen text-foreground flex flex-col`} style={{ background: "var(--app-bg)" }}>
       <div className="mesh-bg" />
-      <NewDebtModal open={showNewDebt} onClose={() => setShowNewDebt(false)} myName={profile.name} myPhone={profile.phone} />
+      <NewDebtModal open={showNewDebt} onClose={() => setShowNewDebt(false)} myName={profile.name} myPhone={profile.phone} onCreated={handleDebtCreated} />
       {activeChat && !isDemo && (
         <DebtChat
           debtId={activeChat.debtId}
