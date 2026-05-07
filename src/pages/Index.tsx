@@ -164,7 +164,7 @@ function NotifIcon({ type }: { type: Notification["type"] }) {
 }
 
 // ─── Section: Debts ───────────────────────────────────────────────────────────
-function DebtList({ debts, dir, contacts, t, locale, onOpenChat }: { debts: Debt[]; dir: "lent" | "borrowed"; contacts: Contact[]; t: ReturnType<typeof getT>; locale: string; onOpenChat?: (debtId: string, title: string) => void }) {
+function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPaid }: { debts: Debt[]; dir: "lent" | "borrowed"; contacts: Contact[]; t: ReturnType<typeof getT>; locale: string; onOpenChat?: (debtId: string, title: string) => void; onMarkPaid?: (debtId: string) => void }) {
   const total = debts.filter(d => d.status !== "paid").reduce((s, d) => s + d.amount, 0);
   const overdue = debts.filter(d => d.status === "overdue").length;
 
@@ -224,13 +224,22 @@ function DebtList({ debts, dir, contacts, t, locale, onOpenChat }: { debts: Debt
                   <p className="text-lg font-bold font-heading" style={{ color: d.status === "overdue" ? "#f87171" : col ? col.text : dir === "lent" ? "#c084fc" : "#7dd3fc" }}>
                     {fmt(d.amount)}
                   </p>
-                  {d.debtDbId && onOpenChat && (
+                  {d.debtDbId && onOpenChat && d.borrowerDecision === "accepted" && (
                     <button
                       onClick={e => { e.stopPropagation(); onOpenChat(d.debtDbId!, d.name); }}
                       className="flex items-center gap-1 text-xs text-purple-400 hover:text-purple-300 transition-colors"
                     >
                       <Icon name="MessageCircle" size={12} />
                       Чат
+                    </button>
+                  )}
+                  {d.debtDbId && d.status !== "paid" && onMarkPaid && (
+                    <button
+                      onClick={e => { e.stopPropagation(); onMarkPaid(d.debtDbId!); }}
+                      className="flex items-center gap-1 text-xs text-green-400 hover:text-green-300 transition-colors"
+                    >
+                      <Icon name="CheckCircle2" size={12} />
+                      Возвращён
                     </button>
                   )}
                 </div>
@@ -1130,6 +1139,32 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
     setContacts(prev => prev.map(c => c.id === id ? { ...c, color } : c));
   }
 
+  async function handleMarkPaid(debtDbId: string) {
+    import("../../backend/func2url.json").then(async ({ default: urls }) => {
+      const debt = [...lentDebts, ...borrowedDebts].find(d => d.debtDbId === debtDbId);
+      if (!debt) return;
+      const shareToken = debt.debtDbId; // debtDbId хранит uuid, нужен share_token
+      // Получаем share_token по id
+      const res = await fetch(`${urls["debts"]}?user_id=${user.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return;
+      const debts: Array<Record<string, unknown>> = await res.json();
+      const found = debts.find(d => String(d.id) === debtDbId);
+      if (!found) return;
+      await fetch(`${urls["debts"]}?token=${found.share_token}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status: "archived" }),
+      });
+      // Перемещаем в архив
+      const updatedDebt = { ...debt, status: "paid" as const };
+      setLentDebts(prev => prev.filter(d => d.debtDbId !== debtDbId));
+      setBorrowedDebts(prev => prev.filter(d => d.debtDbId !== debtDbId));
+      setArchiveDebts(prev => [updatedDebt, ...prev]);
+    });
+  }
+
   function handleDebtCreated(d: Record<string, string | number | null>) {
     const newDebt: Debt = {
       id: Date.now(),
@@ -1206,8 +1241,8 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
       <main className="relative z-10 flex-1 px-4 pb-32 overflow-y-auto">
         <div className="max-w-lg mx-auto">
           {section === "dashboard"     && <Dashboard onNav={setSection} contacts={contacts} t={t} lentDebts={lentDebts} borrowedDebts={borrowedDebts} />}
-          {section === "lent"          && <DebtList debts={lentDebts} dir="lent" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => setActiveChat({ debtId: id, title })} />}
-          {section === "borrowed"      && <DebtList debts={borrowedDebts} dir="borrowed" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => setActiveChat({ debtId: id, title })} />}
+          {section === "lent"          && <DebtList debts={lentDebts} dir="lent" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => setActiveChat({ debtId: id, title })} onMarkPaid={handleMarkPaid} />}
+          {section === "borrowed"      && <DebtList debts={borrowedDebts} dir="borrowed" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => setActiveChat({ debtId: id, title })} onMarkPaid={handleMarkPaid} />}
           {section === "calendar"      && <CalendarSection contacts={contacts} t={t} debts={[...lentDebts, ...borrowedDebts]} />}
           {section === "notifications" && <NotificationsSection notifs={notifs} onMarkAllRead={handleMarkAllRead} onMarkRead={handleMarkRead} t={t} />}
           {section === "archive"       && <ArchiveSection contacts={contacts} t={t} locale={locale} archiveDebts={archiveDebts} />}
