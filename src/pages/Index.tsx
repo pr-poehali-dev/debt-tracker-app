@@ -56,6 +56,29 @@ function getColor(id: ContactColor) {
   return COLOR_OPTIONS.find(c => c.id === id) ?? COLOR_OPTIONS[0];
 }
 
+// ─── Demo Data ────────────────────────────────────────────────────────────────
+const DEMO_CONTACTS: Contact[] = [
+  { id: 1, name: "Алексей Смирнов", phone: "+7 916 123 45 67", email: "alex@example.com", avatar: "АС", totalLent: 15000, totalBorrowed: 0, color: "sky" },
+  { id: 2, name: "Мария Козлова", phone: "+7 926 234 56 78", email: "masha@example.com", avatar: "МК", totalLent: 0, totalBorrowed: 8500, color: "pink" },
+  { id: 3, name: "Дмитрий Новиков", phone: "+7 903 345 67 89", email: "dima@example.com", avatar: "ДН", totalLent: 32000, totalBorrowed: 0, color: "emerald" },
+  { id: 4, name: "Ольга Петрова", phone: "+7 985 456 78 90", email: "olga@example.com", avatar: "ОП", totalLent: 0, totalBorrowed: 5000, color: "orange" },
+];
+
+const DEMO_LENT: Debt[] = [
+  { id: 1, contactId: 1, name: "На ремонт машины", amount: 15000, dueDate: "2026-06-01", status: "active", avatar: "АС", note: "Вернёт частями" },
+  { id: 2, contactId: 3, name: "Займ до зарплаты", amount: 12000, dueDate: "2026-04-15", status: "overdue", avatar: "ДН" },
+  { id: 3, contactId: 3, name: "На отпуск", amount: 20000, dueDate: "2026-07-10", status: "active", avatar: "ДН", note: "Лето" },
+];
+
+const DEMO_BORROWED: Debt[] = [
+  { id: 4, contactId: 2, name: "За ужин в ресторане", amount: 8500, dueDate: "2026-05-20", status: "active", avatar: "МК" },
+  { id: 5, contactId: 4, name: "Мелкий долг", amount: 5000, dueDate: "2026-05-10", status: "overdue", avatar: "ОП", note: "Срочно" },
+];
+
+const DEMO_ARCHIVE: Debt[] = [
+  { id: 6, contactId: 1, name: "Прошлый займ", amount: 3000, dueDate: "2025-12-01", status: "paid", avatar: "АС" },
+];
+
 // ─── Initial Data ─────────────────────────────────────────────────────────────
 const INIT_CONTACTS: Contact[] = [];
 
@@ -646,7 +669,7 @@ function Dashboard({ onNav, contacts, t, lentDebts, borrowedDebts }: { onNav: (s
 }
 
 // ─── Section: Settings ────────────────────────────────────────────────────────
-function SettingsSection({ theme, onThemeChange, profile, onProfileChange, t, lang, onLangChange, email, onLogout }: {
+function SettingsSection({ theme, onThemeChange, profile, onProfileChange, t, lang, onLangChange, email, onLogout, isDemo }: {
   theme: Theme;
   onThemeChange: (t: Theme) => void;
   profile: { name: string; phone: string };
@@ -656,6 +679,7 @@ function SettingsSection({ theme, onThemeChange, profile, onProfileChange, t, la
   onLangChange: (l: Lang) => void;
   email: string;
   onLogout: () => void;
+  isDemo?: boolean;
 }) {
   const [local, setLocal] = useState(profile);
   const [saved, setSaved] = useState(false);
@@ -855,14 +879,25 @@ function SettingsSection({ theme, onThemeChange, profile, onProfileChange, t, la
         </button>
       )}
 
-      {/* Logout */}
-      <button
-        onClick={onLogout}
-        className="w-full py-3 rounded-2xl glass border border-red-500/20 text-red-400 hover:bg-red-500/10 transition-all font-medium flex items-center justify-center gap-2"
-      >
-        <Icon name="LogOut" size={16} />
-        Выйти из аккаунта
-      </button>
+      {/* Logout / Register */}
+      {isDemo ? (
+        <button
+          onClick={onLogout}
+          className="w-full py-3 rounded-2xl font-semibold text-white text-sm transition-all flex items-center justify-center gap-2"
+          style={{ background: "linear-gradient(135deg, #a855f7, #6366f1)" }}
+        >
+          <Icon name="UserPlus" size={16} className="text-white" />
+          Зарегистрироваться
+        </button>
+      ) : (
+        <button
+          onClick={onLogout}
+          className="w-full py-3 rounded-2xl glass border border-red-500/20 text-red-400 hover:bg-red-500/10 transition-all font-medium flex items-center justify-center gap-2"
+        >
+          <Icon name="LogOut" size={16} />
+          Выйти из аккаунта
+        </button>
+      )}
     </div>
   );
 }
@@ -936,11 +971,12 @@ function InstallBanner({ t }: { t: ReturnType<typeof getT> }) {
 interface AuthUser { id: number; full_name: string; phone: string; email: string; }
 
 export default function Index({ user, onLogout }: { user: AuthUser; onLogout: () => void }) {
+  const isDemo = user.id === 0;
   const [section, setSection] = useState<Section>("dashboard");
-  const [contacts, setContacts] = useState<Contact[]>(INIT_CONTACTS);
-  const [lentDebts, setLentDebts] = useState<Debt[]>([]);
-  const [borrowedDebts, setBorrowedDebts] = useState<Debt[]>([]);
-  const [archiveDebts, setArchiveDebts] = useState<Debt[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>(isDemo ? DEMO_CONTACTS : INIT_CONTACTS);
+  const [lentDebts, setLentDebts] = useState<Debt[]>(isDemo ? DEMO_LENT : []);
+  const [borrowedDebts, setBorrowedDebts] = useState<Debt[]>(isDemo ? DEMO_BORROWED : []);
+  const [archiveDebts, setArchiveDebts] = useState<Debt[]>(isDemo ? DEMO_ARCHIVE : []);
   const [showNewDebt, setShowNewDebt] = useState(false);
   const [theme, setTheme] = useState<Theme>(() => {
     const saved = localStorage.getItem("df-theme") as Theme | null;
@@ -1004,6 +1040,17 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
       <div className="mesh-bg" />
       <NewDebtModal open={showNewDebt} onClose={() => setShowNewDebt(false)} myName={profile.name} myPhone={profile.phone} />
 
+      {isDemo && (
+        <div className="relative z-10 px-4 pt-3">
+          <div className="max-w-lg mx-auto">
+            <div className="rounded-xl px-3 py-2 flex items-center gap-2 text-xs font-medium" style={{ background: "rgba(245,158,11,0.15)", border: "1px solid rgba(245,158,11,0.3)", color: "#fcd34d" }}>
+              <Icon name="Eye" size={14} />
+              Демо-режим — данные ненастоящие. Зарегистрируйтесь, чтобы использовать приложение.
+            </div>
+          </div>
+        </div>
+      )}
+
       <header className="relative z-10 px-4 pt-5 pb-3">
         <div className="max-w-lg mx-auto flex items-center justify-between">
           <div>
@@ -1042,7 +1089,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
           {section === "notifications" && <NotificationsSection t={t} />}
           {section === "archive"       && <ArchiveSection contacts={contacts} t={t} locale={locale} archiveDebts={archiveDebts} />}
           {section === "contacts"      && <ContactsSection contacts={contacts} onColorChange={handleColorChange} t={t} />}
-          {section === "settings"      && <SettingsSection theme={theme} onThemeChange={setTheme} profile={profile} onProfileChange={handleProfileChange} t={t} lang={lang} onLangChange={handleLangChange} email={user.email} onLogout={onLogout} />}
+          {section === "settings"      && <SettingsSection theme={theme} onThemeChange={setTheme} profile={profile} onProfileChange={handleProfileChange} t={t} lang={lang} onLangChange={handleLangChange} email={user.email} onLogout={onLogout} isDemo={isDemo} />}
         </div>
       </main>
 

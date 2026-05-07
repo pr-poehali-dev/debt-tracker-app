@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 import func2url from "../../backend/func2url.json";
+import { DEMO_USER } from "../App";
 
 type Step = "email" | "register" | "code";
 
@@ -162,6 +163,17 @@ export default function Auth({ onAuth }: Props) {
                 style={{ background: "linear-gradient(135deg, #a855f7, #6366f1)" }}
               >
                 {loading ? "Проверяем..." : "Продолжить"}
+              </button>
+              <div className="relative flex items-center gap-3">
+                <div className="flex-1 h-px bg-white/10" />
+                <span className="text-xs text-muted-foreground">или</span>
+                <div className="flex-1 h-px bg-white/10" />
+              </div>
+              <button
+                onClick={() => onAuth("demo", DEMO_USER)}
+                className="w-full py-3 rounded-xl font-semibold text-sm transition-all border border-white/10 hover:bg-white/5 text-muted-foreground hover:text-foreground"
+              >
+                Войти в демо-режиме
               </button>
             </div>
           )}

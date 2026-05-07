@@ -104,6 +104,13 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
 
 interface AuthUser { id: number; full_name: string; phone: string; email: string; }
 
+export const DEMO_USER: AuthUser = {
+  id: 0,
+  full_name: "Демо Пользователь",
+  phone: "+7 999 000 00 00",
+  email: "demo@debt-debt.ru",
+};
+
 const App = () => {
   const [ready, setReady] = useState(false);
   const [user, setUser] = useState<AuthUser | null>(null);
