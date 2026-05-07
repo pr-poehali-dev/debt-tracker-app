@@ -996,7 +996,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
   const [activeChat, setActiveChat] = useState<{ debtId: string; title: string } | null>(null);
   const [notifs, setNotifs] = useState<Notification[]>([]);
 
-  // Загружаем долги из бэкенда и формируем уведомления о решениях должников
+  // Загружаем долги из бэкенда
   useEffect(() => {
     if (isDemo) return;
     import("../../backend/func2url.json").then(({ default: urls }) => {
@@ -1005,31 +1005,59 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
       })
         .then(r => r.ok ? r.json() : [])
         .then((debts: Array<Record<string, unknown>>) => {
-          const seenKey = "df-seen-decisions";
-          const seen: string[] = JSON.parse(localStorage.getItem(seenKey) || "[]");
+          const lent: Debt[] = [];
+          const borrowed: Debt[] = [];
+          const archive: Debt[] = [];
           const newNotifs: Notification[] = [];
           let idCounter = Date.now();
+          const seenKey = "df-seen-decisions";
+          const seen: string[] = JSON.parse(localStorage.getItem(seenKey) || "[]");
 
           debts.forEach((d) => {
-            const decision = d.borrower_decision as string;
-            const debtId = d.id as string;
             const isLender = d.lender_user_id === user.id;
-            if (!isLender || !decision || seen.includes(debtId + "_" + decision)) return;
+            const decision = d.borrower_decision as string | null;
+            const status = d.status as string;
 
-            const accepted = decision === "accepted";
-            newNotifs.push({
-              id: idCounter++,
-              type: accepted ? "success" : "warning",
-              title: accepted ? `${d.borrower_name} принял долг` : `${d.borrower_name} отклонил долг`,
-              message: `«${d.title}» — ${Number(d.amount).toLocaleString("ru-RU")} ₽`,
-              date: new Date(d.updated_at as string).toLocaleDateString("ru-RU", { day: "numeric", month: "long" }),
-              read: false,
-            });
+            const debt: Debt = {
+              id: Number(d.id),
+              contactId: 0,
+              name: String(d.title),
+              amount: Number(d.amount),
+              dueDate: String(d.due_date || new Date().toISOString().slice(0, 10)),
+              status: status === "archived" ? "paid" : (new Date(String(d.due_date)) < new Date() && decision !== "accepted" ? "overdue" : "active"),
+              avatar: String(isLender ? (d.borrower_name || "?") : d.lender_name).slice(0, 2).toUpperCase(),
+              note: d.note ? String(d.note) : undefined,
+              debtDbId: String(d.id),
+              borrowerDecision: decision || undefined,
+            };
+
+            if (status === "archived") {
+              archive.push(debt);
+            } else if (isLender) {
+              lent.push(debt);
+            } else {
+              borrowed.push(debt);
+            }
+
+            // Уведомления о решениях должников (только для кредитора)
+            const notifKey = `${d.id}_${decision}`;
+            if (isLender && decision && !seen.includes(notifKey)) {
+              const accepted = decision === "accepted";
+              newNotifs.push({
+                id: idCounter++,
+                type: accepted ? "success" : "warning",
+                title: accepted ? `${d.borrower_name} принял долг` : `${d.borrower_name} отклонил долг`,
+                message: `«${d.title}» — ${Number(d.amount).toLocaleString("ru-RU")} ₽`,
+                date: new Date(String(d.updated_at)).toLocaleDateString("ru-RU", { day: "numeric", month: "long" }),
+                read: false,
+              });
+            }
           });
 
-          if (newNotifs.length > 0) {
-            setNotifs(prev => [...newNotifs, ...prev]);
-          }
+          setLentDebts(lent);
+          setBorrowedDebts(borrowed);
+          setArchiveDebts(archive);
+          if (newNotifs.length > 0) setNotifs(prev => [...newNotifs, ...prev]);
         });
     });
   }, [isDemo, user.id, token]);
