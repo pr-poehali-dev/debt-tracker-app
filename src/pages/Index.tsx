@@ -3,7 +3,8 @@ import Icon from "@/components/ui/icon";
 import NewDebtModal, { SharedDebtView } from "@/components/NewDebtModal";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
-type Section = "dashboard" | "lent" | "borrowed" | "calendar" | "notifications" | "archive" | "contacts";
+type Section = "dashboard" | "lent" | "borrowed" | "calendar" | "notifications" | "archive" | "contacts" | "settings";
+type Theme = "dark" | "light";
 
 type ContactColor = "purple" | "sky" | "pink" | "emerald" | "orange" | "rose" | "amber" | "teal";
 
@@ -620,6 +621,124 @@ function Dashboard({ onNav, contacts }: { onNav: (s: Section) => void; contacts:
   );
 }
 
+// ─── Section: Settings ────────────────────────────────────────────────────────
+function SettingsSection({ theme, onThemeChange }: { theme: Theme; onThemeChange: (t: Theme) => void }) {
+  const themes: { id: Theme; label: string; desc: string; icon: string; bg: string; preview: string[] }[] = [
+    {
+      id: "dark",
+      label: "Тёмная",
+      desc: "Неоновые градиенты на тёмном фоне",
+      icon: "Moon",
+      bg: "from-slate-900 to-slate-800",
+      preview: ["#0d0f1a", "#1a1d2e", "#a855f7"],
+    },
+    {
+      id: "light",
+      label: "Светлая",
+      desc: "Чистый светлый стиль с акцентами",
+      icon: "Sun",
+      bg: "from-purple-50 to-slate-100",
+      preview: ["#f0f2f8", "#ffffff", "#a855f7"],
+    },
+  ];
+
+  return (
+    <div className="animate-fade-in space-y-5">
+      {/* Theme picker */}
+      <div className="glass rounded-2xl p-5">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-9 h-9 gradient-purple rounded-xl flex items-center justify-center">
+            <Icon name="Palette" size={18} className="text-white" />
+          </div>
+          <div>
+            <p className="font-semibold text-foreground">Тема оформления</p>
+            <p className="text-xs text-muted-foreground">Выберите светлую или тёмную тему</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          {themes.map(t => {
+            const active = theme === t.id;
+            return (
+              <button
+                key={t.id}
+                onClick={() => onThemeChange(t.id)}
+                className={`relative rounded-2xl p-4 text-left transition-all duration-200 overflow-hidden ${active ? "ring-2 ring-purple-500" : "ring-1 ring-white/10 hover:ring-purple-500/40"}`}
+                style={{ background: t.id === "dark" ? "linear-gradient(135deg, #0d0f1a, #1a1d2e)" : "linear-gradient(135deg, #f0f2f8, #ffffff)" }}
+              >
+                {/* Colour dots preview */}
+                <div className="flex gap-1 mb-3">
+                  {t.preview.map((c, i) => (
+                    <div key={i} className="w-5 h-5 rounded-full" style={{ background: c }} />
+                  ))}
+                </div>
+
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <Icon name={t.icon} size={14} className={t.id === "dark" ? "text-purple-400" : "text-purple-600"} />
+                  <span className={`font-semibold text-sm ${t.id === "dark" ? "text-white" : "text-slate-800"}`}>{t.label}</span>
+                </div>
+                <p className={`text-[11px] leading-tight ${t.id === "dark" ? "text-slate-400" : "text-slate-500"}`}>{t.desc}</p>
+
+                {active && (
+                  <div className="absolute top-2 right-2 w-5 h-5 gradient-purple rounded-full flex items-center justify-center">
+                    <Icon name="Check" size={11} className="text-white" />
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* System auto */}
+      <div className="glass rounded-2xl p-5">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-9 h-9 bg-sky-500/20 rounded-xl flex items-center justify-center">
+            <Icon name="Monitor" size={18} className="text-sky-400" />
+          </div>
+          <div>
+            <p className="font-semibold text-foreground">Авто-тема</p>
+            <p className="text-xs text-muted-foreground">Следовать настройкам устройства</p>
+          </div>
+          <button
+            onClick={() => {
+              const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+              onThemeChange(prefersDark ? "dark" : "light");
+            }}
+            className="ml-auto px-3 py-1.5 rounded-xl text-xs font-medium glass hover:bg-white/10 transition-colors text-muted-foreground"
+          >
+            Применить
+          </button>
+        </div>
+      </div>
+
+      {/* App info */}
+      <div className="glass rounded-2xl p-5 space-y-3">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 bg-purple-500/20 rounded-xl flex items-center justify-center">
+            <Icon name="Info" size={18} className="text-purple-400" />
+          </div>
+          <div>
+            <p className="font-semibold text-foreground">О приложении</p>
+          </div>
+        </div>
+        <div className="space-y-2 text-sm">
+          {[
+            { label: "Название", value: "DebtFlow" },
+            { label: "Версия", value: "1.0.0" },
+            { label: "Платформа", value: "PWA (iOS / Android)" },
+          ].map(row => (
+            <div key={row.label} className="flex items-center justify-between py-1.5 border-b border-white/5 last:border-0">
+              <span className="text-muted-foreground">{row.label}</span>
+              <span className="text-foreground font-medium">{row.value}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Nav Config ───────────────────────────────────────────────────────────────
 const navItems: { id: Section; icon: string; label: string; badge?: number }[] = [
   { id: "dashboard",     icon: "LayoutDashboard", label: "Главная"     },
@@ -629,6 +748,7 @@ const navItems: { id: Section; icon: string; label: string; badge?: number }[] =
   { id: "notifications", icon: "Bell",             label: "Уведомления", badge: 3 },
   { id: "archive",       icon: "Archive",          label: "Архив"       },
   { id: "contacts",      icon: "Users",            label: "Контакты"    },
+  { id: "settings",      icon: "Settings",         label: "Настройки"   },
 ];
 
 const sectionTitles: Record<Section, string> = {
@@ -639,6 +759,7 @@ const sectionTitles: Record<Section, string> = {
   notifications: "Уведомления",
   archive:       "Архив",
   contacts:      "Контакты",
+  settings:      "Настройки",
 };
 
 // ─── PWA Install Banner ───────────────────────────────────────────────────────
@@ -711,6 +832,19 @@ export default function Index() {
   const [section, setSection] = useState<Section>("dashboard");
   const [contacts, setContacts] = useState<Contact[]>(INIT_CONTACTS);
   const [showNewDebt, setShowNewDebt] = useState(false);
+  const [theme, setTheme] = useState<Theme>(() => {
+    const saved = localStorage.getItem("df-theme") as Theme | null;
+    if (saved) return saved;
+    return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+  });
+
+  // Применяем класс темы на <html>
+  useEffect(() => {
+    const html = document.documentElement;
+    html.classList.toggle("theme-light", theme === "light");
+    document.body.style.background = theme === "light" ? "#f0f2f8" : "#0d0f1a";
+    localStorage.setItem("df-theme", theme);
+  }, [theme]);
 
   // Обработка QR-ссылки: /?debt=TOKEN
   const debtToken = new URLSearchParams(window.location.search).get("debt");
@@ -721,7 +855,7 @@ export default function Index() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0d0f1a] text-foreground flex flex-col">
+    <div className={`min-h-screen text-foreground flex flex-col`} style={{ background: "var(--app-bg)" }}>
       <div className="mesh-bg" />
       <NewDebtModal open={showNewDebt} onClose={() => setShowNewDebt(false)} />
 
@@ -761,6 +895,7 @@ export default function Index() {
           {section === "notifications" && <NotificationsSection />}
           {section === "archive"       && <ArchiveSection contacts={contacts} />}
           {section === "contacts"      && <ContactsSection contacts={contacts} onColorChange={handleColorChange} />}
+          {section === "settings"      && <SettingsSection theme={theme} onThemeChange={setTheme} />}
         </div>
       </main>
 
