@@ -8,6 +8,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import AdminPanel from "./pages/AdminPanel";
 import PwaIconGenerator from "./components/PwaIconGenerator";
 import func2url from "../backend/func2url.json";
 
@@ -139,6 +140,7 @@ const App = () => {
               ? <BrowserRouter>
                   <Routes>
                     <Route path="/" element={<Index user={user} onLogout={handleLogout} />} />
+                    <Route path="/admin" element={<AdminPanel onBack={() => window.history.back()} />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </BrowserRouter>
