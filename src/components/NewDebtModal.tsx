@@ -86,7 +86,7 @@ export function SharedDebtView({ token }: { token: string }) {
           <div className="w-14 h-14 gradient-purple rounded-2xl flex items-center justify-center mx-auto mb-3 glow-purple">
             <Icon name="Handshake" size={28} className="text-white" />
           </div>
-          <h1 className="text-2xl font-black font-heading text-gradient-purple">DebtFlow</h1>
+          <h1 className="text-2xl font-black font-heading text-gradient-purple">Debt-Debt</h1>
           <p className="text-muted-foreground text-sm">Общий долг</p>
         </div>
 
