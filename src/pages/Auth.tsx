@@ -38,26 +38,27 @@ export default function Auth({ onAuth }: Props) {
     const e = email.trim().toLowerCase();
     if (!e || !e.includes("@")) { setError("Введите корректный email"); return; }
     setLoading(true); setError("");
-    const res = await fetch(`${AUTH_URL}?action=send-code`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: e }),
-    });
-    const data = await res.json();
-    setLoading(false);
-    if (res.status === 409) {
-      setIsNewUser(false);
-      setCountdown(60);
-      setStep("code");
-    } else if (res.ok) {
-      setIsNewUser(false);
-      setCountdown(60);
-      setStep("code");
-    } else if (res.status === 404) {
-      setIsNewUser(true);
-      setStep("register");
-    } else {
-      setError(data.error || "Ошибка");
+    try {
+      const res = await fetch(`${AUTH_URL}?action=send-code`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: e }),
+        signal: AbortSignal.timeout(15000),
+      });
+      const data = await res.json();
+      if (res.status === 409) {
+        setIsNewUser(false); setCountdown(60); setStep("code");
+      } else if (res.ok) {
+        setIsNewUser(false); setCountdown(60); setStep("code");
+      } else if (res.status === 404) {
+        setIsNewUser(true); setStep("register");
+      } else {
+        setError(data.error || "Ошибка");
+      }
+    } catch {
+      setError("Нет ответа от сервера. Попробуйте ещё раз.");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -67,18 +68,20 @@ export default function Auth({ onAuth }: Props) {
     if (!fn) { setError("Введите ФИО"); return; }
     if (!ph) { setError("Введите телефон"); return; }
     setLoading(true); setError("");
-    const res = await fetch(`${AUTH_URL}?action=send-code`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: email.trim().toLowerCase(), full_name: fn, phone: ph }),
-    });
-    const data = await res.json();
-    setLoading(false);
-    if (res.ok) {
-      setCountdown(60);
-      setStep("code");
-    } else {
-      setError(data.error || "Ошибка");
+    try {
+      const res = await fetch(`${AUTH_URL}?action=send-code`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim().toLowerCase(), full_name: fn, phone: ph }),
+        signal: AbortSignal.timeout(15000),
+      });
+      const data = await res.json();
+      if (res.ok) { setCountdown(60); setStep("code"); }
+      else { setError(data.error || "Ошибка"); }
+    } catch {
+      setError("Нет ответа от сервера. Попробуйте ещё раз.");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -88,20 +91,26 @@ export default function Auth({ onAuth }: Props) {
     setLoading(true); setError("");
     const body: Record<string, string> = { email: email.trim().toLowerCase(), code: c };
     if (isNewUser) { body.full_name = fullName.trim(); body.phone = phone.trim(); }
-    const res = await fetch(`${AUTH_URL}?action=verify`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    const data = await res.json();
-    setLoading(false);
-    if (res.ok) {
-      localStorage.setItem("df-token", data.token);
-      onAuth(data.token, data.user);
-    } else {
-      setError(data.error || "Неверный код");
-      setCode(["", "", "", ""]);
-      codeRefs[0].current?.focus();
+    try {
+      const res = await fetch(`${AUTH_URL}?action=verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(15000),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        localStorage.setItem("df-token", data.token);
+        onAuth(data.token, data.user);
+      } else {
+        setError(data.error || "Неверный код");
+        setCode(["", "", "", ""]);
+        codeRefs[0].current?.focus();
+      }
+    } catch {
+      setError("Нет ответа от сервера. Попробуйте ещё раз.");
+    } finally {
+      setLoading(false);
     }
   }
 

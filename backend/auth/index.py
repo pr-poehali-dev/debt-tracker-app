@@ -1,6 +1,6 @@
 """
-Единая функция авторизации. Маршруты по httpMethod + path:
-POST /send-code  — отправить код на email
+Единая функция авторизации. Роутинг через ?action=send-code|verify|me
+POST ?action=send-code  — отправить код на email
 POST /verify     — проверить код, войти / зарегистрироваться
 GET  /me         — получить текущего пользователя по токену
 """
@@ -68,6 +68,8 @@ def handler(event: dict, context) -> dict:
     path = (event.get("path") or "/").rstrip("/")
     qs = event.get("queryStringParameters") or {}
 
+    print(f"[AUTH] method={method} path={path} qs={qs}")
+
     # Роутинг: по пути ИЛИ по query ?action=
     def get_action():
         for suffix in ["me", "send-code", "verify"]:
@@ -76,6 +78,7 @@ def handler(event: dict, context) -> dict:
         return qs.get("action", "")
 
     action = get_action()
+    print(f"[AUTH] action={action}")
 
     # ── GET me ───────────────────────────────────────────────────────────────
     if method == "GET" and action == "me":
