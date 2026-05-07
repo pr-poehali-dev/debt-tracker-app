@@ -724,7 +724,7 @@ function SettingsSection({ theme, onThemeChange }: { theme: Theme; onThemeChange
         </div>
         <div className="space-y-2 text-sm">
           {[
-            { label: "Название", value: "DebtFlow" },
+            { label: "Название", value: "Debt-Debt" },
             { label: "Версия", value: "1.0.0" },
             { label: "Платформа", value: "PWA (iOS / Android)" },
           ].map(row => (
@@ -752,7 +752,7 @@ const navItems: { id: Section; icon: string; label: string; badge?: number }[] =
 ];
 
 const sectionTitles: Record<Section, string> = {
-  dashboard:     "DebtFlow",
+  dashboard:     "Debt-Debt",
   lent:          "Выданные займы",
   borrowed:      "Взятые займы",
   calendar:      "Календарь",
@@ -799,10 +799,10 @@ function InstallBanner() {
           style={{ background: "linear-gradient(135deg, rgba(168,85,247,0.2), rgba(56,189,248,0.15))", border: "1px solid rgba(168,85,247,0.3)" }}
         >
           <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0">
-            <img src="/icons/icon-192.png" alt="DebtFlow" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display='none'; }} />
+            <img src="/icons/icon-192.png" alt="Debt-Debt" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display='none'; }} />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-sm text-foreground">Установить DebtFlow</p>
+            <p className="font-semibold text-sm text-foreground">Установить Debt-Debt</p>
             <p className="text-xs text-muted-foreground">
               {isIos ? "Нажмите «Поделиться» → «На экран Домой»" : "Работает без интернета как приложение"}
             </p>
@@ -863,7 +863,7 @@ export default function Index() {
         <div className="max-w-lg mx-auto flex items-center justify-between">
           <div>
             <h1 className="font-heading font-black text-xl">
-              {section === "dashboard" ? <span className="text-gradient-purple">DebtFlow</span> : sectionTitles[section]}
+              {section === "dashboard" ? <span className="text-gradient-purple">Debt-Debt</span> : sectionTitles[section]}
             </h1>
             {section === "dashboard" && <p className="text-xs text-muted-foreground">Управление долгами и займами</p>}
           </div>

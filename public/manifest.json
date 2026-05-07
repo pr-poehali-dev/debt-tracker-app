@@ -1,6 +1,6 @@
 {
-  "name": "DebtFlow — управление долгами",
-  "short_name": "DebtFlow",
+  "name": "Debt-Debt — управление долгами",
+  "short_name": "Debt-Debt",
   "description": "Управляйте долгами, займами и платежами в одном месте",
   "start_url": "/",
   "display": "standalone",
