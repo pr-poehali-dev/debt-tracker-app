@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -640,6 +640,71 @@ const sectionTitles: Record<Section, string> = {
   contacts:      "Контакты",
 };
 
+// ─── PWA Install Banner ───────────────────────────────────────────────────────
+function InstallBanner() {
+  const [prompt, setPrompt] = useState<Event | null>(null);
+  const [dismissed, setDismissed] = useState(false);
+  const [isIos, setIsIos] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(false);
+
+  useEffect(() => {
+    const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) && !(window.navigator as { standalone?: boolean }).standalone;
+    setIsIos(ios);
+    if (window.matchMedia('(display-mode: standalone)').matches) setIsInstalled(true);
+
+    const handler = (e: Event) => { e.preventDefault(); setPrompt(e); };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  if (dismissed || isInstalled) return null;
+  if (!prompt && !isIos) return null;
+
+  async function install() {
+    if (prompt) {
+      const deferredPrompt = prompt as { prompt: () => void; userChoice: Promise<{ outcome: string }> };
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') setDismissed(true);
+    }
+  }
+
+  return (
+    <div className="relative z-10 px-4 pb-2">
+      <div className="max-w-lg mx-auto">
+        <div
+          className="rounded-2xl p-3 flex items-center gap-3"
+          style={{ background: "linear-gradient(135deg, rgba(168,85,247,0.2), rgba(56,189,248,0.15))", border: "1px solid rgba(168,85,247,0.3)" }}
+        >
+          <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0">
+            <img src="/icons/icon-192.png" alt="DebtFlow" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display='none'; }} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-sm text-foreground">Установить DebtFlow</p>
+            <p className="text-xs text-muted-foreground">
+              {isIos ? "Нажмите «Поделиться» → «На экран Домой»" : "Работает без интернета как приложение"}
+            </p>
+          </div>
+          <div className="flex gap-1.5">
+            {!isIos && (
+              <button
+                onClick={install}
+                className="text-xs font-semibold px-3 py-1.5 rounded-xl text-white"
+                style={{ background: "linear-gradient(135deg, #a855f7, #6366f1)" }}
+              >
+                Установить
+              </button>
+            )}
+            <button onClick={() => setDismissed(true)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white/10 transition-colors">
+              <Icon name="X" size={14} className="text-muted-foreground" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Root ─────────────────────────────────────────────────────────────────────
 export default function Index() {
   const [section, setSection] = useState<Section>("dashboard");
@@ -674,6 +739,8 @@ export default function Index() {
           </div>
         </div>
       </header>
+
+      <InstallBanner />
 
       <main className="relative z-10 flex-1 px-4 pb-32 overflow-y-auto">
         <div className="max-w-lg mx-auto">
