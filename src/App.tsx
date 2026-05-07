@@ -119,7 +119,7 @@ const App = () => {
   useEffect(() => {
     const token = localStorage.getItem("df-token");
     if (!token) { setAuthChecked(true); return; }
-    fetch(func2url["auth-me"], { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${func2url["auth"]}/me`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (data?.id) setUser(data); })
       .finally(() => setAuthChecked(true));

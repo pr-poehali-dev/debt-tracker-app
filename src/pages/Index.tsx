@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 import NewDebtModal, { SharedDebtView } from "@/components/NewDebtModal";
+import DebtChat from "@/components/DebtChat";
 import { type Lang, LANGUAGES, getT } from "@/i18n";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -29,6 +30,8 @@ interface Debt {
   status: "active" | "overdue" | "paid";
   avatar: string;
   note?: string;
+  debtDbId?: string;
+  borrowerDecision?: string;
 }
 
 interface Notification {
@@ -161,7 +164,7 @@ function NotifIcon({ type }: { type: Notification["type"] }) {
 }
 
 // ─── Section: Debts ───────────────────────────────────────────────────────────
-function DebtList({ debts, dir, contacts, t, locale }: { debts: Debt[]; dir: "lent" | "borrowed"; contacts: Contact[]; t: ReturnType<typeof getT>; locale: string }) {
+function DebtList({ debts, dir, contacts, t, locale, onOpenChat }: { debts: Debt[]; dir: "lent" | "borrowed"; contacts: Contact[]; t: ReturnType<typeof getT>; locale: string; onOpenChat?: (debtId: string, title: string) => void }) {
   const total = debts.filter(d => d.status !== "paid").reduce((s, d) => s + d.amount, 0);
   const overdue = debts.filter(d => d.status === "overdue").length;
 
@@ -217,13 +220,19 @@ function DebtList({ debts, dir, contacts, t, locale }: { debts: Debt[]; dir: "le
                     {new Date(d.dueDate).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" })}
                   </p>
                 </div>
-                <div className="text-right flex-shrink-0">
+                <div className="text-right flex-shrink-0 flex flex-col items-end gap-1">
                   <p className="text-lg font-bold font-heading" style={{ color: d.status === "overdue" ? "#f87171" : col ? col.text : dir === "lent" ? "#c084fc" : "#7dd3fc" }}>
                     {fmt(d.amount)}
                   </p>
-                </div>
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Icon name="ChevronRight" size={16} className="text-muted-foreground" />
+                  {d.debtDbId && onOpenChat && (
+                    <button
+                      onClick={e => { e.stopPropagation(); onOpenChat(d.debtDbId!, d.name); }}
+                      className="flex items-center gap-1 text-xs text-purple-400 hover:text-purple-300 transition-colors"
+                    >
+                      <Icon name="MessageCircle" size={12} />
+                      Чат
+                    </button>
+                  )}
                 </div>
               </div>
             );
@@ -972,12 +981,14 @@ interface AuthUser { id: number; full_name: string; phone: string; email: string
 
 export default function Index({ user, onLogout }: { user: AuthUser; onLogout: () => void }) {
   const isDemo = user.id === 0;
+  const token = localStorage.getItem("df-token") || "";
   const [section, setSection] = useState<Section>("dashboard");
   const [contacts, setContacts] = useState<Contact[]>(isDemo ? DEMO_CONTACTS : INIT_CONTACTS);
   const [lentDebts, setLentDebts] = useState<Debt[]>(isDemo ? DEMO_LENT : []);
   const [borrowedDebts, setBorrowedDebts] = useState<Debt[]>(isDemo ? DEMO_BORROWED : []);
   const [archiveDebts, setArchiveDebts] = useState<Debt[]>(isDemo ? DEMO_ARCHIVE : []);
   const [showNewDebt, setShowNewDebt] = useState(false);
+  const [activeChat, setActiveChat] = useState<{ debtId: string; title: string } | null>(null);
   const [theme, setTheme] = useState<Theme>(() => {
     const saved = localStorage.getItem("df-theme") as Theme | null;
     if (saved) return saved;
@@ -1039,6 +1050,14 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
     <div className={`min-h-screen text-foreground flex flex-col`} style={{ background: "var(--app-bg)" }}>
       <div className="mesh-bg" />
       <NewDebtModal open={showNewDebt} onClose={() => setShowNewDebt(false)} myName={profile.name} myPhone={profile.phone} />
+      {activeChat && !isDemo && (
+        <DebtChat
+          debtId={activeChat.debtId}
+          debtTitle={activeChat.title}
+          token={token}
+          onClose={() => setActiveChat(null)}
+        />
+      )}
 
       {isDemo && (
         <div className="relative z-10 px-4 pt-3">
@@ -1083,8 +1102,8 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
       <main className="relative z-10 flex-1 px-4 pb-32 overflow-y-auto">
         <div className="max-w-lg mx-auto">
           {section === "dashboard"     && <Dashboard onNav={setSection} contacts={contacts} t={t} lentDebts={lentDebts} borrowedDebts={borrowedDebts} />}
-          {section === "lent"          && <DebtList debts={lentDebts} dir="lent" contacts={contacts} t={t} locale={locale} />}
-          {section === "borrowed"      && <DebtList debts={borrowedDebts} dir="borrowed" contacts={contacts} t={t} locale={locale} />}
+          {section === "lent"          && <DebtList debts={lentDebts} dir="lent" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => setActiveChat({ debtId: id, title })} />}
+          {section === "borrowed"      && <DebtList debts={borrowedDebts} dir="borrowed" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => setActiveChat({ debtId: id, title })} />}
           {section === "calendar"      && <CalendarSection contacts={contacts} t={t} debts={[...lentDebts, ...borrowedDebts]} />}
           {section === "notifications" && <NotificationsSection t={t} />}
           {section === "archive"       && <ArchiveSection contacts={contacts} t={t} locale={locale} archiveDebts={archiveDebts} />}

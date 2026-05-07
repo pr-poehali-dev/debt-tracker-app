@@ -3,6 +3,8 @@ import Icon from "@/components/ui/icon";
 import func2url from "../../backend/func2url.json";
 import { DEMO_USER } from "../App";
 
+const AUTH_URL = func2url["auth"];
+
 type Step = "email" | "register" | "code";
 
 interface Props {
@@ -36,7 +38,7 @@ export default function Auth({ onAuth }: Props) {
     const e = email.trim().toLowerCase();
     if (!e || !e.includes("@")) { setError("Введите корректный email"); return; }
     setLoading(true); setError("");
-    const res = await fetch(func2url["auth-send-code"], {
+    const res = await fetch(`${AUTH_URL}/send-code`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: e }),
@@ -65,7 +67,7 @@ export default function Auth({ onAuth }: Props) {
     if (!fn) { setError("Введите ФИО"); return; }
     if (!ph) { setError("Введите телефон"); return; }
     setLoading(true); setError("");
-    const res = await fetch(func2url["auth-send-code"], {
+    const res = await fetch(`${AUTH_URL}/send-code`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: email.trim().toLowerCase(), full_name: fn, phone: ph }),
@@ -86,7 +88,7 @@ export default function Auth({ onAuth }: Props) {
     setLoading(true); setError("");
     const body: Record<string, string> = { email: email.trim().toLowerCase(), code: c };
     if (isNewUser) { body.full_name = fullName.trim(); body.phone = phone.trim(); }
-    const res = await fetch(func2url["auth-verify"], {
+    const res = await fetch(`${AUTH_URL}/verify`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),

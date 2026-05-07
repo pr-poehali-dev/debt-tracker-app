@@ -1,6 +1,10 @@
 """
 API для управления общими долгами с QR-кодами.
-Поддерживает создание долга, получение по share_token, подтверждение и закрытие.
+GET ?token=XXX — получить долг по токену
+GET ?user_id=N — список долгов пользователя
+POST / — создать долг
+PUT ?token=XXX — обновить (решение должника, статус)
+DELETE ?token=XXX&user_id=N — удалить отклонённый долг
 """
 import json
 import os
@@ -18,7 +22,7 @@ def cors_headers():
     return {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, X-User-Id, X-Auth-Token",
+        "Access-Control-Allow-Headers": "Content-Type, X-User-Id, X-Auth-Token, Authorization, X-Authorization",
         "Content-Type": "application/json",
     }
 
@@ -31,6 +35,15 @@ def err(msg, status=400):
 def gen_token(n=8):
     chars = string.ascii_uppercase + string.digits
     return "".join(random.choices(chars, k=n))
+
+def get_user_id_from_token(token_str, conn):
+    if not token_str:
+        return None
+    bearer = token_str.replace("Bearer ", "").strip()
+    with conn.cursor() as cur:
+        cur.execute(f"SELECT user_id FROM {SCHEMA}.sessions WHERE token = %s AND expires_at > NOW()", (bearer,))
+        row = cur.fetchone()
+    return row[0] if row else None
 
 def row_to_debt(row):
     return {
@@ -47,6 +60,9 @@ def row_to_debt(row):
         "status": row[10],
         "created_at": str(row[11]),
         "updated_at": str(row[12]),
+        "lender_user_id": row[13],
+        "borrower_user_id": row[14],
+        "borrower_decision": row[15],
     }
 
 def handler(event: dict, context) -> dict:
@@ -54,21 +70,21 @@ def handler(event: dict, context) -> dict:
         return {"statusCode": 200, "headers": cors_headers(), "body": ""}
 
     method = event.get("httpMethod", "GET")
-    path = event.get("path", "/")
     qs = event.get("queryStringParameters") or {}
+    headers = event.get("headers") or {}
+    auth_header = headers.get("X-Authorization") or headers.get("Authorization") or ""
 
-    # POST /  — создать долг
-    if method == "POST" and (path == "/" or path == ""):
+    # POST / — создать долг
+    if method == "POST":
         body = json.loads(event.get("body") or "{}")
-        required = ["title", "amount", "lender_name"]
-        for f in required:
+        for f in ["title", "amount", "lender_name"]:
             if not body.get(f):
                 return err(f"Поле '{f}' обязательно")
 
         token = gen_token()
         with get_conn() as conn:
+            lender_user_id = get_user_id_from_token(auth_header, conn)
             with conn.cursor() as cur:
-                # Гарантируем уникальность токена
                 for _ in range(5):
                     cur.execute(f"SELECT 1 FROM {SCHEMA}.debts WHERE share_token = %s", (token,))
                     if not cur.fetchone():
@@ -77,28 +93,21 @@ def handler(event: dict, context) -> dict:
 
                 cur.execute(
                     f"""INSERT INTO {SCHEMA}.debts
-                        (share_token, title, amount, note, due_date, lender_name, lender_phone, borrower_name, borrower_phone)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        (share_token, title, amount, note, due_date, lender_name, lender_phone,
+                         borrower_name, borrower_phone, lender_user_id)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                         RETURNING id, share_token, title, amount, note, due_date,
                                   lender_name, lender_phone, borrower_name, borrower_phone,
-                                  status, created_at, updated_at""",
-                    (
-                        token,
-                        body["title"],
-                        float(body["amount"]),
-                        body.get("note"),
-                        body.get("due_date"),
-                        body["lender_name"],
-                        body.get("lender_phone"),
-                        body.get("borrower_name"),
-                        body.get("borrower_phone"),
-                    )
+                                  status, created_at, updated_at, lender_user_id, borrower_user_id, borrower_decision""",
+                    (token, body["title"], float(body["amount"]), body.get("note"),
+                     body.get("due_date"), body["lender_name"], body.get("lender_phone"),
+                     body.get("borrower_name"), body.get("borrower_phone"), lender_user_id)
                 )
                 row = cur.fetchone()
             conn.commit()
         return json_resp(row_to_debt(row), 201)
 
-    # GET /?token=XXX — получить долг по токену
+    # GET ?token=XXX — получить долг по токену (для QR-страницы)
     if method == "GET" and qs.get("token"):
         token = qs["token"].upper().strip()
         with get_conn() as conn:
@@ -106,7 +115,7 @@ def handler(event: dict, context) -> dict:
                 cur.execute(
                     f"""SELECT id, share_token, title, amount, note, due_date,
                                lender_name, lender_phone, borrower_name, borrower_phone,
-                               status, created_at, updated_at
+                               status, created_at, updated_at, lender_user_id, borrower_user_id, borrower_decision
                         FROM {SCHEMA}.debts WHERE share_token = %s""",
                     (token,)
                 )
@@ -115,39 +124,47 @@ def handler(event: dict, context) -> dict:
             return err("Долг не найден", 404)
         return json_resp(row_to_debt(row))
 
-    # GET /?lender=name или ?borrower=name — список долгов
-    if method == "GET" and (qs.get("lender") or qs.get("borrower")):
-        role = "lender" if qs.get("lender") else "borrower"
-        name = qs.get("lender") or qs.get("borrower")
-        col = "lender_name" if role == "lender" else "borrower_name"
+    # GET ?user_id=N — список долгов пользователя (кредитор или должник)
+    if method == "GET" and qs.get("user_id"):
+        uid = int(qs["user_id"])
         with get_conn() as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     f"""SELECT id, share_token, title, amount, note, due_date,
                                lender_name, lender_phone, borrower_name, borrower_phone,
-                               status, created_at, updated_at
+                               status, created_at, updated_at, lender_user_id, borrower_user_id, borrower_decision
                         FROM {SCHEMA}.debts
-                        WHERE {col} ILIKE %s AND status != 'archived'
-                        ORDER BY created_at DESC LIMIT 50""",
-                    (f"%{name}%",)
+                        WHERE (lender_user_id = %s OR borrower_user_id = %s)
+                          AND status != 'archived'
+                        ORDER BY created_at DESC LIMIT 100""",
+                    (uid, uid)
                 )
                 rows = cur.fetchall()
         return json_resp([row_to_debt(r) for r in rows])
 
-    # PUT /?token=XXX — обновить (подтвердить borrower или изменить статус)
+    # PUT ?token=XXX — обновить долг (решение должника, смена статуса)
     if method == "PUT" and qs.get("token"):
         token = qs["token"].upper().strip()
         body = json.loads(event.get("body") or "{}")
         fields = []
         vals = []
-        for f in ["borrower_name", "borrower_phone", "status"]:
+
+        for f in ["borrower_name", "borrower_phone", "status", "borrower_decision"]:
             if f in body:
                 fields.append(f"{f} = %s")
                 vals.append(body[f])
+
+        # Привязываем borrower_user_id если передан
+        if "borrower_user_id" in body:
+            fields.append("borrower_user_id = %s")
+            vals.append(body["borrower_user_id"])
+
         if not fields:
             return err("Нечего обновлять")
+
         fields.append("updated_at = NOW()")
         vals.append(token)
+
         with get_conn() as conn:
             with conn.cursor() as cur:
                 cur.execute(
@@ -155,7 +172,7 @@ def handler(event: dict, context) -> dict:
                         WHERE share_token = %s
                         RETURNING id, share_token, title, amount, note, due_date,
                                   lender_name, lender_phone, borrower_name, borrower_phone,
-                                  status, created_at, updated_at""",
+                                  status, created_at, updated_at, lender_user_id, borrower_user_id, borrower_decision""",
                     vals
                 )
                 row = cur.fetchone()
@@ -163,5 +180,26 @@ def handler(event: dict, context) -> dict:
         if not row:
             return err("Долг не найден", 404)
         return json_resp(row_to_debt(row))
+
+    # DELETE ?token=XXX — удалить отклонённый долг (только кредитор)
+    if method == "DELETE" and qs.get("token"):
+        token = qs["token"].upper().strip()
+        with get_conn() as conn:
+            user_id = get_user_id_from_token(auth_header, conn)
+            if not user_id:
+                return err("Не авторизован", 401)
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""UPDATE {SCHEMA}.debts SET status = 'archived', updated_at = NOW()
+                        WHERE share_token = %s AND lender_user_id = %s
+                          AND borrower_decision = 'rejected'
+                        RETURNING id""",
+                    (token, user_id)
+                )
+                row = cur.fetchone()
+            conn.commit()
+        if not row:
+            return err("Долг не найден или нет прав", 403)
+        return json_resp({"ok": True})
 
     return err("Неизвестный маршрут", 404)

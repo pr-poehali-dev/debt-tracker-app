@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import Icon from "@/components/ui/icon";
+import func2url from "../../backend/func2url.json";
 
-const API_URL = "https://functions.poehali.dev/bccbfdb0-52f8-4958-b4f5-a7be6259ffd9";
+const API_URL = func2url["debts"];
+const AUTH_URL = func2url["auth"];
 
 // ─── Tiny QR via Google Charts API (no deps) ────────────────────────────────
 function QRCode({ value, size = 200 }: { value: string; size?: number }) {
@@ -21,44 +23,134 @@ function QRCode({ value, size = 200 }: { value: string; size?: number }) {
 }
 
 // ─── Share debt viewer (when opened via QR link) ─────────────────────────────
+type AuthStep = "check_auth" | "email" | "register" | "code" | "decision" | "done" | "rejected";
+
 export function SharedDebtView({ token }: { token: string }) {
   const [debt, setDebt] = useState<Record<string, string | number | null> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [role, setRole] = useState<"lender" | "borrower" | null>(null);
-  const [myName, setMyName] = useState("");
-  const [myPhone, setMyPhone] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [confirmed, setConfirmed] = useState(false);
+  const [step, setStep] = useState<AuthStep>("check_auth");
+  const [authToken, setAuthToken] = useState<string | null>(null);
+  const [userId, setUserId] = useState<number | null>(null);
+  const [userName, setUserName] = useState("");
 
+  // Auth form
+  const [email, setEmail] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [code, setCode] = useState(["", "", "", ""]);
+  const [isNewUser, setIsNewUser] = useState(false);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const codeRefs = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)];
+
+  function fmt(n: number) { return n.toLocaleString("ru-RU") + " ₽"; }
+
+  // При загрузке — проверяем есть ли уже токен
   useEffect(() => {
+    const saved = localStorage.getItem("df-token");
+    if (saved) {
+      fetch(`${AUTH_URL}/me`, { headers: { Authorization: `Bearer ${saved}` } })
+        .then(r => r.ok ? r.json() : null)
+        .then(u => {
+          if (u?.id) { setAuthToken(saved); setUserId(u.id); setUserName(u.full_name); }
+        })
+        .finally(() => loadDebt(saved));
+    } else {
+      loadDebt(null);
+    }
+  }, [token]);
+
+  function loadDebt(tok: string | null) {
     fetch(`${API_URL}?token=${token}`)
       .then(r => r.json())
       .then(d => {
-        if (d.error) setError(d.error);
-        else {
-          setDebt(d);
-          if (d.borrower_name) setConfirmed(true);
-        }
+        if (d.error) { setError(d.error); setLoading(false); return; }
+        setDebt(d);
+        setLoading(false);
+        if (d.borrower_decision === "accepted") { setStep("done"); return; }
+        if (d.borrower_decision === "rejected") { setStep("rejected"); return; }
+        if (tok) setStep("decision");
+        else setStep("email");
       })
-      .catch(() => setError("Ошибка загрузки"))
-      .finally(() => setLoading(false));
-  }, [token]);
-
-  async function confirm() {
-    if (!myName.trim()) return;
-    setSaving(true);
-    const r = await fetch(`${API_URL}?token=${token}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ borrower_name: myName, borrower_phone: myPhone }),
-    });
-    const d = await r.json();
-    if (!d.error) { setDebt(d); setConfirmed(true); }
-    setSaving(false);
+      .catch(() => { setError("Ошибка загрузки"); setLoading(false); });
   }
 
-  function fmt(n: number) { return n.toLocaleString("ru-RU") + " ₽"; }
+  async function checkEmail() {
+    const e = email.trim().toLowerCase();
+    if (!e.includes("@")) { setAuthError("Введите корректный email"); return; }
+    setAuthLoading(true); setAuthError("");
+    const res = await fetch(`${AUTH_URL}/send-code`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: e }),
+    });
+    setAuthLoading(false);
+    if (res.status === 404) { setIsNewUser(true); setStep("register"); }
+    else if (res.ok || res.status === 409) { setIsNewUser(false); setStep("code"); }
+    else { const d = await res.json(); setAuthError(d.error || "Ошибка"); }
+  }
+
+  async function sendCode() {
+    if (!fullName.trim()) { setAuthError("Введите ФИО"); return; }
+    if (!phone.trim()) { setAuthError("Введите телефон"); return; }
+    setAuthLoading(true); setAuthError("");
+    const res = await fetch(`${AUTH_URL}/send-code`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email.trim().toLowerCase(), full_name: fullName.trim(), phone: phone.trim() }),
+    });
+    setAuthLoading(false);
+    if (res.ok) setStep("code");
+    else { const d = await res.json(); setAuthError(d.error || "Ошибка"); }
+  }
+
+  async function verifyCode() {
+    const c = code.join("");
+    if (c.length < 4) return;
+    setAuthLoading(true); setAuthError("");
+    const body: Record<string, string> = { email: email.trim().toLowerCase(), code: c };
+    if (isNewUser) { body.full_name = fullName.trim(); body.phone = phone.trim(); }
+    const res = await fetch(`${AUTH_URL}/verify`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    setAuthLoading(false);
+    if (res.ok) {
+      localStorage.setItem("df-token", data.token);
+      setAuthToken(data.token);
+      setUserId(data.user.id);
+      setUserName(data.user.full_name);
+      setStep("decision");
+    } else {
+      setAuthError(data.error || "Неверный код");
+      setCode(["", "", "", ""]);
+      codeRefs[0].current?.focus();
+    }
+  }
+
+  function handleCodeInput(i: number, val: string) {
+    const digit = val.replace(/\D/g, "").slice(-1);
+    const next = [...code]; next[i] = digit; setCode(next);
+    if (digit && i < 3) codeRefs[i + 1].current?.focus();
+    if (next.every(d => d !== "")) setTimeout(() => verifyCode(), 100);
+  }
+
+  async function makeDecision(decision: "accepted" | "rejected") {
+    if (!authToken || !userId) return;
+    setSaving(true);
+    await fetch(`${API_URL}?token=${token}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        borrower_decision: decision,
+        borrower_user_id: userId,
+        borrower_name: userName,
+      }),
+    });
+    setSaving(false);
+    setStep(decision === "accepted" ? "done" : "rejected");
+  }
 
   if (loading) return (
     <div className="min-h-screen bg-[#0d0f1a] flex items-center justify-center">
@@ -78,136 +170,178 @@ export function SharedDebtView({ token }: { token: string }) {
 
   if (!debt) return null;
 
+  const inputCls = "w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-purple-500/50 transition-colors";
+  const btnCls = "w-full py-3 rounded-xl font-semibold text-white text-sm disabled:opacity-50 transition-all";
+
+  // Карточка долга (показывается всегда)
+  const DebtCard = () => (
+    <div className="glass rounded-3xl p-5 mb-4" style={{ border: "1px solid rgba(168,85,247,0.3)" }}>
+      <p className="text-muted-foreground text-xs mb-1 uppercase tracking-wider">Сумма долга</p>
+      <p className="text-4xl font-black font-heading text-gradient-purple mb-4">{fmt(Number(debt!.amount))}</p>
+      <div className="space-y-3">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 gradient-purple rounded-xl flex items-center justify-center flex-shrink-0">
+            <Icon name="TrendingUp" size={16} className="text-white" />
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Кредитор</p>
+            <p className="font-semibold text-foreground">{String(debt!.lender_name)}</p>
+          </div>
+        </div>
+        {debt!.due_date && (
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-emerald-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
+              <Icon name="Calendar" size={16} className="text-emerald-400" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Срок возврата</p>
+              <p className="font-semibold text-foreground">
+                {new Date(String(debt!.due_date)).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })}
+              </p>
+            </div>
+          </div>
+        )}
+        {debt!.note && (
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 bg-amber-500/20 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5">
+              <Icon name="FileText" size={16} className="text-amber-400" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Заметка</p>
+              <p className="font-medium text-foreground">{String(debt!.note)}</p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-[#0d0f1a] text-white flex flex-col items-center justify-center px-4 py-8">
       <div className="mesh-bg fixed inset-0 pointer-events-none" />
       <div className="relative z-10 w-full max-w-sm">
+
+        {/* Лого */}
         <div className="text-center mb-6">
           <div className="w-14 h-14 gradient-purple rounded-2xl flex items-center justify-center mx-auto mb-3 glow-purple">
             <Icon name="Handshake" size={28} className="text-white" />
           </div>
           <h1 className="text-2xl font-black font-heading text-gradient-purple">Debt-Debt</h1>
-          <p className="text-muted-foreground text-sm">Общий долг</p>
+          <p className="text-muted-foreground text-sm">Вас пригласили подтвердить долг</p>
         </div>
 
-        {/* Debt card */}
-        <div className="glass rounded-3xl p-5 mb-4" style={{ border: "1px solid rgba(168,85,247,0.3)" }}>
-          <p className="text-muted-foreground text-xs mb-1 uppercase tracking-wider">Сумма долга</p>
-          <p className="text-4xl font-black font-heading text-gradient-purple mb-4">{fmt(Number(debt.amount))}</p>
+        <DebtCard />
 
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 gradient-purple rounded-xl flex items-center justify-center flex-shrink-0">
-                <Icon name="TrendingUp" size={16} className="text-white" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Кредитор (дал в долг)</p>
-                <p className="font-semibold text-foreground">{String(debt.lender_name)}</p>
-                {debt.lender_phone && <p className="text-xs text-muted-foreground">{String(debt.lender_phone)}</p>}
-              </div>
+        {/* ── Шаг: ввод email ── */}
+        {step === "email" && (
+          <div className="glass rounded-2xl p-5 space-y-3">
+            <div>
+              <p className="font-semibold text-foreground mb-1">Войдите или зарегистрируйтесь</p>
+              <p className="text-xs text-muted-foreground">Чтобы принять или отклонить долг, нужен аккаунт</p>
             </div>
-
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 gradient-blue rounded-xl flex items-center justify-center flex-shrink-0">
-                <Icon name="TrendingDown" size={16} className="text-white" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Должник (взял в долг)</p>
-                {debt.borrower_name
-                  ? <p className="font-semibold text-foreground">{String(debt.borrower_name)}</p>
-                  : <p className="text-muted-foreground italic text-sm">Ещё не подтверждено</p>
-                }
-              </div>
-            </div>
-
-            {debt.due_date && (
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 bg-emerald-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <Icon name="Calendar" size={16} className="text-emerald-400" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Срок возврата</p>
-                  <p className="font-semibold text-foreground">
-                    {new Date(String(debt.due_date)).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {debt.note && (
-              <div className="flex items-start gap-3">
-                <div className="w-9 h-9 bg-amber-500/20 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Icon name="FileText" size={16} className="text-amber-400" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Заметка</p>
-                  <p className="font-medium text-foreground">{String(debt.note)}</p>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Status */}
-        {confirmed ? (
-          <div className="glass rounded-2xl p-4 text-center border border-green-500/20 bg-green-500/5">
-            <Icon name="CheckCircle2" size={28} className="text-green-400 mx-auto mb-2" />
-            <p className="font-semibold text-green-400">Долг подтверждён обеими сторонами</p>
-            <p className="text-xs text-muted-foreground mt-1">Оба видят одинаковые данные</p>
-          </div>
-        ) : !role ? (
-          <div className="glass rounded-2xl p-4">
-            <p className="text-sm font-semibold text-center mb-3">Вы — должник по этому долгу?</p>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => setRole("borrower")}
-                className="py-2.5 rounded-xl font-medium text-white text-sm"
-                style={{ background: "linear-gradient(135deg, #38bdf8, #818cf8)" }}
-              >
-                Да, я должник
-              </button>
-              <button
-                onClick={() => setRole("lender")}
-                className="py-2.5 rounded-xl font-medium glass text-muted-foreground text-sm hover:bg-white/10 transition-colors"
-              >
-                Нет, я кредитор
-              </button>
-            </div>
-          </div>
-        ) : role === "lender" ? (
-          <div className="glass rounded-2xl p-4 text-center border border-purple-500/20">
-            <Icon name="CheckCircle2" size={24} className="text-purple-400 mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">Вы кредитор. Долг уже зарегистрирован на ваше имя.</p>
-          </div>
-        ) : (
-          <div className="glass rounded-2xl p-4">
-            <p className="text-sm font-semibold mb-3">Подтвердите, что вы — должник</p>
-            <input
-              value={myName}
-              onChange={e => setMyName(e.target.value)}
-              placeholder="Ваше имя"
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-purple-500/50 mb-2"
-            />
-            <input
-              value={myPhone}
-              onChange={e => setMyPhone(e.target.value)}
-              placeholder="Телефон (необязательно)"
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-purple-500/50 mb-3"
-            />
-            <button
-              onClick={confirm}
-              disabled={saving || !myName.trim()}
-              className="w-full py-3 rounded-xl font-semibold text-white disabled:opacity-50 transition-all"
-              style={{ background: "linear-gradient(135deg, #a855f7, #6366f1)" }}
-            >
-              {saving ? "Подтверждаю..." : "Подтвердить долг"}
+            <input value={email} onChange={e => { setEmail(e.target.value); setAuthError(""); }} placeholder="Email" type="email" autoFocus className={inputCls} onKeyDown={e => e.key === "Enter" && checkEmail()} />
+            {authError && <p className="text-xs text-red-400">{authError}</p>}
+            <button onClick={checkEmail} disabled={authLoading} className={btnCls} style={{ background: "linear-gradient(135deg, #a855f7, #6366f1)" }}>
+              {authLoading ? "Проверяем..." : "Продолжить"}
             </button>
           </div>
         )}
 
-        <p className="text-center text-xs text-muted-foreground mt-4">
-          Токен: <span className="font-mono text-purple-400">{String(debt.share_token)}</span>
-        </p>
+        {/* ── Шаг: регистрация ── */}
+        {step === "register" && (
+          <div className="glass rounded-2xl p-5 space-y-3">
+            <div className="flex items-center gap-2">
+              <button onClick={() => setStep("email")} className="w-8 h-8 glass rounded-xl flex items-center justify-center">
+                <Icon name="ChevronLeft" size={16} />
+              </button>
+              <div>
+                <p className="font-semibold text-foreground">Регистрация</p>
+                <p className="text-xs text-muted-foreground">{email}</p>
+              </div>
+            </div>
+            <input value={fullName} onChange={e => { setFullName(e.target.value); setAuthError(""); }} placeholder="ФИО" autoFocus className={inputCls} />
+            <input value={phone} onChange={e => { setPhone(e.target.value); setAuthError(""); }} placeholder="+7 999 000 00 00" type="tel" className={inputCls} onKeyDown={e => e.key === "Enter" && sendCode()} />
+            {authError && <p className="text-xs text-red-400">{authError}</p>}
+            <button onClick={sendCode} disabled={authLoading} className={btnCls} style={{ background: "linear-gradient(135deg, #a855f7, #6366f1)" }}>
+              {authLoading ? "Отправляем код..." : "Получить код"}
+            </button>
+          </div>
+        )}
+
+        {/* ── Шаг: ввод кода ── */}
+        {step === "code" && (
+          <div className="glass rounded-2xl p-5 space-y-4">
+            <div>
+              <p className="font-semibold text-foreground mb-1">Введите код из письма</p>
+              <p className="text-xs text-muted-foreground">Отправили на {email}</p>
+            </div>
+            <div className="flex gap-3 justify-center">
+              {[0, 1, 2, 3].map(i => (
+                <input
+                  key={i}
+                  ref={codeRefs[i]}
+                  value={code[i]}
+                  onChange={e => handleCodeInput(i, e.target.value)}
+                  onKeyDown={e => { if (e.key === "Backspace" && !code[i] && i > 0) codeRefs[i-1].current?.focus(); }}
+                  maxLength={1}
+                  className="w-14 h-14 text-center text-2xl font-bold bg-white/5 border border-white/10 rounded-xl outline-none focus:border-purple-500/50 text-foreground"
+                />
+              ))}
+            </div>
+            {authError && <p className="text-xs text-red-400 text-center">{authError}</p>}
+            {authLoading && <div className="flex justify-center"><div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" /></div>}
+          </div>
+        )}
+
+        {/* ── Шаг: принять/отклонить ── */}
+        {step === "decision" && (
+          <div className="glass rounded-2xl p-5 space-y-3">
+            <div>
+              <p className="font-semibold text-foreground mb-1">Привет, {userName}!</p>
+              <p className="text-sm text-muted-foreground">Вы хотите принять этот долг?</p>
+            </div>
+            <button
+              onClick={() => makeDecision("accepted")}
+              disabled={saving}
+              className={btnCls}
+              style={{ background: "linear-gradient(135deg, #22c55e, #16a34a)" }}
+            >
+              {saving ? "Сохраняем..." : "Принять долг"}
+            </button>
+            <button
+              onClick={() => makeDecision("rejected")}
+              disabled={saving}
+              className="w-full py-3 rounded-xl font-semibold text-sm glass border border-red-500/20 text-red-400 hover:bg-red-500/10 transition-all"
+            >
+              Отклонить
+            </button>
+          </div>
+        )}
+
+        {/* ── Долг принят ── */}
+        {step === "done" && (
+          <div className="glass rounded-2xl p-5 text-center border border-green-500/20">
+            <Icon name="CheckCircle2" size={36} className="text-green-400 mx-auto mb-3" />
+            <p className="font-bold text-green-400 text-lg">Долг принят!</p>
+            <p className="text-xs text-muted-foreground mt-1 mb-4">Войдите в приложение, чтобы написать кредитору</p>
+            <a href="/" className="block w-full py-3 rounded-xl font-semibold text-white text-sm text-center" style={{ background: "linear-gradient(135deg, #a855f7, #6366f1)" }}>
+              Открыть приложение
+            </a>
+          </div>
+        )}
+
+        {/* ── Долг отклонён ── */}
+        {step === "rejected" && (
+          <div className="glass rounded-2xl p-5 text-center border border-red-500/20">
+            <Icon name="XCircle" size={36} className="text-red-400 mx-auto mb-3" />
+            <p className="font-bold text-red-400 text-lg">Долг отклонён</p>
+            <p className="text-xs text-muted-foreground mt-1 mb-4">Кредитор будет уведомлён. Долг останется у него со статусом «Отклонён».</p>
+            <a href="/" className="block w-full py-3 rounded-xl font-semibold text-sm text-center glass border border-white/10 text-muted-foreground">
+              Перейти в приложение
+            </a>
+          </div>
+        )}
+
       </div>
     </div>
   );
