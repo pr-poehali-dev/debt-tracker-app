@@ -1,3 +1,6 @@
 {
+  "auth-send-code": "https://functions.poehali.dev/25f0d2e5-972f-4180-9aac-88ccb033d380",
+  "auth-me": "https://functions.poehali.dev/62918632-6868-48e4-8d9c-c6c6daa254af",
+  "auth-verify": "https://functions.poehali.dev/fc91092f-a1cf-4d81-9c25-5fc027a6cb4c",
   "debts": "https://functions.poehali.dev/bccbfdb0-52f8-4958-b4f5-a7be6259ffd9"
 }

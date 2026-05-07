@@ -6,8 +6,10 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
+import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import PwaIconGenerator from "./components/PwaIconGenerator";
+import func2url from "../backend/func2url.json";
 
 const queryClient = new QueryClient();
 
@@ -99,8 +101,30 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
   );
 }
 
+interface AuthUser { id: number; full_name: string; phone: string; email: string; }
+
 const App = () => {
   const [ready, setReady] = useState(false);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
+
+  useEffect(() => {
+    const token = localStorage.getItem("df-token");
+    if (!token) { setAuthChecked(true); return; }
+    fetch(func2url["auth-me"], { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.id) setUser(data); })
+      .finally(() => setAuthChecked(true));
+  }, []);
+
+  function handleAuth(token: string, u: AuthUser) {
+    setUser(u);
+  }
+
+  function handleLogout() {
+    localStorage.removeItem("df-token");
+    setUser(null);
+  }
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -110,12 +134,16 @@ const App = () => {
         <PwaIconGenerator />
         {!ready && <SplashScreen onDone={() => setReady(true)} />}
         <div style={{ opacity: ready ? 1 : 0, transition: "opacity 0.4s ease" }}>
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
+          {authChecked && (
+            user
+              ? <BrowserRouter>
+                  <Routes>
+                    <Route path="/" element={<Index user={user} onLogout={handleLogout} />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </BrowserRouter>
+              : <Auth onAuth={handleAuth} />
+          )}
         </div>
       </TooltipProvider>
     </QueryClientProvider>

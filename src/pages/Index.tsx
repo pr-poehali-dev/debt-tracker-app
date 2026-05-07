@@ -623,7 +623,7 @@ function Dashboard({ onNav, contacts, t }: { onNav: (s: Section) => void; contac
 }
 
 // ─── Section: Settings ────────────────────────────────────────────────────────
-function SettingsSection({ theme, onThemeChange, profile, onProfileChange, t, lang, onLangChange }: {
+function SettingsSection({ theme, onThemeChange, profile, onProfileChange, t, lang, onLangChange, email, onLogout }: {
   theme: Theme;
   onThemeChange: (t: Theme) => void;
   profile: { name: string; phone: string };
@@ -631,6 +631,8 @@ function SettingsSection({ theme, onThemeChange, profile, onProfileChange, t, la
   t: ReturnType<typeof getT>;
   lang: Lang;
   onLangChange: (l: Lang) => void;
+  email: string;
+  onLogout: () => void;
 }) {
   const [local, setLocal] = useState(profile);
   const [saved, setSaved] = useState(false);
@@ -809,14 +811,24 @@ function SettingsSection({ theme, onThemeChange, profile, onProfileChange, t, la
             { label: t.appNameLabel, value: "Debt-Debt" },
             { label: t.version, value: "1.0.0" },
             { label: t.platform, value: "PWA (iOS / Android)" },
+            { label: "Email", value: email },
           ].map(row => (
             <div key={row.label} className="flex items-center justify-between py-1.5 border-b border-white/5 last:border-0">
               <span className="text-muted-foreground">{row.label}</span>
-              <span className="text-foreground font-medium">{row.value}</span>
+              <span className="text-foreground font-medium truncate ml-2 max-w-[180px] text-right">{row.value}</span>
             </div>
           ))}
         </div>
       </div>
+
+      {/* Logout */}
+      <button
+        onClick={onLogout}
+        className="w-full py-3 rounded-2xl glass border border-red-500/20 text-red-400 hover:bg-red-500/10 transition-all font-medium flex items-center justify-center gap-2"
+      >
+        <Icon name="LogOut" size={16} />
+        Выйти из аккаунта
+      </button>
     </div>
   );
 }
@@ -887,7 +899,9 @@ function InstallBanner({ t }: { t: ReturnType<typeof getT> }) {
 }
 
 // ─── Root ─────────────────────────────────────────────────────────────────────
-export default function Index() {
+interface AuthUser { id: number; full_name: string; phone: string; email: string; }
+
+export default function Index({ user, onLogout }: { user: AuthUser; onLogout: () => void }) {
   const [section, setSection] = useState<Section>("dashboard");
   const [contacts, setContacts] = useState<Contact[]>(INIT_CONTACTS);
   const [showNewDebt, setShowNewDebt] = useState(false);
@@ -897,11 +911,9 @@ export default function Index() {
     return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
   });
 
-  const [profile, setProfile] = useState<{ name: string; phone: string }>(() => {
-    try {
-      const saved = localStorage.getItem("df-profile");
-      return saved ? JSON.parse(saved) : { name: "", phone: "" };
-    } catch { return { name: "", phone: "" }; }
+  const [profile, setProfile] = useState<{ name: string; phone: string }>({
+    name: user.full_name,
+    phone: user.phone,
   });
 
   const [lang, setLang] = useState<Lang>(() => {
@@ -994,7 +1006,7 @@ export default function Index() {
           {section === "notifications" && <NotificationsSection t={t} />}
           {section === "archive"       && <ArchiveSection contacts={contacts} t={t} locale={locale} />}
           {section === "contacts"      && <ContactsSection contacts={contacts} onColorChange={handleColorChange} t={t} />}
-          {section === "settings"      && <SettingsSection theme={theme} onThemeChange={setTheme} profile={profile} onProfileChange={handleProfileChange} t={t} lang={lang} onLangChange={handleLangChange} />}
+          {section === "settings"      && <SettingsSection theme={theme} onThemeChange={setTheme} profile={profile} onProfileChange={handleProfileChange} t={t} lang={lang} onLangChange={handleLangChange} email={user.email} onLogout={onLogout} />}
         </div>
       </main>
 
