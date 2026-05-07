@@ -56,64 +56,12 @@ function getColor(id: ContactColor) {
   return COLOR_OPTIONS.find(c => c.id === id) ?? COLOR_OPTIONS[0];
 }
 
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-const INIT_CONTACTS: Contact[] = [
-  { id: 1, name: "Алексей Смирнов",  phone: "+7 (999) 123-45-67", email: "alex@mail.ru",    avatar: "АС", totalLent: 25000, totalBorrowed: 0,     color: "purple"  },
-  { id: 2, name: "Мария Козлова",    phone: "+7 (999) 234-56-78", email: "maria@gmail.com",  avatar: "МК", totalLent: 8500,  totalBorrowed: 0,     color: "pink"    },
-  { id: 3, name: "Николай Федоров",  phone: "+7 (999) 345-67-89", email: "nick@yandex.ru",   avatar: "НФ", totalLent: 0,     totalBorrowed: 12000, color: "sky"     },
-  { id: 4, name: "Анна Морозова",    phone: "+7 (999) 456-78-90", email: "anna@mail.ru",     avatar: "АМ", totalLent: 0,     totalBorrowed: 30000, color: "emerald" },
-  { id: 5, name: "Дмитрий Иванов",  phone: "+7 (999) 567-89-01", email: "dmitry@gmail.com", avatar: "ДИ", totalLent: 50000, totalBorrowed: 0,     color: "orange"  },
-  { id: 6, name: "Елена Петрова",   phone: "+7 (999) 678-90-12", email: "elena@mail.ru",    avatar: "ЕП", totalLent: 3200,  totalBorrowed: 0,     color: "rose"    },
-  { id: 7, name: "Павел Чернов",    phone: "+7 (999) 789-01-23", email: "pavel@gmail.com",  avatar: "ПЧ", totalLent: 0,     totalBorrowed: 5000,  color: "amber"   },
-  { id: 8, name: "Сергей Волков",   phone: "+7 (999) 890-12-34", email: "sergey@mail.ru",   avatar: "СВ", totalLent: 15000, totalBorrowed: 0,     color: "teal"    },
-];
-
-const lentDebts: Debt[] = [
-  { id: 1, contactId: 1, name: "Алексей Смирнов", amount: 25000, dueDate: "2026-05-15", status: "active",  avatar: "АС", note: "Займ на ремонт" },
-  { id: 2, contactId: 2, name: "Мария Козлова",   amount: 8500,  dueDate: "2026-05-10", status: "overdue", avatar: "МК", note: "До зарплаты" },
-  { id: 3, contactId: 5, name: "Дмитрий Иванов",  amount: 50000, dueDate: "2026-06-01", status: "active",  avatar: "ДИ", note: "Бизнес-кредит" },
-  { id: 4, contactId: 6, name: "Елена Петрова",   amount: 3200,  dueDate: "2026-04-30", status: "overdue", avatar: "ЕП" },
-  { id: 5, contactId: 8, name: "Сергей Волков",   amount: 15000, dueDate: "2026-07-15", status: "active",  avatar: "СВ", note: "Покупка ноутбука" },
-];
-
-const borrowedDebts: Debt[] = [
-  { id: 6, contactId: 3, name: "Николай Федоров", amount: 12000, dueDate: "2026-05-20", status: "active",  avatar: "НФ", note: "Отдать в мае" },
-  { id: 7, contactId: 4, name: "Анна Морозова",   amount: 30000, dueDate: "2026-06-15", status: "active",  avatar: "АМ", note: "Помогла с переездом" },
-  { id: 8, contactId: 7, name: "Павел Чернов",    amount: 5000,  dueDate: "2026-05-08", status: "overdue", avatar: "ПЧ" },
-];
-
-const calendarEvents = [
-  { day: 8,  month: "Май",  contactId: 7, name: "Павел Чернов",    amount: 5000,  dir: "pay"     },
-  { day: 10, month: "Май",  contactId: 2, name: "Мария Козлова",   amount: 8500,  dir: "receive" },
-  { day: 15, month: "Май",  contactId: 1, name: "Алексей Смирнов", amount: 25000, dir: "receive" },
-  { day: 20, month: "Май",  contactId: 3, name: "Николай Федоров", amount: 12000, dir: "pay"     },
-  { day: 1,  month: "Июнь", contactId: 5, name: "Дмитрий Иванов",  amount: 50000, dir: "receive" },
-  { day: 15, month: "Июнь", contactId: 4, name: "Анна Морозова",   amount: 30000, dir: "pay"     },
-];
-
-const notifications: Notification[] = [
-  { id: 1, type: "danger",  title: "Просрочен платёж", message: "Мария Козлова должна вернуть 8 500 ₽ — срок истёк 10 мая",        date: "Сегодня",  read: false },
-  { id: 2, type: "danger",  title: "Просрочен платёж", message: "Елена Петрова должна вернуть 3 200 ₽ — срок истёк 30 апреля",     date: "Сегодня",  read: false },
-  { id: 3, type: "warning", title: "Скоро платёж",     message: "Нужно отдать Павлу Чернову 5 000 ₽ — срок 8 мая",                 date: "Вчера",    read: false },
-  { id: 4, type: "warning", title: "Через 8 дней",     message: "Алексей Смирнов должен вернуть 25 000 ₽ — срок 15 мая",           date: "2 мая",    read: true  },
-  { id: 5, type: "info",    title: "Напоминание",       message: "Не забудьте вернуть 12 000 ₽ Николаю Федорову до 20 мая",        date: "1 мая",    read: true  },
-  { id: 6, type: "success", title: "Долг погашен",      message: "Сергей Волков погасил долг 20 000 ₽",                             date: "28 апреля",read: true  },
-];
-
-const archiveDebts: Debt[] = [
-  { id: 10, contactId: 8, name: "Сергей Волков",  amount: 20000, dueDate: "2026-04-28", status: "paid", avatar: "СВ", note: "Возвращено в срок" },
-  { id: 11, contactId: 3, name: "Ирина Белова",   amount: 7000,  dueDate: "2026-04-15", status: "paid", avatar: "ИБ" },
-  { id: 12, contactId: 5, name: "Олег Тихонов",   amount: 45000, dueDate: "2026-03-30", status: "paid", avatar: "ОТ", note: "Бизнес-займ" },
-];
+// ─── Initial Data ─────────────────────────────────────────────────────────────
+const INIT_CONTACTS: Contact[] = [];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmt(n: number) {
   return n.toLocaleString("ru-RU") + " ₽";
-}
-
-function useContactColor(contacts: Contact[], contactId: number) {
-  const contact = contacts.find(c => c.id === contactId);
-  return contact ? getColor(contact.color) : getColor("purple");
 }
 
 // ─── Color Picker ─────────────────────────────────────────────────────────────
@@ -196,55 +144,69 @@ function DebtList({ debts, dir, contacts, t, locale }: { debts: Debt[]; dir: "le
 
   return (
     <div className="animate-fade-in">
-      <div className="grid grid-cols-3 gap-3 mb-6">
-        <div className={`glass rounded-2xl p-4 col-span-3 sm:col-span-1 ${dir === "lent" ? "glow-purple" : "glow-blue"}`}>
-          <p className="text-muted-foreground text-xs mb-1">{dir === "lent" ? t.totalLent : t.totalBorrowed}</p>
-          <p className={`text-2xl font-bold font-heading ${dir === "lent" ? "text-gradient-purple" : "text-gradient-blue"}`}>{fmt(total)}</p>
+      {debts.length > 0 && (
+        <div className="grid grid-cols-3 gap-3 mb-6">
+          <div className={`glass rounded-2xl p-4 col-span-3 sm:col-span-1 ${dir === "lent" ? "glow-purple" : "glow-blue"}`}>
+            <p className="text-muted-foreground text-xs mb-1">{dir === "lent" ? t.totalLent : t.totalBorrowed}</p>
+            <p className={`text-2xl font-bold font-heading ${dir === "lent" ? "text-gradient-purple" : "text-gradient-blue"}`}>{fmt(total)}</p>
+          </div>
+          <div className="glass rounded-2xl p-4">
+            <p className="text-muted-foreground text-xs mb-1">{t.active}</p>
+            <p className="text-2xl font-bold font-heading text-foreground">{debts.filter(d => d.status === "active").length}</p>
+          </div>
+          <div className="glass rounded-2xl p-4">
+            <p className="text-muted-foreground text-xs mb-1">{t.overdue}</p>
+            <p className="text-2xl font-bold font-heading text-red-400">{overdue}</p>
+          </div>
         </div>
-        <div className="glass rounded-2xl p-4">
-          <p className="text-muted-foreground text-xs mb-1">{t.active}</p>
-          <p className="text-2xl font-bold font-heading text-foreground">{debts.filter(d => d.status === "active").length}</p>
-        </div>
-        <div className="glass rounded-2xl p-4">
-          <p className="text-muted-foreground text-xs mb-1">{t.overdue}</p>
-          <p className="text-2xl font-bold font-heading text-red-400">{overdue}</p>
-        </div>
-      </div>
+      )}
 
-      <div className="space-y-3">
-        {debts.map((d, i) => {
-          const contact = contacts.find(c => c.id === d.contactId);
-          const col = contact ? getColor(contact.color) : null;
-          return (
-            <div
-              key={d.id}
-              className="glass rounded-2xl p-4 flex items-center gap-4 hover:bg-white/[0.06] transition-all duration-200 cursor-pointer group"
-              style={{ animationDelay: `${i * 0.05}s`, borderLeft: col ? `3px solid ${col.hex}` : undefined }}
-            >
-              <Avatar initials={d.avatar} color={contact?.color} />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                  <span className="font-semibold text-foreground truncate">{d.name}</span>
-                  <StatusBadge status={d.status} t={t} />
+      {debts.length === 0 ? (
+        <div className="glass rounded-2xl p-10 flex flex-col items-center text-center gap-3">
+          <div className="w-16 h-16 rounded-2xl bg-purple-500/10 flex items-center justify-center">
+            <Icon name={dir === "lent" ? "TrendingUp" : "TrendingDown"} size={32} className={dir === "lent" ? "text-purple-400" : "text-sky-400"} />
+          </div>
+          <div>
+            <p className="font-semibold text-foreground mb-1">{dir === "lent" ? "Вы ещё никому не давали в долг" : "Вы ещё не брали в долг"}</p>
+            <p className="text-xs text-muted-foreground">Нажмите + чтобы добавить первый займ</p>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {debts.map((d, i) => {
+            const contact = contacts.find(c => c.id === d.contactId);
+            const col = contact ? getColor(contact.color) : null;
+            return (
+              <div
+                key={d.id}
+                className="glass rounded-2xl p-4 flex items-center gap-4 hover:bg-white/[0.06] transition-all duration-200 cursor-pointer group"
+                style={{ animationDelay: `${i * 0.05}s`, borderLeft: col ? `3px solid ${col.hex}` : undefined }}
+              >
+                <Avatar initials={d.avatar} color={contact?.color} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                    <span className="font-semibold text-foreground truncate">{d.name}</span>
+                    <StatusBadge status={d.status} t={t} />
+                  </div>
+                  {d.note && <p className="text-xs text-muted-foreground truncate">{d.note}</p>}
+                  <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
+                    <Icon name="Calendar" size={11} />
+                    {new Date(d.dueDate).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" })}
+                  </p>
                 </div>
-                {d.note && <p className="text-xs text-muted-foreground truncate">{d.note}</p>}
-                <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
-                  <Icon name="Calendar" size={11} />
-                  {new Date(d.dueDate).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" })}
-                </p>
+                <div className="text-right flex-shrink-0">
+                  <p className="text-lg font-bold font-heading" style={{ color: d.status === "overdue" ? "#f87171" : col ? col.text : dir === "lent" ? "#c084fc" : "#7dd3fc" }}>
+                    {fmt(d.amount)}
+                  </p>
+                </div>
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Icon name="ChevronRight" size={16} className="text-muted-foreground" />
+                </div>
               </div>
-              <div className="text-right flex-shrink-0">
-                <p className="text-lg font-bold font-heading" style={{ color: d.status === "overdue" ? "#f87171" : col ? col.text : dir === "lent" ? "#c084fc" : "#7dd3fc" }}>
-                  {fmt(d.amount)}
-                </p>
-              </div>
-              <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                <Icon name="ChevronRight" size={16} className="text-muted-foreground" />
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       <button className={`mt-4 w-full py-3 rounded-2xl glass border border-dashed ${dir === "lent" ? "border-purple-500/30 text-purple-400 hover:bg-purple-500/10" : "border-sky-500/30 text-sky-400 hover:bg-sky-500/10"} transition-all duration-200 font-medium flex items-center justify-center gap-2`}>
         <Icon name="Plus" size={16} />
@@ -255,30 +217,46 @@ function DebtList({ debts, dir, contacts, t, locale }: { debts: Debt[]; dir: "le
 }
 
 // ─── Section: Calendar ────────────────────────────────────────────────────────
-function CalendarSection({ contacts, t }: { contacts: Contact[]; t: ReturnType<typeof getT> }) {
-  const days = Array.from({ length: 31 }, (_, i) => i + 1);
-  const today = 7;
-  const mayEvents = calendarEvents.filter(e => e.month === "Май");
+function CalendarSection({ contacts, t, debts }: { contacts: Contact[]; t: ReturnType<typeof getT>; debts: Debt[] }) {
+  const [calDate, setCalDate] = useState(() => { const n = new Date(); return { year: n.getFullYear(), month: n.getMonth() }; });
+  const daysInMonth = new Date(calDate.year, calDate.month + 1, 0).getDate();
+  const firstDayOfWeek = (new Date(calDate.year, calDate.month, 1).getDay() + 6) % 7;
+  const todayRef = new Date();
+  const isCurrentMonth = todayRef.getFullYear() === calDate.year && todayRef.getMonth() === calDate.month;
+  const todayDay = isCurrentMonth ? todayRef.getDate() : -1;
+  const monthName = t.months[calDate.month] + " " + calDate.year;
 
-  // Map day -> colors (multiple contacts per day)
   const dayColors: Record<number, string[]> = {};
-  mayEvents.forEach(ev => {
-    const contact = contacts.find(c => c.id === ev.contactId);
-    const hex = contact ? getColor(contact.color).hex : "#a855f7";
-    if (!dayColors[ev.day]) dayColors[ev.day] = [];
-    dayColors[ev.day].push(hex);
+  debts.forEach(d => {
+    const dd = new Date(d.dueDate);
+    if (dd.getFullYear() === calDate.year && dd.getMonth() === calDate.month) {
+      const contact = contacts.find(c => c.id === d.contactId);
+      const hex = contact ? getColor(contact.color).hex : "#a855f7";
+      if (!dayColors[dd.getDate()]) dayColors[dd.getDate()] = [];
+      dayColors[dd.getDate()].push(hex);
+    }
   });
+
+  const upcomingDebts = debts
+    .filter(d => { const dd = new Date(d.dueDate); return dd.getFullYear() === calDate.year && dd.getMonth() === calDate.month; })
+    .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
 
   return (
     <div className="animate-fade-in">
       <div className="glass rounded-2xl p-5 mb-5">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-heading font-bold text-lg">Май 2026</h3>
+          <h3 className="font-heading font-bold text-lg">{monthName}</h3>
           <div className="flex gap-2">
-            <button className="w-8 h-8 glass rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors">
+            <button
+              onClick={() => setCalDate(prev => { const d = new Date(prev.year, prev.month - 1, 1); return { year: d.getFullYear(), month: d.getMonth() }; })}
+              className="w-8 h-8 glass rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors"
+            >
               <Icon name="ChevronLeft" size={16} />
             </button>
-            <button className="w-8 h-8 glass rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors">
+            <button
+              onClick={() => setCalDate(prev => { const d = new Date(prev.year, prev.month + 1, 1); return { year: d.getFullYear(), month: d.getMonth() }; })}
+              className="w-8 h-8 glass rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors"
+            >
               <Icon name="ChevronRight" size={16} />
             </button>
           </div>
@@ -289,9 +267,9 @@ function CalendarSection({ contacts, t }: { contacts: Contact[]; t: ReturnType<t
           ))}
         </div>
         <div className="grid grid-cols-7 gap-1">
-          {Array.from({ length: 4 }).map((_, i) => <div key={`e${i}`} />)}
-          {days.map(d => {
-            const isToday = d === today;
+          {Array.from({ length: firstDayOfWeek }).map((_, i) => <div key={`e${i}`} />)}
+          {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(d => {
+            const isToday = d === todayDay;
             const colors = dayColors[d] ?? [];
             const hasEvent = colors.length > 0;
             return (
@@ -304,11 +282,10 @@ function CalendarSection({ contacts, t }: { contacts: Contact[]; t: ReturnType<t
                 style={hasEvent && !isToday ? { border: `1px solid ${colors[0]}55` } : undefined}
               >
                 {d}
-                {/* Color dots — up to 3 */}
                 {hasEvent && !isToday && (
                   <div className="flex gap-0.5 absolute bottom-1">
-                    {colors.slice(0, 3).map((hex, i) => (
-                      <div key={i} className="w-1.5 h-1.5 rounded-full" style={{ background: hex }} />
+                    {colors.slice(0, 3).map((hex, idx) => (
+                      <div key={idx} className="w-1.5 h-1.5 rounded-full" style={{ background: hex }} />
                     ))}
                   </div>
                 )}
@@ -318,43 +295,54 @@ function CalendarSection({ contacts, t }: { contacts: Contact[]; t: ReturnType<t
         </div>
       </div>
 
-      {/* Legend */}
-      <div className="glass rounded-xl px-4 py-3 mb-4 flex flex-wrap gap-3">
-        {calendarEvents.map((ev, i) => {
-          const contact = contacts.find(c => c.id === ev.contactId);
-          const col = contact ? getColor(contact.color) : getColor("purple");
-          return (
-            <div key={i} className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: col.hex }} />
-              <span className="text-xs text-muted-foreground">{ev.name.split(" ")[0]}</span>
-            </div>
-          );
-        })}
-      </div>
+      {upcomingDebts.length > 0 && (
+        <div className="glass rounded-xl px-4 py-3 mb-4 flex flex-wrap gap-3">
+          {upcomingDebts.map((d, i) => {
+            const contact = contacts.find(c => c.id === d.contactId);
+            const col = contact ? getColor(contact.color) : getColor("purple");
+            return (
+              <div key={i} className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: col.hex }} />
+                <span className="text-xs text-muted-foreground">{d.name.split(" ")[0]}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <h3 className="font-heading font-semibold mb-3 text-muted-foreground text-sm uppercase tracking-wider">{t.upcomingPayments}</h3>
+
+      {debts.length === 0 && (
+        <div className="glass rounded-2xl p-8 flex flex-col items-center text-center gap-3 mt-4">
+          <Icon name="CalendarDays" size={32} className="text-purple-400" />
+          <p className="font-semibold text-foreground">Нет предстоящих платежей</p>
+          <p className="text-xs text-muted-foreground">Добавьте займ со сроком возврата</p>
+        </div>
+      )}
+
       <div className="space-y-3">
-        {calendarEvents.map((ev, i) => {
-          const contact = contacts.find(c => c.id === ev.contactId);
+        {upcomingDebts.map((d, i) => {
+          const contact = contacts.find(c => c.id === d.contactId);
           const col = contact ? getColor(contact.color) : getColor("purple");
+          const dd = new Date(d.dueDate);
           return (
             <div key={i} className="glass rounded-2xl p-4 flex items-center gap-3" style={{ borderLeft: `3px solid ${col.hex}` }}>
               <div
                 className="w-12 h-12 rounded-2xl flex flex-col items-center justify-center flex-shrink-0"
                 style={{ background: col.bg, border: `1px solid ${col.border}` }}
               >
-                <span className="text-base font-bold text-foreground leading-none">{ev.day}</span>
-                <span className="text-[9px] text-muted-foreground">{ev.month}</span>
+                <span className="text-base font-bold text-foreground leading-none">{dd.getDate()}</span>
+                <span className="text-[9px] text-muted-foreground">{t.months[dd.getMonth()]}</span>
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: col.hex }} />
-                  <p className="font-medium text-foreground">{ev.name}</p>
+                  <p className="font-medium text-foreground">{d.name}</p>
                 </div>
-                <p className="text-xs text-muted-foreground">{ev.dir === "receive" ? t.receive : t.pay}</p>
+                <p className="text-xs text-muted-foreground">{t.pay}</p>
               </div>
               <div className="font-bold font-heading text-base flex-shrink-0" style={{ color: col.text }}>
-                {ev.dir === "receive" ? "+" : "−"}{fmt(ev.amount)}
+                {fmt(d.amount)}
               </div>
             </div>
           );
@@ -366,7 +354,7 @@ function CalendarSection({ contacts, t }: { contacts: Contact[]; t: ReturnType<t
 
 // ─── Section: Notifications ───────────────────────────────────────────────────
 function NotificationsSection({ t }: { t: ReturnType<typeof getT> }) {
-  const [notifs, setNotifs] = useState(notifications);
+  const [notifs, setNotifs] = useState<Notification[]>([]);
   const unread = notifs.filter(n => !n.read).length;
 
   return (
@@ -385,6 +373,13 @@ function NotificationsSection({ t }: { t: ReturnType<typeof getT> }) {
               {t.markAllRead}
             </button>
           </div>
+        </div>
+      )}
+      {notifs.length === 0 && (
+        <div className="glass rounded-2xl p-8 flex flex-col items-center text-center gap-3">
+          <Icon name="Bell" size={32} className="text-purple-400" />
+          <p className="font-semibold text-foreground">Уведомлений нет</p>
+          <p className="text-xs text-muted-foreground">Здесь будут появляться напоминания о платежах</p>
         </div>
       )}
       <div className="space-y-3">
@@ -411,21 +406,30 @@ function NotificationsSection({ t }: { t: ReturnType<typeof getT> }) {
 }
 
 // ─── Section: Archive ─────────────────────────────────────────────────────────
-function ArchiveSection({ contacts, t, locale }: { contacts: Contact[]; t: ReturnType<typeof getT>; locale: string }) {
+function ArchiveSection({ contacts, t, locale, archiveDebts }: { contacts: Contact[]; t: ReturnType<typeof getT>; locale: string; archiveDebts: Debt[] }) {
   const total = archiveDebts.reduce((s, d) => s + d.amount, 0);
   return (
     <div className="animate-fade-in">
-      <div className="glass rounded-2xl p-4 mb-5 bg-green-500/5 border border-green-500/15">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-green-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
-            <Icon name="CheckCircle2" size={20} className="text-green-400" />
-          </div>
-          <div>
-            <p className="font-semibold text-green-400">{t.paidOn} {fmt(total)}</p>
-            <p className="text-xs text-muted-foreground">{archiveDebts.length} {t.completedTx}</p>
+      {archiveDebts.length > 0 && (
+        <div className="glass rounded-2xl p-4 mb-5 bg-green-500/5 border border-green-500/15">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-green-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
+              <Icon name="CheckCircle2" size={20} className="text-green-400" />
+            </div>
+            <div>
+              <p className="font-semibold text-green-400">{t.paidOn} {fmt(total)}</p>
+              <p className="text-xs text-muted-foreground">{archiveDebts.length} {t.completedTx}</p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
+      {archiveDebts.length === 0 && (
+        <div className="glass rounded-2xl p-8 flex flex-col items-center text-center gap-3">
+          <Icon name="Archive" size={32} className="text-purple-400 opacity-50" />
+          <p className="font-semibold text-foreground">{t.archiveEmpty}</p>
+          <p className="text-xs text-muted-foreground">{t.archiveEmptyDesc}</p>
+        </div>
+      )}
       <div className="space-y-3">
         {archiveDebts.map((d, i) => {
           const contact = contacts.find(c => c.id === d.contactId);
@@ -457,6 +461,13 @@ function ContactsSection({ contacts, onColorChange, t }: { contacts: Contact[]; 
 
   return (
     <div className="animate-fade-in">
+      {contacts.length === 0 && (
+        <div className="glass rounded-2xl p-8 flex flex-col items-center text-center gap-3 mb-4">
+          <Icon name="Users" size={32} className="text-purple-400 opacity-50" />
+          <p className="font-semibold text-foreground">{t.addContact}</p>
+          <p className="text-xs text-muted-foreground">Контакты появятся здесь когда вы добавите первый займ</p>
+        </div>
+      )}
       <div className="space-y-3">
         {contacts.map((c, i) => {
           const col = getColor(c.color);
@@ -522,11 +533,13 @@ function ContactsSection({ contacts, onColorChange, t }: { contacts: Contact[]; 
 }
 
 // ─── Section: Dashboard ───────────────────────────────────────────────────────
-function Dashboard({ onNav, contacts, t }: { onNav: (s: Section) => void; contacts: Contact[]; t: ReturnType<typeof getT> }) {
+function Dashboard({ onNav, contacts, t, lentDebts, borrowedDebts }: { onNav: (s: Section) => void; contacts: Contact[]; t: ReturnType<typeof getT>; lentDebts: Debt[]; borrowedDebts: Debt[] }) {
   const totalLent = lentDebts.filter(d => d.status !== "paid").reduce((s, d) => s + d.amount, 0);
   const totalBorrowed = borrowedDebts.filter(d => d.status !== "paid").reduce((s, d) => s + d.amount, 0);
   const balance = totalLent - totalBorrowed;
   const overdueCount = [...lentDebts, ...borrowedDebts].filter(d => d.status === "overdue").length;
+  const allDebts = [...lentDebts, ...borrowedDebts];
+  const isEmpty = allDebts.length === 0;
 
   return (
     <div className="animate-fade-in space-y-5">
@@ -548,7 +561,7 @@ function Dashboard({ onNav, contacts, t }: { onNav: (s: Section) => void; contac
             <span className="text-xs text-muted-foreground">{t.navLent}</span>
           </div>
           <p className="text-2xl font-black font-heading text-gradient-purple">{fmt(totalLent)}</p>
-          <p className="text-xs text-muted-foreground mt-1">{lentDebts.length} займов</p>
+          <p className="text-xs text-muted-foreground mt-1">{lentDebts.filter(d => d.status !== "paid").length} {t.activeDebts.toLowerCase()}</p>
         </button>
 
         <button onClick={() => onNav("borrowed")} className="glass rounded-2xl p-4 text-left hover:bg-white/[0.07] transition-all duration-200 glow-blue">
@@ -557,7 +570,7 @@ function Dashboard({ onNav, contacts, t }: { onNav: (s: Section) => void; contac
             <span className="text-xs text-muted-foreground">{t.navBorrowed}</span>
           </div>
           <p className="text-2xl font-black font-heading text-gradient-blue">{fmt(totalBorrowed)}</p>
-          <p className="text-xs text-muted-foreground mt-1">{borrowedDebts.length} займов</p>
+          <p className="text-xs text-muted-foreground mt-1">{borrowedDebts.filter(d => d.status !== "paid").length} {t.activeDebts.toLowerCase()}</p>
         </button>
 
         <button onClick={() => onNav("notifications")} className="glass rounded-2xl p-4 text-left hover:bg-white/[0.07] transition-all duration-200">
@@ -566,16 +579,14 @@ function Dashboard({ onNav, contacts, t }: { onNav: (s: Section) => void; contac
             <span className="text-xs text-muted-foreground">{t.overdue}</span>
           </div>
           <p className="text-2xl font-black font-heading text-red-400">{overdueCount}</p>
-          <p className="text-xs text-muted-foreground mt-1">нужно внимание</p>
         </button>
 
-        <button onClick={() => onNav("calendar")} className="glass rounded-2xl p-4 text-left hover:bg-white/[0.07] transition-all duration-200">
+        <button onClick={() => onNav("contacts")} className="glass rounded-2xl p-4 text-left hover:bg-white/[0.07] transition-all duration-200">
           <div className="flex items-center gap-2 mb-2">
-            <div className="w-8 h-8 bg-emerald-500/20 rounded-xl flex items-center justify-center"><Icon name="CalendarDays" size={16} className="text-emerald-400" /></div>
-            <span className="text-xs text-muted-foreground">Ближайший</span>
+            <div className="w-8 h-8 bg-emerald-500/20 rounded-xl flex items-center justify-center"><Icon name="Users" size={16} className="text-emerald-400" /></div>
+            <span className="text-xs text-muted-foreground">{t.navContacts}</span>
           </div>
-          <p className="text-lg font-bold font-heading text-emerald-400">8 Мая</p>
-          <p className="text-xs text-muted-foreground mt-1">Павел Чернов</p>
+          <p className="text-2xl font-black font-heading text-emerald-400">{contacts.length}</p>
         </button>
       </div>
 
@@ -586,11 +597,11 @@ function Dashboard({ onNav, contacts, t }: { onNav: (s: Section) => void; contac
               <Icon name="AlertTriangle" size={18} className="text-red-400" />
             </div>
             <div className="flex-1">
-              <p className="font-semibold text-red-400 text-sm">Есть просроченные долги!</p>
-              <p className="text-xs text-muted-foreground">{overdueCount} платежа требуют внимания</p>
+              <p className="font-semibold text-red-400 text-sm">{t.overdueDebts}</p>
+              <p className="text-xs text-muted-foreground">{overdueCount} {t.overdue.toLowerCase()}</p>
             </div>
             <button onClick={() => onNav("notifications")} className="text-xs text-red-400 border border-red-500/30 rounded-lg px-3 py-1.5 hover:bg-red-500/10 transition-colors whitespace-nowrap">
-              Смотреть
+              →
             </button>
           </div>
         </div>
@@ -599,24 +610,36 @@ function Dashboard({ onNav, contacts, t }: { onNav: (s: Section) => void; contac
       <div>
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-heading font-semibold text-sm text-muted-foreground uppercase tracking-wider">{t.recentActivity}</h3>
-          <button onClick={() => onNav("lent")} className="text-xs text-purple-400 hover:text-purple-300 transition-colors">Все →</button>
+          {!isEmpty && <button onClick={() => onNav("lent")} className="text-xs text-purple-400 hover:text-purple-300 transition-colors">→</button>}
         </div>
-        <div className="space-y-2">
-          {[...lentDebts, ...borrowedDebts].slice(0, 4).map(d => {
-            const contact = contacts.find(c => c.id === d.contactId);
-            const col = contact ? getColor(contact.color) : null;
-            return (
-              <div key={d.id} className="glass rounded-xl p-3 flex items-center gap-3" style={{ borderLeft: col ? `2px solid ${col.hex}` : undefined }}>
-                <Avatar initials={d.avatar} color={contact?.color} size="sm" />
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm text-foreground truncate">{d.name}</p>
+        {isEmpty ? (
+          <div className="glass rounded-2xl p-8 flex flex-col items-center text-center gap-3">
+            <div className="w-16 h-16 rounded-2xl bg-purple-500/10 flex items-center justify-center">
+              <Icon name="Wallet" size={32} className="text-purple-400" />
+            </div>
+            <div>
+              <p className="font-semibold text-foreground mb-1">Долгов пока нет</p>
+              <p className="text-xs text-muted-foreground">Нажмите + чтобы добавить первый займ</p>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {allDebts.slice(0, 4).map(d => {
+              const contact = contacts.find(c => c.id === d.contactId);
+              const col = contact ? getColor(contact.color) : null;
+              return (
+                <div key={d.id} className="glass rounded-xl p-3 flex items-center gap-3" style={{ borderLeft: col ? `2px solid ${col.hex}` : undefined }}>
+                  <Avatar initials={d.avatar} color={contact?.color} size="sm" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm text-foreground truncate">{d.name}</p>
+                  </div>
+                  <StatusBadge status={d.status} t={t} />
+                  <p className={`font-bold text-sm flex-shrink-0 ${d.status === "overdue" ? "text-red-400" : "text-foreground"}`}>{fmt(d.amount)}</p>
                 </div>
-                <StatusBadge status={d.status} t={t} />
-                <p className={`font-bold text-sm flex-shrink-0 ${d.status === "overdue" ? "text-red-400" : "text-foreground"}`}>{fmt(d.amount)}</p>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -904,6 +927,9 @@ interface AuthUser { id: number; full_name: string; phone: string; email: string
 export default function Index({ user, onLogout }: { user: AuthUser; onLogout: () => void }) {
   const [section, setSection] = useState<Section>("dashboard");
   const [contacts, setContacts] = useState<Contact[]>(INIT_CONTACTS);
+  const [lentDebts, setLentDebts] = useState<Debt[]>([]);
+  const [borrowedDebts, setBorrowedDebts] = useState<Debt[]>([]);
+  const [archiveDebts, setArchiveDebts] = useState<Debt[]>([]);
   const [showNewDebt, setShowNewDebt] = useState(false);
   const [theme, setTheme] = useState<Theme>(() => {
     const saved = localStorage.getItem("df-theme") as Theme | null;
@@ -931,7 +957,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
     { id: "lent" as Section,          icon: "TrendingUp",       label: t.navLent },
     { id: "borrowed" as Section,      icon: "TrendingDown",     label: t.navBorrowed },
     { id: "calendar" as Section,      icon: "CalendarDays",     label: t.navCalendar },
-    { id: "notifications" as Section, icon: "Bell",             label: t.navNotifications, badge: 3 },
+    { id: "notifications" as Section, icon: "Bell",             label: t.navNotifications },
     { id: "archive" as Section,       icon: "Archive",          label: t.navArchive },
     { id: "contacts" as Section,      icon: "Users",            label: t.navContacts },
   ];
@@ -979,7 +1005,6 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
             {section !== "notifications" && (
               <button onClick={() => setSection("notifications")} className="relative w-9 h-9 glass rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors">
                 <Icon name="Bell" size={17} />
-                <div className="absolute -top-0.5 -right-0.5 w-4 h-4 gradient-purple rounded-full flex items-center justify-center text-[9px] font-bold text-white">3</div>
               </button>
             )}
             <button onClick={() => setSection("settings")} className={`w-9 h-9 glass rounded-xl flex items-center justify-center transition-colors ${section === "settings" ? "gradient-purple" : "hover:bg-white/10"}`}>
@@ -999,12 +1024,12 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
 
       <main className="relative z-10 flex-1 px-4 pb-32 overflow-y-auto">
         <div className="max-w-lg mx-auto">
-          {section === "dashboard"     && <Dashboard onNav={setSection} contacts={contacts} t={t} />}
+          {section === "dashboard"     && <Dashboard onNav={setSection} contacts={contacts} t={t} lentDebts={lentDebts} borrowedDebts={borrowedDebts} />}
           {section === "lent"          && <DebtList debts={lentDebts} dir="lent" contacts={contacts} t={t} locale={locale} />}
           {section === "borrowed"      && <DebtList debts={borrowedDebts} dir="borrowed" contacts={contacts} t={t} locale={locale} />}
-          {section === "calendar"      && <CalendarSection contacts={contacts} t={t} />}
+          {section === "calendar"      && <CalendarSection contacts={contacts} t={t} debts={[...lentDebts, ...borrowedDebts]} />}
           {section === "notifications" && <NotificationsSection t={t} />}
-          {section === "archive"       && <ArchiveSection contacts={contacts} t={t} locale={locale} />}
+          {section === "archive"       && <ArchiveSection contacts={contacts} t={t} locale={locale} archiveDebts={archiveDebts} />}
           {section === "contacts"      && <ContactsSection contacts={contacts} onColorChange={handleColorChange} t={t} />}
           {section === "settings"      && <SettingsSection theme={theme} onThemeChange={setTheme} profile={profile} onProfileChange={handleProfileChange} t={t} lang={lang} onLangChange={handleLangChange} email={user.email} onLogout={onLogout} />}
         </div>
