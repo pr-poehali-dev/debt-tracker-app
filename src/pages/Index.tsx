@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 import NewDebtModal, { SharedDebtView } from "@/components/NewDebtModal";
+import { type Lang, LANGUAGES, getT } from "@/i18n";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type Section = "dashboard" | "lent" | "borrowed" | "calendar" | "notifications" | "archive" | "contacts" | "settings";
@@ -163,11 +164,11 @@ function Avatar({ initials, color, size = "md" }: { initials: string; color?: Co
   );
 }
 
-function StatusBadge({ status }: { status: Debt["status"] }) {
+function StatusBadge({ status, t }: { status: Debt["status"]; t: ReturnType<typeof getT> }) {
   const map = {
-    active:  { label: "Активен",   cls: "bg-blue-500/15 text-blue-400 border border-blue-500/20"  },
-    overdue: { label: "Просрочен", cls: "bg-red-500/15 text-red-400 border border-red-500/20"     },
-    paid:    { label: "Погашен",   cls: "bg-green-500/15 text-green-400 border border-green-500/20"},
+    active:  { label: t.statusActive,  cls: "bg-blue-500/15 text-blue-400 border border-blue-500/20"  },
+    overdue: { label: t.statusOverdue, cls: "bg-red-500/15 text-red-400 border border-red-500/20"     },
+    paid:    { label: t.statusPaid,    cls: "bg-green-500/15 text-green-400 border border-green-500/20"},
   };
   const s = map[status];
   return <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${s.cls}`}>{s.label}</span>;
@@ -189,7 +190,7 @@ function NotifIcon({ type }: { type: Notification["type"] }) {
 }
 
 // ─── Section: Debts ───────────────────────────────────────────────────────────
-function DebtList({ debts, dir, contacts }: { debts: Debt[]; dir: "lent" | "borrowed"; contacts: Contact[] }) {
+function DebtList({ debts, dir, contacts, t, locale }: { debts: Debt[]; dir: "lent" | "borrowed"; contacts: Contact[]; t: ReturnType<typeof getT>; locale: string }) {
   const total = debts.filter(d => d.status !== "paid").reduce((s, d) => s + d.amount, 0);
   const overdue = debts.filter(d => d.status === "overdue").length;
 
@@ -197,15 +198,15 @@ function DebtList({ debts, dir, contacts }: { debts: Debt[]; dir: "lent" | "borr
     <div className="animate-fade-in">
       <div className="grid grid-cols-3 gap-3 mb-6">
         <div className={`glass rounded-2xl p-4 col-span-3 sm:col-span-1 ${dir === "lent" ? "glow-purple" : "glow-blue"}`}>
-          <p className="text-muted-foreground text-xs mb-1">{dir === "lent" ? "Всего выдано" : "Всего взято"}</p>
+          <p className="text-muted-foreground text-xs mb-1">{dir === "lent" ? t.totalLent : t.totalBorrowed}</p>
           <p className={`text-2xl font-bold font-heading ${dir === "lent" ? "text-gradient-purple" : "text-gradient-blue"}`}>{fmt(total)}</p>
         </div>
         <div className="glass rounded-2xl p-4">
-          <p className="text-muted-foreground text-xs mb-1">Активных</p>
+          <p className="text-muted-foreground text-xs mb-1">{t.active}</p>
           <p className="text-2xl font-bold font-heading text-foreground">{debts.filter(d => d.status === "active").length}</p>
         </div>
         <div className="glass rounded-2xl p-4">
-          <p className="text-muted-foreground text-xs mb-1">Просрочено</p>
+          <p className="text-muted-foreground text-xs mb-1">{t.overdue}</p>
           <p className="text-2xl font-bold font-heading text-red-400">{overdue}</p>
         </div>
       </div>
@@ -224,12 +225,12 @@ function DebtList({ debts, dir, contacts }: { debts: Debt[]; dir: "lent" | "borr
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                   <span className="font-semibold text-foreground truncate">{d.name}</span>
-                  <StatusBadge status={d.status} />
+                  <StatusBadge status={d.status} t={t} />
                 </div>
                 {d.note && <p className="text-xs text-muted-foreground truncate">{d.note}</p>}
                 <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
                   <Icon name="Calendar" size={11} />
-                  {new Date(d.dueDate).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })}
+                  {new Date(d.dueDate).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" })}
                 </p>
               </div>
               <div className="text-right flex-shrink-0">
@@ -247,14 +248,14 @@ function DebtList({ debts, dir, contacts }: { debts: Debt[]; dir: "lent" | "borr
 
       <button className={`mt-4 w-full py-3 rounded-2xl glass border border-dashed ${dir === "lent" ? "border-purple-500/30 text-purple-400 hover:bg-purple-500/10" : "border-sky-500/30 text-sky-400 hover:bg-sky-500/10"} transition-all duration-200 font-medium flex items-center justify-center gap-2`}>
         <Icon name="Plus" size={16} />
-        {dir === "lent" ? "Добавить выданный займ" : "Добавить взятый займ"}
+        {dir === "lent" ? t.addLent : t.addBorrowed}
       </button>
     </div>
   );
 }
 
 // ─── Section: Calendar ────────────────────────────────────────────────────────
-function CalendarSection({ contacts }: { contacts: Contact[] }) {
+function CalendarSection({ contacts, t }: { contacts: Contact[]; t: ReturnType<typeof getT> }) {
   const days = Array.from({ length: 31 }, (_, i) => i + 1);
   const today = 7;
   const mayEvents = calendarEvents.filter(e => e.month === "Май");
@@ -283,7 +284,7 @@ function CalendarSection({ contacts }: { contacts: Contact[] }) {
           </div>
         </div>
         <div className="grid grid-cols-7 gap-1 mb-2">
-          {["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"].map(d => (
+          {t.weekDays.map(d => (
             <div key={d} className="text-center text-xs text-muted-foreground font-medium py-1">{d}</div>
           ))}
         </div>
@@ -331,7 +332,7 @@ function CalendarSection({ contacts }: { contacts: Contact[] }) {
         })}
       </div>
 
-      <h3 className="font-heading font-semibold mb-3 text-muted-foreground text-sm uppercase tracking-wider">Предстоящие платежи</h3>
+      <h3 className="font-heading font-semibold mb-3 text-muted-foreground text-sm uppercase tracking-wider">{t.upcomingPayments}</h3>
       <div className="space-y-3">
         {calendarEvents.map((ev, i) => {
           const contact = contacts.find(c => c.id === ev.contactId);
@@ -350,7 +351,7 @@ function CalendarSection({ contacts }: { contacts: Contact[] }) {
                   <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: col.hex }} />
                   <p className="font-medium text-foreground">{ev.name}</p>
                 </div>
-                <p className="text-xs text-muted-foreground">{ev.dir === "receive" ? "Получить от должника" : "Вернуть кредитору"}</p>
+                <p className="text-xs text-muted-foreground">{ev.dir === "receive" ? t.receive : t.pay}</p>
               </div>
               <div className="font-bold font-heading text-base flex-shrink-0" style={{ color: col.text }}>
                 {ev.dir === "receive" ? "+" : "−"}{fmt(ev.amount)}
@@ -364,7 +365,7 @@ function CalendarSection({ contacts }: { contacts: Contact[] }) {
 }
 
 // ─── Section: Notifications ───────────────────────────────────────────────────
-function NotificationsSection() {
+function NotificationsSection({ t }: { t: ReturnType<typeof getT> }) {
   const [notifs, setNotifs] = useState(notifications);
   const unread = notifs.filter(n => !n.read).length;
 
@@ -377,11 +378,11 @@ function NotificationsSection() {
               <Icon name="AlertTriangle" size={20} className="text-red-400" />
             </div>
             <div className="flex-1">
-              <p className="font-semibold text-red-400">{unread} непрочитанных уведомления</p>
-              <p className="text-xs text-muted-foreground">Требуют вашего внимания</p>
+              <p className="font-semibold text-red-400">{unread} {t.unreadNotifs}</p>
+              <p className="text-xs text-muted-foreground">{t.needAttention}</p>
             </div>
             <button onClick={() => setNotifs(notifs.map(n => ({ ...n, read: true })))} className="text-xs text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap">
-              Прочитать все
+              {t.markAllRead}
             </button>
           </div>
         </div>
@@ -403,14 +404,14 @@ function NotificationsSection() {
       </div>
       <button className="mt-4 w-full py-3 rounded-2xl glass border border-dashed border-purple-500/30 text-purple-400 hover:bg-purple-500/10 transition-all duration-200 font-medium flex items-center justify-center gap-2">
         <Icon name="Settings" size={16} />
-        Настроить уведомления
+        {t.configureNotifs}
       </button>
     </div>
   );
 }
 
 // ─── Section: Archive ─────────────────────────────────────────────────────────
-function ArchiveSection({ contacts }: { contacts: Contact[] }) {
+function ArchiveSection({ contacts, t, locale }: { contacts: Contact[]; t: ReturnType<typeof getT>; locale: string }) {
   const total = archiveDebts.reduce((s, d) => s + d.amount, 0);
   return (
     <div className="animate-fade-in">
@@ -420,8 +421,8 @@ function ArchiveSection({ contacts }: { contacts: Contact[] }) {
             <Icon name="CheckCircle2" size={20} className="text-green-400" />
           </div>
           <div>
-            <p className="font-semibold text-green-400">Погашено на {fmt(total)}</p>
-            <p className="text-xs text-muted-foreground">{archiveDebts.length} завершённых транзакций</p>
+            <p className="font-semibold text-green-400">{t.paidOn} {fmt(total)}</p>
+            <p className="text-xs text-muted-foreground">{archiveDebts.length} {t.completedTx}</p>
           </div>
         </div>
       </div>
@@ -435,12 +436,12 @@ function ArchiveSection({ contacts }: { contacts: Contact[] }) {
                 <p className="font-semibold text-foreground">{d.name}</p>
                 {d.note && <p className="text-xs text-muted-foreground">{d.note}</p>}
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {new Date(d.dueDate).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })}
+                  {new Date(d.dueDate).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" })}
                 </p>
               </div>
               <div className="text-right flex-shrink-0">
                 <p className="text-lg font-bold font-heading text-green-400">{fmt(d.amount)}</p>
-                <StatusBadge status="paid" />
+                <StatusBadge status="paid" t={t} />
               </div>
             </div>
           );
@@ -451,7 +452,7 @@ function ArchiveSection({ contacts }: { contacts: Contact[] }) {
 }
 
 // ─── Section: Contacts ────────────────────────────────────────────────────────
-function ContactsSection({ contacts, onColorChange }: { contacts: Contact[]; onColorChange: (id: number, color: ContactColor) => void }) {
+function ContactsSection({ contacts, onColorChange, t }: { contacts: Contact[]; onColorChange: (id: number, color: ContactColor) => void; t: ReturnType<typeof getT> }) {
   const [editingId, setEditingId] = useState<number | null>(null);
 
   return (
@@ -481,7 +482,7 @@ function ContactsSection({ contacts, onColorChange }: { contacts: Contact[]; onC
                   onClick={() => setEditingId(isEditing ? null : c.id)}
                   className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors hover:bg-white/10"
                   style={{ color: col.text }}
-                  title="Выбрать цвет"
+                  title={t.chooseColor}
                 >
                   <div className="w-4 h-4 rounded-full" style={{ background: col.hex, boxShadow: `0 0 6px ${col.hex}` }} />
                 </button>
@@ -489,7 +490,7 @@ function ContactsSection({ contacts, onColorChange }: { contacts: Contact[]; onC
 
               {isEditing && (
                 <div className="mb-3 p-3 rounded-xl" style={{ background: col.bg, border: `1px solid ${col.border}` }}>
-                  <p className="text-xs mb-2" style={{ color: col.text }}>Цвет контакта в календаре:</p>
+                  <p className="text-xs mb-2" style={{ color: col.text }}>{t.contactColor}:</p>
                   <ColorPicker value={c.color} onChange={(newColor) => onColorChange(c.id, newColor)} />
                 </div>
               )}
@@ -497,13 +498,13 @@ function ContactsSection({ contacts, onColorChange }: { contacts: Contact[]; onC
               <div className="flex gap-2">
                 {c.totalLent > 0 && (
                   <div className="flex-1 rounded-xl px-3 py-2" style={{ background: col.bg, border: `1px solid ${col.border}` }}>
-                    <p className="text-[10px] mb-0.5" style={{ color: col.text + "aa" }}>Должен вам</p>
+                    <p className="text-[10px] mb-0.5" style={{ color: col.text + "aa" }}>{t.owesYou}</p>
                     <p className="font-bold text-sm" style={{ color: col.text }}>{fmt(c.totalLent)}</p>
                   </div>
                 )}
                 {c.totalBorrowed > 0 && (
                   <div className="flex-1 rounded-xl px-3 py-2" style={{ background: col.bg, border: `1px solid ${col.border}` }}>
-                    <p className="text-[10px] mb-0.5" style={{ color: col.text + "aa" }}>Вы должны</p>
+                    <p className="text-[10px] mb-0.5" style={{ color: col.text + "aa" }}>{t.youOwe}</p>
                     <p className="font-bold text-sm" style={{ color: col.text }}>{fmt(c.totalBorrowed)}</p>
                   </div>
                 )}
@@ -514,14 +515,14 @@ function ContactsSection({ contacts, onColorChange }: { contacts: Contact[]; onC
       </div>
       <button className="mt-4 w-full py-3 rounded-2xl glass border border-dashed border-purple-500/30 text-purple-400 hover:bg-purple-500/10 transition-all duration-200 font-medium flex items-center justify-center gap-2">
         <Icon name="UserPlus" size={16} />
-        Добавить контакт
+        {t.addContact}
       </button>
     </div>
   );
 }
 
 // ─── Section: Dashboard ───────────────────────────────────────────────────────
-function Dashboard({ onNav, contacts }: { onNav: (s: Section) => void; contacts: Contact[] }) {
+function Dashboard({ onNav, contacts, t }: { onNav: (s: Section) => void; contacts: Contact[]; t: ReturnType<typeof getT> }) {
   const totalLent = lentDebts.filter(d => d.status !== "paid").reduce((s, d) => s + d.amount, 0);
   const totalBorrowed = borrowedDebts.filter(d => d.status !== "paid").reduce((s, d) => s + d.amount, 0);
   const balance = totalLent - totalBorrowed;
@@ -532,11 +533,11 @@ function Dashboard({ onNav, contacts }: { onNav: (s: Section) => void; contacts:
       <div className="relative rounded-3xl overflow-hidden p-6" style={{ background: "linear-gradient(135deg, rgba(168,85,247,0.3) 0%, rgba(99,102,241,0.2) 50%, rgba(56,189,248,0.2) 100%)", border: "1px solid rgba(168,85,247,0.3)" }}>
         <div className="absolute inset-0 opacity-30" style={{ background: "radial-gradient(circle at 70% 50%, rgba(168,85,247,0.5), transparent 60%)" }} />
         <div className="relative">
-          <p className="text-muted-foreground text-sm mb-1">Чистый баланс</p>
+          <p className="text-muted-foreground text-sm mb-1">{t.totalBalance}</p>
           <p className={`text-4xl font-black font-heading mb-1 ${balance >= 0 ? "text-gradient-purple" : "text-red-400"}`}>
             {balance >= 0 ? "+" : ""}{fmt(balance)}
           </p>
-          <p className="text-xs text-muted-foreground">{balance >= 0 ? "Вам должны больше, чем вы" : "Вы должны больше, чем вам"}</p>
+          <p className="text-xs text-muted-foreground">{balance >= 0 ? t.youAreOwed : t.youOweTotal}</p>
         </div>
       </div>
 
@@ -544,7 +545,7 @@ function Dashboard({ onNav, contacts }: { onNav: (s: Section) => void; contacts:
         <button onClick={() => onNav("lent")} className="glass rounded-2xl p-4 text-left hover:bg-white/[0.07] transition-all duration-200 glow-purple">
           <div className="flex items-center gap-2 mb-2">
             <div className="w-8 h-8 gradient-purple rounded-xl flex items-center justify-center"><Icon name="TrendingUp" size={16} className="text-white" /></div>
-            <span className="text-xs text-muted-foreground">Выдано</span>
+            <span className="text-xs text-muted-foreground">{t.navLent}</span>
           </div>
           <p className="text-2xl font-black font-heading text-gradient-purple">{fmt(totalLent)}</p>
           <p className="text-xs text-muted-foreground mt-1">{lentDebts.length} займов</p>
@@ -553,7 +554,7 @@ function Dashboard({ onNav, contacts }: { onNav: (s: Section) => void; contacts:
         <button onClick={() => onNav("borrowed")} className="glass rounded-2xl p-4 text-left hover:bg-white/[0.07] transition-all duration-200 glow-blue">
           <div className="flex items-center gap-2 mb-2">
             <div className="w-8 h-8 gradient-blue rounded-xl flex items-center justify-center"><Icon name="TrendingDown" size={16} className="text-white" /></div>
-            <span className="text-xs text-muted-foreground">Взято</span>
+            <span className="text-xs text-muted-foreground">{t.navBorrowed}</span>
           </div>
           <p className="text-2xl font-black font-heading text-gradient-blue">{fmt(totalBorrowed)}</p>
           <p className="text-xs text-muted-foreground mt-1">{borrowedDebts.length} займов</p>
@@ -562,7 +563,7 @@ function Dashboard({ onNav, contacts }: { onNav: (s: Section) => void; contacts:
         <button onClick={() => onNav("notifications")} className="glass rounded-2xl p-4 text-left hover:bg-white/[0.07] transition-all duration-200">
           <div className="flex items-center gap-2 mb-2">
             <div className="w-8 h-8 bg-red-500/20 rounded-xl flex items-center justify-center"><Icon name="AlertCircle" size={16} className="text-red-400" /></div>
-            <span className="text-xs text-muted-foreground">Просрочено</span>
+            <span className="text-xs text-muted-foreground">{t.overdue}</span>
           </div>
           <p className="text-2xl font-black font-heading text-red-400">{overdueCount}</p>
           <p className="text-xs text-muted-foreground mt-1">нужно внимание</p>
@@ -597,7 +598,7 @@ function Dashboard({ onNav, contacts }: { onNav: (s: Section) => void; contacts:
 
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="font-heading font-semibold text-sm text-muted-foreground uppercase tracking-wider">Последние</h3>
+          <h3 className="font-heading font-semibold text-sm text-muted-foreground uppercase tracking-wider">{t.recentActivity}</h3>
           <button onClick={() => onNav("lent")} className="text-xs text-purple-400 hover:text-purple-300 transition-colors">Все →</button>
         </div>
         <div className="space-y-2">
@@ -610,7 +611,7 @@ function Dashboard({ onNav, contacts }: { onNav: (s: Section) => void; contacts:
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-sm text-foreground truncate">{d.name}</p>
                 </div>
-                <StatusBadge status={d.status} />
+                <StatusBadge status={d.status} t={t} />
                 <p className={`font-bold text-sm flex-shrink-0 ${d.status === "overdue" ? "text-red-400" : "text-foreground"}`}>{fmt(d.amount)}</p>
               </div>
             );
@@ -622,11 +623,14 @@ function Dashboard({ onNav, contacts }: { onNav: (s: Section) => void; contacts:
 }
 
 // ─── Section: Settings ────────────────────────────────────────────────────────
-function SettingsSection({ theme, onThemeChange, profile, onProfileChange }: {
+function SettingsSection({ theme, onThemeChange, profile, onProfileChange, t, lang, onLangChange }: {
   theme: Theme;
   onThemeChange: (t: Theme) => void;
   profile: { name: string; phone: string };
   onProfileChange: (p: { name: string; phone: string }) => void;
+  t: ReturnType<typeof getT>;
+  lang: Lang;
+  onLangChange: (l: Lang) => void;
 }) {
   const [local, setLocal] = useState(profile);
   const [saved, setSaved] = useState(false);
@@ -639,16 +643,16 @@ function SettingsSection({ theme, onThemeChange, profile, onProfileChange }: {
   const themes: { id: Theme; label: string; desc: string; icon: string; bg: string; preview: string[] }[] = [
     {
       id: "dark",
-      label: "Тёмная",
-      desc: "Неоновые градиенты на тёмном фоне",
+      label: t.themeDark,
+      desc: t.themeDarkDesc,
       icon: "Moon",
       bg: "from-slate-900 to-slate-800",
       preview: ["#0d0f1a", "#1a1d2e", "#a855f7"],
     },
     {
       id: "light",
-      label: "Светлая",
-      desc: "Чистый светлый стиль с акцентами",
+      label: t.themeLight,
+      desc: t.themeLightDesc,
       icon: "Sun",
       bg: "from-purple-50 to-slate-100",
       preview: ["#f0f2f8", "#ffffff", "#a855f7"],
@@ -657,6 +661,31 @@ function SettingsSection({ theme, onThemeChange, profile, onProfileChange }: {
 
   return (
     <div className="animate-fade-in space-y-5">
+      <div className="glass rounded-2xl p-5">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-9 h-9 bg-emerald-500/20 rounded-xl flex items-center justify-center">
+            <Icon name="Globe" size={18} className="text-emerald-400" />
+          </div>
+          <div>
+            <p className="font-semibold text-foreground">{t.language}</p>
+            <p className="text-xs text-muted-foreground">{t.languageDesc}</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {LANGUAGES.map(l => (
+            <button
+              key={l.id}
+              onClick={() => onLangChange(l.id)}
+              className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${lang === l.id ? "gradient-purple text-white" : "glass hover:bg-white/10 text-muted-foreground"}`}
+            >
+              <span>{l.flag}</span>
+              <span>{l.label}</span>
+              {lang === l.id && <Icon name="Check" size={14} className="ml-auto text-white" />}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Profile */}
       <div className="glass rounded-2xl p-5">
         <div className="flex items-center gap-3 mb-4">
@@ -664,13 +693,13 @@ function SettingsSection({ theme, onThemeChange, profile, onProfileChange }: {
             <Icon name="User" size={18} className="text-white" />
           </div>
           <div>
-            <p className="font-semibold text-foreground">Мой профиль</p>
-            <p className="text-xs text-muted-foreground">Данные кредитора по умолчанию</p>
+            <p className="font-semibold text-foreground">{t.myProfile}</p>
+            <p className="text-xs text-muted-foreground">{t.profileDesc}</p>
           </div>
         </div>
         <div className="space-y-3">
           <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Имя</label>
+            <label className="text-xs text-muted-foreground mb-1 block">{t.name}</label>
             <input
               value={local.name}
               onChange={e => setLocal(l => ({ ...l, name: e.target.value }))}
@@ -679,7 +708,7 @@ function SettingsSection({ theme, onThemeChange, profile, onProfileChange }: {
             />
           </div>
           <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Телефон</label>
+            <label className="text-xs text-muted-foreground mb-1 block">{t.phone}</label>
             <input
               value={local.phone}
               onChange={e => setLocal(l => ({ ...l, phone: e.target.value }))}
@@ -692,7 +721,7 @@ function SettingsSection({ theme, onThemeChange, profile, onProfileChange }: {
             className="w-full py-2.5 rounded-xl font-semibold text-white text-sm transition-all"
             style={{ background: "linear-gradient(135deg, #a855f7, #6366f1)" }}
           >
-            {saved ? "Сохранено ✓" : "Сохранить"}
+            {saved ? t.saved : t.save}
           </button>
         </div>
       </div>
@@ -704,8 +733,8 @@ function SettingsSection({ theme, onThemeChange, profile, onProfileChange }: {
             <Icon name="Palette" size={18} className="text-white" />
           </div>
           <div>
-            <p className="font-semibold text-foreground">Тема оформления</p>
-            <p className="text-xs text-muted-foreground">Выберите светлую или тёмную тему</p>
+            <p className="font-semibold text-foreground">{t.themeTitle}</p>
+            <p className="text-xs text-muted-foreground">{t.themeDesc}</p>
           </div>
         </div>
 
@@ -750,8 +779,8 @@ function SettingsSection({ theme, onThemeChange, profile, onProfileChange }: {
             <Icon name="Monitor" size={18} className="text-sky-400" />
           </div>
           <div>
-            <p className="font-semibold text-foreground">Авто-тема</p>
-            <p className="text-xs text-muted-foreground">Следовать настройкам устройства</p>
+            <p className="font-semibold text-foreground">{t.autoTheme}</p>
+            <p className="text-xs text-muted-foreground">{t.autoThemeDesc}</p>
           </div>
           <button
             onClick={() => {
@@ -760,7 +789,7 @@ function SettingsSection({ theme, onThemeChange, profile, onProfileChange }: {
             }}
             className="ml-auto px-3 py-1.5 rounded-xl text-xs font-medium glass hover:bg-white/10 transition-colors text-muted-foreground"
           >
-            Применить
+            {t.apply}
           </button>
         </div>
       </div>
@@ -772,14 +801,14 @@ function SettingsSection({ theme, onThemeChange, profile, onProfileChange }: {
             <Icon name="Info" size={18} className="text-purple-400" />
           </div>
           <div>
-            <p className="font-semibold text-foreground">О приложении</p>
+            <p className="font-semibold text-foreground">{t.aboutApp}</p>
           </div>
         </div>
         <div className="space-y-2 text-sm">
           {[
-            { label: "Название", value: "Debt-Debt" },
-            { label: "Версия", value: "1.0.0" },
-            { label: "Платформа", value: "PWA (iOS / Android)" },
+            { label: t.appNameLabel, value: "Debt-Debt" },
+            { label: t.version, value: "1.0.0" },
+            { label: t.platform, value: "PWA (iOS / Android)" },
           ].map(row => (
             <div key={row.label} className="flex items-center justify-between py-1.5 border-b border-white/5 last:border-0">
               <span className="text-muted-foreground">{row.label}</span>
@@ -792,30 +821,8 @@ function SettingsSection({ theme, onThemeChange, profile, onProfileChange }: {
   );
 }
 
-// ─── Nav Config ───────────────────────────────────────────────────────────────
-const navItems: { id: Section; icon: string; label: string; badge?: number }[] = [
-  { id: "dashboard",     icon: "LayoutDashboard", label: "Главная"     },
-  { id: "lent",          icon: "TrendingUp",       label: "Выдано"      },
-  { id: "borrowed",      icon: "TrendingDown",     label: "Взято"       },
-  { id: "calendar",      icon: "CalendarDays",     label: "Календарь"   },
-  { id: "notifications", icon: "Bell",             label: "Уведомления", badge: 3 },
-  { id: "archive",       icon: "Archive",          label: "Архив"       },
-  { id: "contacts",      icon: "Users",            label: "Контакты"    },
-];
-
-const sectionTitles: Record<Section, string> = {
-  dashboard:     "Debt-Debt",
-  lent:          "Выданные займы",
-  borrowed:      "Взятые займы",
-  calendar:      "Календарь",
-  notifications: "Уведомления",
-  archive:       "Архив",
-  contacts:      "Контакты",
-  settings:      "Настройки",
-};
-
 // ─── PWA Install Banner ───────────────────────────────────────────────────────
-function InstallBanner() {
+function InstallBanner({ t }: { t: ReturnType<typeof getT> }) {
   const [prompt, setPrompt] = useState<Event | null>(null);
   const [dismissed, setDismissed] = useState(false);
   const [isIos, setIsIos] = useState(false);
@@ -854,9 +861,9 @@ function InstallBanner() {
             <img src="/icons/icon-192.png" alt="Debt-Debt" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display='none'; }} />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-sm text-foreground">Установить Debt-Debt</p>
+            <p className="font-semibold text-sm text-foreground">{t.installApp}</p>
             <p className="text-xs text-muted-foreground">
-              {isIos ? "Нажмите «Поделиться» → «На экран Домой»" : "Работает без интернета как приложение"}
+              {isIos ? t.iosHint : t.installDesc}
             </p>
           </div>
           <div className="flex gap-1.5">
@@ -866,7 +873,7 @@ function InstallBanner() {
                 className="text-xs font-semibold px-3 py-1.5 rounded-xl text-white"
                 style={{ background: "linear-gradient(135deg, #a855f7, #6366f1)" }}
               >
-                Установить
+                {t.install}
               </button>
             )}
             <button onClick={() => setDismissed(true)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white/10 transition-colors">
@@ -896,6 +903,31 @@ export default function Index() {
       return saved ? JSON.parse(saved) : { name: "", phone: "" };
     } catch { return { name: "", phone: "" }; }
   });
+
+  const [lang, setLang] = useState<Lang>(() => {
+    return (localStorage.getItem("df-lang") as Lang) || "ru";
+  });
+  function handleLangChange(l: Lang) {
+    setLang(l);
+    localStorage.setItem("df-lang", l);
+  }
+  const t = getT(lang);
+  const locale = lang === "zh" ? "zh-CN" : lang === "fr" ? "fr-FR" : lang === "en" ? "en-US" : "ru-RU";
+
+  const navItems = [
+    { id: "dashboard" as Section,     icon: "LayoutDashboard", label: t.navDashboard },
+    { id: "lent" as Section,          icon: "TrendingUp",       label: t.navLent },
+    { id: "borrowed" as Section,      icon: "TrendingDown",     label: t.navBorrowed },
+    { id: "calendar" as Section,      icon: "CalendarDays",     label: t.navCalendar },
+    { id: "notifications" as Section, icon: "Bell",             label: t.navNotifications, badge: 3 },
+    { id: "archive" as Section,       icon: "Archive",          label: t.navArchive },
+    { id: "contacts" as Section,      icon: "Users",            label: t.navContacts },
+  ];
+  const sectionTitles: Record<Section, string> = {
+    dashboard: t.appName, lent: t.titleLent, borrowed: t.titleBorrowed,
+    calendar: t.titleCalendar, notifications: t.titleNotifications,
+    archive: t.titleArchive, contacts: t.titleContacts, settings: t.navSettings,
+  };
 
   function handleProfileChange(p: { name: string; phone: string }) {
     setProfile(p);
@@ -929,7 +961,7 @@ export default function Index() {
             <h1 className="font-heading font-black text-xl">
               {section === "dashboard" ? <span className="text-gradient-purple">Debt-Debt</span> : sectionTitles[section]}
             </h1>
-            {section === "dashboard" && <p className="text-xs text-muted-foreground">Управление долгами и займами</p>}
+            {section === "dashboard" && <p className="text-xs text-muted-foreground">{t.appSubtitle}</p>}
           </div>
           <div className="flex items-center gap-2">
             {section !== "notifications" && (
@@ -951,18 +983,18 @@ export default function Index() {
         </div>
       </header>
 
-      <InstallBanner />
+      <InstallBanner t={t} />
 
       <main className="relative z-10 flex-1 px-4 pb-32 overflow-y-auto">
         <div className="max-w-lg mx-auto">
-          {section === "dashboard"     && <Dashboard onNav={setSection} contacts={contacts} />}
-          {section === "lent"          && <DebtList debts={lentDebts} dir="lent" contacts={contacts} />}
-          {section === "borrowed"      && <DebtList debts={borrowedDebts} dir="borrowed" contacts={contacts} />}
-          {section === "calendar"      && <CalendarSection contacts={contacts} />}
-          {section === "notifications" && <NotificationsSection />}
-          {section === "archive"       && <ArchiveSection contacts={contacts} />}
-          {section === "contacts"      && <ContactsSection contacts={contacts} onColorChange={handleColorChange} />}
-          {section === "settings"      && <SettingsSection theme={theme} onThemeChange={setTheme} profile={profile} onProfileChange={handleProfileChange} />}
+          {section === "dashboard"     && <Dashboard onNav={setSection} contacts={contacts} t={t} />}
+          {section === "lent"          && <DebtList debts={lentDebts} dir="lent" contacts={contacts} t={t} locale={locale} />}
+          {section === "borrowed"      && <DebtList debts={borrowedDebts} dir="borrowed" contacts={contacts} t={t} locale={locale} />}
+          {section === "calendar"      && <CalendarSection contacts={contacts} t={t} />}
+          {section === "notifications" && <NotificationsSection t={t} />}
+          {section === "archive"       && <ArchiveSection contacts={contacts} t={t} locale={locale} />}
+          {section === "contacts"      && <ContactsSection contacts={contacts} onColorChange={handleColorChange} t={t} />}
+          {section === "settings"      && <SettingsSection theme={theme} onThemeChange={setTheme} profile={profile} onProfileChange={handleProfileChange} t={t} lang={lang} onLangChange={handleLangChange} />}
         </div>
       </main>
 
