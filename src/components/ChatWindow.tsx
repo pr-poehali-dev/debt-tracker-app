@@ -138,24 +138,35 @@ export default function ChatWindow({ debtId, rentalId, title, token, onClose, on
   const chatType = debtId ? "долгу" : "аренде";
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: "var(--app-bg)" }}>
-      <div className="mesh-bg fixed inset-0 pointer-events-none" />
+    <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+      <div
+        className="relative w-full flex flex-col animate-slide-up"
+        style={{ height: "80%", background: "var(--app-bg)", borderRadius: "20px 20px 0 0", maxWidth: 640 }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="mesh-bg absolute inset-0 pointer-events-none rounded-t-[20px]" />
 
-      {/* Header */}
-      <div className="relative z-10 px-4 pt-5 pb-3 flex items-center gap-3 border-b border-white/5">
-        <button onClick={onClose}
-          className="w-9 h-9 glass rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors">
-          <Icon name="ChevronLeft" size={18} />
-        </button>
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-foreground truncate">{title}</p>
-          <p className="text-xs text-muted-foreground">Чат по {chatType}</p>
+        {/* Drag handle */}
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="w-10 h-1 rounded-full bg-white/20" />
         </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-          <span className="text-[10px] text-muted-foreground">онлайн</span>
+
+        {/* Header */}
+        <div className="relative z-10 px-4 pt-2 pb-3 flex items-center gap-3 border-b border-white/5">
+          <button onClick={onClose}
+            className="w-9 h-9 glass rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors">
+            <Icon name="ChevronLeft" size={18} />
+          </button>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-foreground truncate">{title}</p>
+            <p className="text-xs text-muted-foreground">Чат по {chatType}</p>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+            <span className="text-[10px] text-muted-foreground">онлайн</span>
+          </div>
         </div>
-      </div>
 
       {/* Messages */}
       <div className="relative z-10 flex-1 overflow-y-auto px-4 py-4">
@@ -245,6 +256,7 @@ export default function ChatWindow({ debtId, rentalId, title, token, onClose, on
             }
           </button>
         </div>
+      </div>
       </div>
     </div>
   );

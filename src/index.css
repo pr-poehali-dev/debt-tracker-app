@@ -2,6 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+.animate-slide-up {
+  animation: slide-up 0.3s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+
 @layer base {
   :root {
     /* ── DARK THEME (default) ── */
