@@ -38,6 +38,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
   const [rentalInvite, setRentalInvite] = useState<string | null>(() => new URLSearchParams(window.location.search).get("rental"));
   const [activeChat, setActiveChat] = useState<{ debtId: string; title: string } | null>(null);
   const [notifs, setNotifs] = useState<Notification[]>([]);
+  const audioCtxRef = { current: null as AudioContext | null };
   const [unreadMessages, setUnreadMessages] = useState(0);
 
   useEffect(() => {
@@ -227,41 +228,86 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
     return () => clearInterval(interval);
   }, [isDemo, token]);
 
-  // Счётчик непрочитанных сообщений чата + звук при новых
+  // Разблокировка AudioContext при первом касании
+  useEffect(() => {
+    function unlockAudio() {
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new AudioContext();
+      } else if (audioCtxRef.current.state === "suspended") {
+        audioCtxRef.current.resume();
+      }
+    }
+    document.addEventListener("touchstart", unlockAudio, { once: true });
+    document.addEventListener("click", unlockAudio, { once: true });
+    return () => {
+      document.removeEventListener("touchstart", unlockAudio);
+      document.removeEventListener("click", unlockAudio);
+    };
+  }, []);
+
+  // Счётчик непрочитанных сообщений чата + звук + уведомление в колокольчик
   useEffect(() => {
     if (isDemo) return;
-    let prevUnread = 0;
+    let prevUnread = -1;
 
     function playChatSound() {
       try {
-        const ctx = new AudioContext();
+        if (!audioCtxRef.current) audioCtxRef.current = new AudioContext();
+        const ctx = audioCtxRef.current;
+        if (ctx.state === "suspended") ctx.resume();
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.connect(gain); gain.connect(ctx.destination);
         osc.type = "sine";
         osc.frequency.setValueAtTime(1046, ctx.currentTime);
         osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.12);
-        gain.gain.setValueAtTime(0.2, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+        gain.gain.setValueAtTime(0.25, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
         osc.start(ctx.currentTime);
-        osc.stop(ctx.currentTime + 0.35);
+        osc.stop(ctx.currentTime + 0.4);
       } catch { /* ignore */ }
     }
 
     async function pollUnreadMessages() {
       const urls = (await import("../../backend/func2url.json")).default;
       const res = await fetch(`${urls["chat"]}?unread=1`, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) {
-        const d = await res.json();
-        const count = d.unread || 0;
-        if (count > prevUnread && prevUnread !== -1) {
-          playChatSound();
-        }
-        prevUnread = count;
-        setUnreadMessages(count);
+      if (!res.ok) return;
+      const d = await res.json();
+      const count: number = d.unread || 0;
+
+      if (count > prevUnread && prevUnread !== -1) {
+        // Звук
+        playChatSound();
+        // Добавляем уведомление в колокольчик
+        const newNotif: Notification = {
+          id: Date.now(),
+          type: "info",
+          title: "💬 Новое сообщение",
+          message: `У вас ${count} непрочитанных сообщений в чате`,
+          date: new Date().toLocaleDateString("ru-RU"),
+          read: false,
+        };
+        setNotifs(prev => {
+          // Не дублируем если уже есть такое
+          const hasMsgNotif = prev.some(n => n.title === "💬 Новое сообщение" && !n.read);
+          if (hasMsgNotif) return prev.map(n =>
+            n.title === "💬 Новое сообщение" && !n.read
+              ? { ...n, message: `У вас ${count} непрочитанных сообщений в чате` }
+              : n
+          );
+          return [newNotif, ...prev];
+        });
       }
+
+      // Убираем уведомление о сообщениях если всё прочитано
+      if (count === 0 && prevUnread > 0) {
+        setNotifs(prev => prev.filter(n => n.title !== "💬 Новое сообщение"));
+      }
+
+      prevUnread = count;
+      setUnreadMessages(count);
     }
-    prevUnread = -1; // первый запрос без звука
+
     pollUnreadMessages();
     const iv = setInterval(pollUnreadMessages, 10000);
     return () => clearInterval(iv);
