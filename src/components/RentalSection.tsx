@@ -144,7 +144,9 @@ function RentalCard({ rental, userId, token, onUpdate, onDelete }: { rental: Ren
   const [showChat, setShowChat] = useState(false);
   const [unread, setUnread] = useState(0);
   const isLandlord = rental.landlord_user_id === userId;
-  const canChat = rental.tenant_decision === "accepted" && rental.tenant_user_id && rental.landlord_user_id;
+  const canChat = rental.tenant_decision === "accepted" &&
+    rental.tenant_user_id && rental.landlord_user_id &&
+    (rental.landlord_user_id === userId || rental.tenant_user_id === userId);
 
   useEffect(() => {
     if (!canChat) return;
