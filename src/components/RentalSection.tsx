@@ -148,7 +148,24 @@ function RentalCard({ rental, userId, onUpdate }: { rental: Rental; userId: numb
       {isLandlord && (
         <div className="flex items-center justify-between pt-1 border-t" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
           <span className="text-xs text-muted-foreground">Статус арендатора:</span>
-          <PayBadge status={rental.current_month_status_tenant} />
+          <div className="flex items-center gap-2">
+            {rental.tenant_decision === "accepted" && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium" style={{ background: "rgba(34,197,94,0.15)", color: "#4ade80" }}>
+                <Icon name="CheckCircle" size={10} /> Подтверждено
+              </span>
+            )}
+            {rental.tenant_decision === "rejected" && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium" style={{ background: "rgba(244,63,94,0.15)", color: "#fb7185" }}>
+                <Icon name="XCircle" size={10} /> Отклонено
+              </span>
+            )}
+            {(!rental.tenant_decision || rental.tenant_decision === "pending") && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium" style={{ background: "rgba(245,158,11,0.15)", color: "#fbbf24" }}>
+                <Icon name="Clock" size={10} /> Ожидает
+              </span>
+            )}
+            <PayBadge status={rental.current_month_status_tenant} />
+          </div>
         </div>
       )}
     </div>

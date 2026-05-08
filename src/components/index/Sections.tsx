@@ -67,10 +67,27 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                     <StatusBadge status={d.status} t={t} />
                   </div>
                   {d.note && <p className="text-xs text-muted-foreground truncate">{d.note}</p>}
-                  <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
-                    <Icon name="Calendar" size={11} />
-                    {new Date(d.dueDate).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" })}
-                  </p>
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Icon name="Calendar" size={11} />
+                      {new Date(d.dueDate).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" })}
+                    </p>
+                    {dir === "lent" && d.debtDbId && (
+                      d.borrowerDecision === "accepted" ? (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium" style={{ background: "rgba(34,197,94,0.15)", color: "#4ade80" }}>
+                          <Icon name="CheckCircle" size={9} /> Подтверждено
+                        </span>
+                      ) : d.borrowerDecision === "rejected" ? (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium" style={{ background: "rgba(244,63,94,0.15)", color: "#fb7185" }}>
+                          <Icon name="XCircle" size={9} /> Отклонено
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium" style={{ background: "rgba(245,158,11,0.15)", color: "#fbbf24" }}>
+                          <Icon name="Clock" size={9} /> Ожидает
+                        </span>
+                      )
+                    )}
+                  </div>
                 </div>
                 <div className="text-right flex-shrink-0 flex flex-col items-end gap-1">
                   {(() => {
