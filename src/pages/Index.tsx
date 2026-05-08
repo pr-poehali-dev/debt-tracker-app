@@ -313,18 +313,26 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
     return () => clearInterval(iv);
   }, [isDemo, token]);
 
-  // Web Push подписка
+  // Web Push подписка — запрашиваем разрешение и подписываемся
   useEffect(() => {
     if (isDemo) return;
     async function subscribePush() {
       if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+      // Запрашиваем разрешение если ещё не дано
+      let permission = Notification.permission;
+      if (permission === "default") {
+        permission = await Notification.requestPermission();
+      }
+      if (permission !== "granted") return;
       const urls = (await import("../../backend/func2url.json")).default;
       const keyRes = await fetch(`${urls["chat"]}?action=vapid-key`);
       if (!keyRes.ok) return;
       const { public_key } = await keyRes.json();
       if (!public_key) return;
       const reg = await navigator.serviceWorker.ready;
-      const sub = await reg.pushManager.subscribe({
+      // Проверяем есть ли уже подписка
+      const existing = await reg.pushManager.getSubscription();
+      const sub = existing || await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: public_key,
       }).catch(() => null);
@@ -340,7 +348,9 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
         }),
       });
     }
-    subscribePush().catch(() => {});
+    // Небольшая задержка чтобы пользователь сначала увидел интерфейс
+    const t = setTimeout(() => subscribePush().catch(() => {}), 3000);
+    return () => clearTimeout(t);
   }, [isDemo, token]);
 
   async function handleMarkAllRead() {
