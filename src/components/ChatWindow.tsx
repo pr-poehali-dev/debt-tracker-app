@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import Icon from "@/components/ui/icon";
 import func2url from "../../backend/func2url.json";
 
@@ -157,13 +158,13 @@ export default function ChatWindow({ debtId, rentalId, title, token, onClose, on
 
   const chatType = debtId ? "долгу" : "аренде";
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={onClose}>
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-end justify-center" onClick={onClose}>
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
       <div
         ref={panelRef}
         className="relative w-full flex flex-col animate-slide-up"
-        style={{ height: "80dvh", maxHeight: "80dvh", background: "var(--app-bg)", borderRadius: "20px 20px 0 0", maxWidth: 640, transition: "transform 0.1s ease", overflow: "hidden" }}
+        style={{ height: "80dvh", maxHeight: "80dvh", background: "var(--app-bg)", borderRadius: "20px 20px 0 0", maxWidth: 640, transition: "transform 0.1s ease" }}
         onClick={e => e.stopPropagation()}
       >
         <div className="mesh-bg absolute inset-0 pointer-events-none rounded-t-[20px]" />
@@ -287,6 +288,7 @@ export default function ChatWindow({ debtId, rentalId, title, token, onClose, on
         </div>
       </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
