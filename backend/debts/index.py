@@ -33,11 +33,36 @@ def json_resp(data, status=200):
 def err(msg, status=400):
     return json_resp({"error": msg}, status)
 
-def send_decision_email(to_email: str, lender_name: str, borrower_name: str, debt_title: str, amount: float, decision: str):
+def calc_total(amount: float, rate, itype, due_date) -> float:
+    if not rate or not due_date:
+        return amount
+    from datetime import date as date_cls
+    today = date_cls.today()
+    due = due_date if isinstance(due_date, date_cls) else date_cls.fromisoformat(str(due_date))
+    days = (due - today).days
+    if days <= 0:
+        return amount
+    years = days / 365
+    rate = float(rate)
+    if str(itype) == "compound":
+        return round(amount * (1 + rate / 100) ** years)
+    return round(amount * (1 + (rate / 100) * years))
+
+def send_decision_email(to_email: str, lender_name: str, borrower_name: str, debt_title: str, amount: float, decision: str, interest_rate=None, interest_type=None, due_date=None):
     accepted = decision == "accepted"
     color = "#22c55e" if accepted else "#f43f5e"
     status_text = "принял" if accepted else "отклонил"
     emoji = "✅" if accepted else "❌"
+    total = calc_total(amount, interest_rate, interest_type, due_date)
+    interest = total - amount
+    interest_line = ""
+    if interest_rate and interest > 0:
+        itype_label = "сложные" if str(interest_type) == "compound" else "простые"
+        interest_line = f"""
+        <div style="margin-top:8px;padding-top:8px;border-top:1px solid #e0d0ff">
+          <p style="margin:0;font-size:13px;color:#888">Тело долга: {amount:,.0f} ₽</p>
+          <p style="margin:2px 0 0;font-size:13px;color:#a855f7">Проценты ({interest_rate}%, {itype_label}): +{interest:,.0f} ₽</p>
+        </div>"""
     body_html = f"""
     <div style="font-family:sans-serif;max-width:420px;margin:0 auto;padding:24px">
       <h2 style="color:#a855f7;margin-bottom:8px">Debt-Debt</h2>
@@ -45,7 +70,9 @@ def send_decision_email(to_email: str, lender_name: str, borrower_name: str, deb
       <p style="color:#555"><strong>{borrower_name}</strong> {status_text} ваш долг:</p>
       <div style="background:#f5f0ff;border-radius:12px;padding:20px;margin:20px 0;border-left:4px solid {color}">
         <p style="margin:0 0 4px 0;font-weight:bold;color:#333">{debt_title}</p>
-        <p style="margin:0;font-size:24px;font-weight:900;color:{color}">{emoji} {amount:,.0f} ₽</p>
+        <p style="margin:0;font-size:13px;color:#888">{"Итого к возврату" if interest_rate else "Сумма долга"}</p>
+        <p style="margin:4px 0 0;font-size:24px;font-weight:900;color:{color}">{emoji} {total:,.0f} ₽</p>
+        {interest_line}
       </div>
       {"<p style='color:#555'>Теперь вы можете общаться в чате прямо в приложении.</p>" if accepted else "<p style='color:#999'>Долг остался у вас со статусом «Отклонён». Вы можете удалить его в приложении.</p>"}
       <p style="color:#999;font-size:12px;margin-top:24px">Debt-Debt — управление долгами и займами</p>
@@ -232,6 +259,9 @@ def handler(event: dict, context) -> dict:
                             debt_title=str(row[2]),
                             amount=float(row[3]),
                             decision=body["borrower_decision"],
+                            interest_rate=row[16],
+                            interest_type=row[17],
+                            due_date=row[5],
                         )
             conn.commit()
         if not row:
