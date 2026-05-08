@@ -1,7 +1,23 @@
 {
   "tests": [
     {
-      "name": "GET without auth",
+      "name": "GET vapid-key",
+      "method": "GET",
+      "path": "/?action=vapid-key",
+      "expectedStatus": 200,
+      "expectedBody": {"public_key": "string"},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "GET unread without auth",
+      "method": "GET",
+      "path": "/?unread=1",
+      "expectedStatus": 401,
+      "expectedBody": {"error": "string"},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "GET messages without auth",
       "method": "GET",
       "path": "/?debt_id=00000000-0000-0000-0000-000000000000",
       "expectedStatus": 401,

@@ -3,6 +3,10 @@ import { createPortal } from "react-dom";
 import QRCode from "qrcode";
 import Icon from "@/components/ui/icon";
 import { fmt } from "@/components/index/types";
+import ChatWindow from "@/components/ChatWindow";
+import func2url from "../../backend/func2url.json";
+
+const CHAT_URL = func2url["chat"];
 
 interface Rental {
   id: string;
@@ -137,7 +141,27 @@ function PaymentCalendar({ rental, token, userId }: { rental: Rental; token: str
 function RentalCard({ rental, userId, token, onUpdate, onDelete }: { rental: Rental; userId: number; token: string; onUpdate: (token: string, body: Record<string, unknown>) => void; onDelete: (token: string) => void }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
+  const [showChat, setShowChat] = useState(false);
+  const [unread, setUnread] = useState(0);
   const isLandlord = rental.landlord_user_id === userId;
+  const canChat = rental.tenant_decision === "accepted" && rental.tenant_user_id && rental.landlord_user_id;
+
+  useEffect(() => {
+    if (!canChat) return;
+    async function fetchUnread() {
+      const res = await fetch(`${CHAT_URL}?rental_id=${rental.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const d = await res.json();
+        const cnt = d.messages.filter((m: { is_mine: boolean }) => !m.is_mine).length;
+        setUnread(0);
+      }
+    }
+    fetchUnread();
+    const iv = setInterval(fetchUnread, 15000);
+    return () => clearInterval(iv);
+  }, [rental.id, canChat, token]);
 
   useEffect(() => {
     const close = () => setShowCalendar(false);
@@ -241,7 +265,29 @@ function RentalCard({ rental, userId, token, onUpdate, onDelete }: { rental: Ren
           </button>
         )}
         {isLandlord && <QRButton shareToken={rental.share_token} />}
+        {canChat && (
+          <button
+            onClick={() => { setShowChat(true); setUnread(0); }}
+            className="relative w-10 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-all"
+            style={{ background: "rgba(168,85,247,0.15)", border: "1px solid rgba(168,85,247,0.3)" }}
+          >
+            <Icon name="MessageCircle" size={16} style={{ color: "#a855f7" }} />
+            {unread > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center text-white"
+                style={{ background: "#a855f7" }}>{unread > 9 ? "9+" : unread}</span>
+            )}
+          </button>
+        )}
       </div>
+
+      {showChat && (
+        <ChatWindow
+          rentalId={Number(rental.id)}
+          title={rental.title}
+          token={token}
+          onClose={() => setShowChat(false)}
+        />
+      )}
 
       {isLandlord && (
         <div className="flex items-center justify-between pt-1 border-t" style={{ borderColor: "rgba(255,255,255,0.06)" }}>

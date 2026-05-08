@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 import NewDebtModal, { SharedDebtView } from "@/components/NewDebtModal";
-import DebtChat from "@/components/DebtChat";
+import ChatWindow from "@/components/ChatWindow";
 import RentalSection, { SharedRentalView, RentalInviteModal } from "@/components/RentalSection";
 import { type Lang, getT } from "@/i18n";
 import {
@@ -32,6 +32,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
   const [rentalInvite, setRentalInvite] = useState<string | null>(() => new URLSearchParams(window.location.search).get("rental"));
   const [activeChat, setActiveChat] = useState<{ debtId: string; title: string } | null>(null);
   const [notifs, setNotifs] = useState<Notification[]>([]);
+  const [unreadMessages, setUnreadMessages] = useState(0);
 
   useEffect(() => {
     if (isDemo) return;
@@ -211,6 +212,52 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
     return () => clearInterval(interval);
   }, [isDemo, token]);
 
+  // Счётчик непрочитанных сообщений чата
+  useEffect(() => {
+    if (isDemo) return;
+    async function pollUnreadMessages() {
+      const urls = (await import("../../backend/func2url.json")).default;
+      const res = await fetch(`${urls["chat"]}?unread=1`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) {
+        const d = await res.json();
+        setUnreadMessages(d.unread || 0);
+      }
+    }
+    pollUnreadMessages();
+    const iv = setInterval(pollUnreadMessages, 20000);
+    return () => clearInterval(iv);
+  }, [isDemo, token]);
+
+  // Web Push подписка
+  useEffect(() => {
+    if (isDemo) return;
+    async function subscribePush() {
+      if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+      const urls = (await import("../../backend/func2url.json")).default;
+      const keyRes = await fetch(`${urls["chat"]}?action=vapid-key`);
+      if (!keyRes.ok) return;
+      const { public_key } = await keyRes.json();
+      if (!public_key) return;
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: public_key,
+      }).catch(() => null);
+      if (!sub) return;
+      const subJson = sub.toJSON();
+      await fetch(`${urls["chat"]}?action=subscribe`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          endpoint: subJson.endpoint,
+          p256dh: subJson.keys?.p256dh,
+          auth: subJson.keys?.auth,
+        }),
+      });
+    }
+    subscribePush().catch(() => {});
+  }, [isDemo, token]);
+
   async function handleMarkAllRead() {
     setNotifs(prev => prev.map(n => ({ ...n, read: true })));
     if (!isDemo) {
@@ -346,9 +393,9 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
         }} />
       )}
       {activeChat && !isDemo && (
-        <DebtChat
+        <ChatWindow
           debtId={activeChat.debtId}
-          debtTitle={activeChat.title}
+          title={activeChat.title}
           token={token}
           onClose={() => setActiveChat(null)}
         />
@@ -374,6 +421,13 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
             {section === "dashboard" && <p className="text-xs text-muted-foreground">{t.appSubtitle}</p>}
           </div>
           <div className="flex items-center gap-2">
+            {unreadMessages > 0 && (
+              <div className="flex items-center gap-1 px-2 py-1 rounded-xl text-[10px] font-medium"
+                style={{ background: "rgba(168,85,247,0.15)", border: "1px solid rgba(168,85,247,0.3)", color: "#a855f7" }}>
+                <Icon name="MessageCircle" size={12} />
+                {unreadMessages}
+              </div>
+            )}
             {section !== "notifications" && (
               <button onClick={() => setSection("notifications")} className="relative w-9 h-9 glass rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors">
                 <Icon name="Bell" size={17} />
