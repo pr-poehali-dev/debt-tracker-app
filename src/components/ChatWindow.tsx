@@ -51,6 +51,26 @@ export default function ChatWindow({ debtId, rentalId, title, token, onClose, on
   const bottomRef = useRef<HTMLDivElement>(null);
   const prevCountRef = useRef(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const dragStartY = useRef<number | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  function handleTouchStart(e: React.TouchEvent) {
+    dragStartY.current = e.touches[0].clientY;
+  }
+
+  function handleTouchMove(e: React.TouchEvent) {
+    if (dragStartY.current === null || !panelRef.current) return;
+    const dy = e.touches[0].clientY - dragStartY.current;
+    if (dy > 0) panelRef.current.style.transform = `translateY(${dy}px)`;
+  }
+
+  function handleTouchEnd(e: React.TouchEvent) {
+    if (dragStartY.current === null || !panelRef.current) return;
+    const dy = e.changedTouches[0].clientY - dragStartY.current;
+    panelRef.current.style.transform = "";
+    if (dy > 80) onClose();
+    dragStartY.current = null;
+  }
 
   function buildQuery() {
     if (debtId) return `?debt_id=${debtId}`;
@@ -141,35 +161,44 @@ export default function ChatWindow({ debtId, rentalId, title, token, onClose, on
     <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={onClose}>
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
       <div
+        ref={panelRef}
         className="relative w-full flex flex-col animate-slide-up"
-        style={{ height: "80vh", background: "var(--app-bg)", borderRadius: "20px 20px 0 0", maxWidth: 640 }}
+        style={{ height: "80vh", background: "var(--app-bg)", borderRadius: "20px 20px 0 0", maxWidth: 640, transition: "transform 0.1s ease" }}
         onClick={e => e.stopPropagation()}
       >
         <div className="mesh-bg absolute inset-0 pointer-events-none rounded-t-[20px]" />
 
-        {/* Drag handle */}
-        <div className="flex justify-center pt-3 pb-1">
-          <div className="w-10 h-1 rounded-full bg-white/20" />
+        {/* Drag handle — свайп вниз закрывает */}
+        <div
+          className="flex justify-center pt-3 pb-2 cursor-grab active:cursor-grabbing"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onClick={onClose}
+        >
+          <div className="w-10 h-1 rounded-full bg-white/30" />
         </div>
 
         {/* Header */}
-        <div className="relative z-10 px-4 pt-2 pb-3 flex items-center gap-3 border-b border-white/5">
-          <button onClick={onClose}
-            className="w-9 h-9 glass rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors">
-            <Icon name="ChevronLeft" size={18} />
-          </button>
+        <div className="relative z-10 px-4 pt-1 pb-3 flex items-center gap-3 border-b border-white/5">
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-foreground truncate">{title}</p>
             <p className="text-xs text-muted-foreground">Чат по {chatType}</p>
           </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-            <span className="text-[10px] text-muted-foreground">онлайн</span>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
+              <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+              <span className="text-[10px] text-muted-foreground">онлайн</span>
+            </div>
+            <button onClick={onClose}
+              className="w-8 h-8 glass rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors">
+              <Icon name="X" size={15} />
+            </button>
           </div>
         </div>
 
       {/* Messages */}
-      <div className="relative z-10 flex-1 overflow-y-auto px-4 py-4">
+      <div className="relative z-10 flex-1 overflow-y-auto overscroll-contain px-4 py-4">
         {loading ? (
           <div className="flex justify-center pt-10">
             <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
