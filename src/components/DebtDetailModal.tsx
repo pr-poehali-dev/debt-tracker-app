@@ -127,7 +127,7 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
               )}
             </div>
 
-            {debt.note && (
+            {debt.note && dir === "lent" && (
               <div className="flex items-start gap-3 glass rounded-2xl px-4 py-3">
                 <div className="w-8 h-8 rounded-xl bg-amber-500/15 flex items-center justify-center flex-shrink-0 mt-0.5">
                   <Icon name="FileText" size={16} className="text-amber-400" />
@@ -155,7 +155,7 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
           </div>
 
           {/* Actions */}
-          <div className="flex gap-2 pt-2">
+          <div className="flex gap-2 pt-2 pb-6">
             {debt.debtDbId && onOpenChat && debt.borrowerDecision === "accepted" && (
               <button
                 onClick={() => { onClose(); onOpenChat(debt.debtDbId!, debt.name); }}
@@ -165,7 +165,7 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
                 Открыть чат
               </button>
             )}
-            {debt.debtDbId && debt.status !== "paid" && onMarkPaid && (
+            {debt.debtDbId && debt.status !== "paid" && onMarkPaid && dir === "lent" && (
               <button
                 onClick={() => { onMarkPaid(debt.debtDbId!); onClose(); }}
                 className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-green-500/15 text-green-400 hover:bg-green-500/25 transition-colors font-medium text-sm border border-green-500/20"
@@ -177,7 +177,7 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
           </div>
 
           {!debt.debtDbId && (
-            <p className="text-center text-xs text-muted-foreground pt-1">Демо-данные — действия недоступны</p>
+            <p className="text-center text-xs text-muted-foreground pt-1 pb-4">Демо-данные — действия недоступны</p>
           )}
         </div>
       </div>
