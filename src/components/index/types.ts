@@ -1,4 +1,4 @@
-export type Section = "dashboard" | "lent" | "borrowed" | "calendar" | "notifications" | "archive" | "contacts" | "settings";
+export type Section = "dashboard" | "lent" | "borrowed" | "rental" | "calendar" | "notifications" | "archive" | "contacts" | "settings";
 export type Theme = "dark" | "light";
 export type ContactColor = "purple" | "sky" | "pink" | "emerald" | "orange" | "rose" | "amber" | "teal";
 

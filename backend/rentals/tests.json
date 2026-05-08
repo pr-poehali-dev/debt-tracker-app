@@ -1,0 +1,22 @@
+{
+  "tests": [
+    {
+      "name": "OPTIONS preflight",
+      "method": "OPTIONS",
+      "path": "/",
+      "expectedStatus": 200
+    },
+    {
+      "name": "GET without params returns error",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 400
+    },
+    {
+      "name": "GET by unknown token returns 404",
+      "method": "GET",
+      "path": "/?token=XXXXXXXX",
+      "expectedStatus": 404
+    }
+  ]
+}

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 import NewDebtModal, { SharedDebtView } from "@/components/NewDebtModal";
 import DebtChat from "@/components/DebtChat";
+import RentalSection, { SharedRentalView } from "@/components/RentalSection";
 import { type Lang, getT } from "@/i18n";
 import {
   type Section, type Theme, type Contact, type Debt, type Notification, type ContactColor,
@@ -132,6 +133,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
     { id: "dashboard" as Section,     icon: "LayoutDashboard", label: t.navDashboard },
     { id: "lent" as Section,          icon: "TrendingUp",       label: t.navLent },
     { id: "borrowed" as Section,      icon: "TrendingDown",     label: t.navBorrowed },
+    { id: "rental" as Section,        icon: "Home",             label: "Аренда" },
     { id: "calendar" as Section,      icon: "CalendarDays",     label: t.navCalendar },
     { id: "notifications" as Section, icon: "Bell",             label: t.navNotifications },
     { id: "archive" as Section,       icon: "Archive",          label: t.navArchive },
@@ -140,6 +142,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
 
   const sectionTitles: Record<Section, string> = {
     dashboard: t.appName, lent: t.titleLent, borrowed: t.titleBorrowed,
+    rental: "Аренда",
     calendar: t.titleCalendar, notifications: t.titleNotifications,
     archive: t.titleArchive, contacts: t.titleContacts, settings: t.navSettings,
   };
@@ -158,6 +161,9 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
 
   const debtToken = new URLSearchParams(window.location.search).get("debt");
   if (debtToken) return <SharedDebtView token={debtToken} />;
+
+  const rentalToken = new URLSearchParams(window.location.search).get("rental");
+  if (rentalToken) return <SharedRentalView token={rentalToken} />;
 
   function handleColorChange(id: number, color: ContactColor) {
     setContacts(prev => prev.map(c => c.id === id ? { ...c, color } : c));
@@ -267,6 +273,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
           {section === "calendar"      && <CalendarSection contacts={contacts} t={t} debts={[...lentDebts, ...borrowedDebts]} />}
           {section === "notifications" && <NotificationsSection notifs={notifs} onMarkAllRead={handleMarkAllRead} onMarkRead={handleMarkRead} t={t} />}
           {section === "archive"       && <ArchiveSection contacts={contacts} t={t} locale={locale} archiveDebts={archiveDebts} />}
+          {section === "rental"        && <RentalSection userId={user.id} token={token} myName={profile.name} isDemo={isDemo} />}
           {section === "contacts"      && <ContactsSection contacts={contacts} onColorChange={handleColorChange} t={t} />}
           {section === "settings"      && <SettingsSection theme={theme} onThemeChange={setTheme} profile={profile} onProfileChange={handleProfileChange} t={t} lang={lang} onLangChange={handleLangChange} email={user.email} onLogout={onLogout} isDemo={isDemo} />}
         </div>
