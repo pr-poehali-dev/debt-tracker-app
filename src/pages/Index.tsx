@@ -135,27 +135,29 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
       try {
         const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
         const t = ctx.currentTime;
-        // Звон монет — несколько металлических обертонов одновременно, дважды
-        const coins = [
-          { freqs: [1567, 2093, 3136, 4186], offset: 0 },
-          { freqs: [1567, 2093, 3136, 4186], offset: 0.18 },
-        ];
-        coins.forEach(({ freqs, offset }) => {
-          freqs.forEach((freq, i) => {
+        // Россыпь монет — 14 ударов с нарастанием потом затухание потока
+        const baseFreqs = [1318, 1567, 1760, 2093, 2349, 2637, 3136];
+        const hits = 14;
+        for (let i = 0; i < hits; i++) {
+          const offset = i * 0.055 + (Math.random() * 0.025);
+          const freq = baseFreqs[i % baseFreqs.length] * (0.92 + Math.random() * 0.16);
+          // Нарастание потока в начале, затухание в конце
+          const envelope = i < 4 ? (i + 1) / 4 : Math.max(0.2, 1 - (i - 4) / 12);
+          const vol = 0.45 * envelope;
+          const decay = 0.12 + Math.random() * 0.15;
+          // Каждая монетка = основной тон + обертон
+          [freq, freq * 2.76].forEach((f, hi) => {
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
             osc.connect(gain); gain.connect(ctx.destination);
             osc.type = "sine";
-            osc.frequency.setValueAtTime(freq, t + offset);
-            // Громкость убывает быстрее для высоких обертонов
-            const vol = i === 0 ? 0.5 : i === 1 ? 0.3 : i === 2 ? 0.15 : 0.08;
-            const decay = i === 0 ? 0.7 : i === 1 ? 0.5 : 0.3;
-            gain.gain.setValueAtTime(vol, t + offset);
+            osc.frequency.setValueAtTime(f, t + offset);
+            gain.gain.setValueAtTime(hi === 0 ? vol : vol * 0.35, t + offset);
             gain.gain.exponentialRampToValueAtTime(0.001, t + offset + decay);
             osc.start(t + offset);
-            osc.stop(t + offset + decay);
+            osc.stop(t + offset + decay + 0.05);
           });
-        });
+        }
       } catch { /* ignore */ }
     }
 
