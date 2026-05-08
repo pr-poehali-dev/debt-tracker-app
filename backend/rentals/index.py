@@ -312,15 +312,26 @@ def handler(event: dict, context) -> dict:
                     updated = cur.fetchone()
             conn.commit()
 
-        # Email уведомления
+        # Email + in-app уведомления арендодателю
         if "tenant_decision" in body and rental.get("landlord_user_id"):
+            decision = body["tenant_decision"]
+            tenant_name = rental["tenant_name"] or "Арендатор"
+            accepted = decision == "accepted"
+            notif_title = f"{'✅' if accepted else '❌'} {tenant_name} {'принял' if accepted else 'отклонил'} аренду"
+            notif_body = f"«{rental['title']}» — {int(rental['amount']):,} ₽/мес".replace(",", " ")
             with get_conn() as conn:
                 with conn.cursor() as cur:
                     cur.execute(f"SELECT email FROM {SCHEMA}.users WHERE id = %s", (rental["landlord_user_id"],))
                     u = cur.fetchone()
                     if u and u[0]:
-                        send_decision_email(u[0], rental["landlord_name"], rental["tenant_name"] or "Арендатор",
-                                            rental["title"], rental["amount"], body["tenant_decision"])
+                        send_decision_email(u[0], rental["landlord_name"], tenant_name,
+                                            rental["title"], rental["amount"], decision)
+                    cur.execute(
+                        f"INSERT INTO {SCHEMA}.notifications (user_id, type, title, body, data) VALUES (%s, %s, %s, %s, %s)",
+                        (rental["landlord_user_id"], "rental_decision", notif_title, notif_body,
+                         json.dumps({"rental_token": token, "decision": decision}))
+                    )
+                conn.commit()
 
         if "new_amount" in body and rental.get("tenant_user_id"):
             with get_conn() as conn:

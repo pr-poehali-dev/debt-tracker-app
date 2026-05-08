@@ -98,12 +98,55 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
     });
   }, [isDemo, user.id, token]);
 
-  function handleMarkAllRead() {
+  useEffect(() => {
+    if (isDemo) return;
+    import("../../backend/func2url.json").then(({ default: urls }) => {
+      fetch(urls["notifications"], {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then(r => r.ok ? r.json() : { notifications: [] })
+        .then(data => {
+          const dbNotifs: Notification[] = (data.notifications || []).map((n: Record<string, unknown>) => ({
+            id: Number(n.id) + 1000000,
+            type: (n.type === "rental_decision"
+              ? (String((n.data as Record<string, unknown>)?.decision) === "accepted" ? "success" : "warning")
+              : "info") as Notification["type"],
+            title: String(n.title),
+            message: String(n.body || ""),
+            date: new Date(String(n.created_at)).toLocaleDateString("ru-RU"),
+            read: Boolean(n.is_read),
+          }));
+          if (dbNotifs.length > 0) setNotifs(prev => {
+            const existingIds = new Set(prev.map(n => n.id));
+            const fresh = dbNotifs.filter(n => !existingIds.has(n.id));
+            return [...fresh, ...prev];
+          });
+        });
+    });
+  }, [isDemo, token]);
+
+  async function handleMarkAllRead() {
     setNotifs(prev => prev.map(n => ({ ...n, read: true })));
+    if (!isDemo) {
+      const urls = (await import("../../backend/func2url.json")).default;
+      fetch(urls["notifications"], {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({}),
+      });
+    }
   }
 
-  function handleMarkRead(id: number) {
+  async function handleMarkRead(id: number) {
     setNotifs(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    if (!isDemo && id > 1000000) {
+      const urls = (await import("../../backend/func2url.json")).default;
+      fetch(urls["notifications"], {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ ids: [id - 1000000] }),
+      });
+    }
   }
 
   const unreadCount = notifs.filter(n => !n.read).length;

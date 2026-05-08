@@ -1,4 +1,5 @@
 {
+  "notifications": "https://functions.poehali.dev/131e8cae-4485-4474-9e22-15ca736a3dff",
   "rentals": "https://functions.poehali.dev/95013623-be72-4f20-a029-8477e0685745",
   "auth": "https://functions.poehali.dev/6164f07e-3ec0-47f3-9cec-a97655cf8c3b",
   "chat": "https://functions.poehali.dev/d66a59d6-dcf8-4358-b1ec-77947b67a51f",
