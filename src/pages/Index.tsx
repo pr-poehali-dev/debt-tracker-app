@@ -126,6 +126,60 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
     });
   }, [isDemo, token]);
 
+  useEffect(() => {
+    if (isDemo) return;
+    let lastKnownUnread = 0;
+
+    function playSound() {
+      if (localStorage.getItem("df-sound-notif") === "off") return;
+      try {
+        const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+        const osc = ctx.createOscillator(); const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.frequency.setValueAtTime(523, ctx.currentTime);
+        osc.frequency.setValueAtTime(659, ctx.currentTime + 0.1);
+        osc.frequency.setValueAtTime(784, ctx.currentTime + 0.2);
+        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+        osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.6);
+      } catch { /* ignore */ }
+    }
+
+    async function poll() {
+      const urls = (await import("../../backend/func2url.json")).default;
+      const res = await fetch(urls["notifications"], { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) return;
+      const data = await res.json();
+      const unread: number = data.unread || 0;
+      const newNotifs: Array<Record<string, unknown>> = (data.notifications || []).filter((n: Record<string, unknown>) => !n.is_read);
+
+      if (unread > lastKnownUnread && lastKnownUnread !== 0) {
+        playSound();
+        setNotifs(prev => {
+          const existingIds = new Set(prev.map(n => n.id));
+          const fresh: Notification[] = newNotifs
+            .filter((n) => !existingIds.has(Number(n.id) + 1000000))
+            .map((n) => ({
+              id: Number(n.id) + 1000000,
+              type: (n.type === "rental_decision"
+                ? (String((n.data as Record<string, unknown>)?.decision) === "accepted" ? "success" : "warning")
+                : "info") as Notification["type"],
+              title: String(n.title),
+              message: String(n.body || ""),
+              date: new Date(String(n.created_at)).toLocaleDateString("ru-RU"),
+              read: false,
+            }));
+          return fresh.length > 0 ? [...fresh, ...prev] : prev;
+        });
+      }
+      lastKnownUnread = unread;
+    }
+
+    poll();
+    const interval = setInterval(poll, 30000);
+    return () => clearInterval(interval);
+  }, [isDemo, token]);
+
   async function handleMarkAllRead() {
     setNotifs(prev => prev.map(n => ({ ...n, read: true })));
     if (!isDemo) {

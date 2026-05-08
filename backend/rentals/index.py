@@ -305,6 +305,23 @@ def handler(event: dict, context) -> dict:
                             f"DELETE FROM {SCHEMA}.rental_payments WHERE rental_id=%s AND month=%s AND role=%s",
                             (rental_id, current_month, role)
                         )
+                    # Уведомление другой стороне при оплате
+                    if status_val == "paid":
+                        month_label = date.today().strftime("%B %Y")
+                        if role == "tenant" and rental.get("landlord_user_id"):
+                            notif_title = f"💰 {rental['tenant_name'] or 'Арендатор'} оплатил аренду"
+                            notif_body = f"«{rental['title']}» — {int(rental['amount']):,} ₽".replace(",", " ")
+                            cur.execute(
+                                f"INSERT INTO {SCHEMA}.notifications (user_id, type, title, body, data) VALUES (%s, %s, %s, %s, %s)",
+                                (rental["landlord_user_id"], "payment", notif_title, notif_body, json.dumps({"rental_token": token, "month": current_month}))
+                            )
+                        elif role == "landlord" and rental.get("tenant_user_id"):
+                            notif_title = f"💰 {rental['landlord_name']} подтвердил получение оплаты"
+                            notif_body = f"«{rental['title']}» — {int(rental['amount']):,} ₽".replace(",", " ")
+                            cur.execute(
+                                f"INSERT INTO {SCHEMA}.notifications (user_id, type, title, body, data) VALUES (%s, %s, %s, %s, %s)",
+                                (rental["tenant_user_id"], "payment", notif_title, notif_body, json.dumps({"rental_token": token, "month": current_month}))
+                            )
 
                 # Изменение суммы арендодателем
                 if "new_amount" in body:

@@ -559,6 +559,25 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
 }) {
   const [local, setLocal] = useState(profile);
   const [saved, setSaved] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(() => localStorage.getItem("df-sound-notif") !== "off");
+
+  function toggleSound() {
+    const next = !soundEnabled;
+    setSoundEnabled(next);
+    localStorage.setItem("df-sound-notif", next ? "on" : "off");
+    if (next) {
+      try {
+        const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+        const osc = ctx.createOscillator(); const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.frequency.setValueAtTime(660, ctx.currentTime);
+        osc.frequency.setValueAtTime(880, ctx.currentTime + 0.12);
+        gain.gain.setValueAtTime(0.25, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+        osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.4);
+      } catch { /* ignore */ }
+    }
+  }
 
   function save() {
     onProfileChange(local);
@@ -695,6 +714,26 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
             className="ml-auto px-3 py-1.5 rounded-xl text-xs font-medium glass hover:bg-white/10 transition-colors text-muted-foreground"
           >
             {t.apply}
+          </button>
+        </div>
+      </div>
+
+      <div className="glass rounded-2xl p-5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: soundEnabled ? "rgba(20,184,166,0.2)" : "rgba(255,255,255,0.06)" }}>
+              <Icon name={soundEnabled ? "Volume2" : "VolumeX"} size={18} className={soundEnabled ? "text-teal-400" : "text-muted-foreground"} />
+            </div>
+            <div>
+              <p className="font-semibold text-foreground">Звуковые уведомления</p>
+              <p className="text-xs text-muted-foreground">{soundEnabled ? "Звук при получении оплаты" : "Звук отключён"}</p>
+            </div>
+          </div>
+          <button onClick={toggleSound}
+            className="relative w-12 h-6 rounded-full transition-colors duration-200 flex-shrink-0"
+            style={{ background: soundEnabled ? "#14b8a6" : "rgba(255,255,255,0.1)" }}>
+            <span className="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all duration-200"
+              style={{ left: soundEnabled ? "calc(100% - 22px)" : "2px" }} />
           </button>
         </div>
       </div>
