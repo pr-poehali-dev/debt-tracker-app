@@ -3,6 +3,7 @@ import Icon from "@/components/ui/icon";
 import NewDebtModal, { SharedDebtView } from "@/components/NewDebtModal";
 import ChatWindow from "@/components/ChatWindow";
 import RentalSection, { RentalInviteModal } from "@/components/RentalSection";
+import PersonalLoanModal, { type PersonalLoan } from "@/components/PersonalLoanModal";
 import { type Lang, getT } from "@/i18n";
 import {
   type Section, type Theme, type Contact, type Debt, type Notification, type ContactColor,
@@ -27,6 +28,10 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
   const [archiveDebts, setArchiveDebts] = useState<Debt[]>(isDemo ? DEMO_ARCHIVE : []);
   const [showNewDebt, setShowNewDebt] = useState(false);
   const [showNewRental, setShowNewRental] = useState(false);
+  const [showPersonalLoan, setShowPersonalLoan] = useState(false);
+  const [personalLoans, setPersonalLoans] = useState<PersonalLoan[]>(() => {
+    try { return JSON.parse(localStorage.getItem("df-personal-loans") || "[]"); } catch { return []; }
+  });
   const [activeRentalCount, setActiveRentalCount] = useState(0);
   const [totalRentalAmount, setTotalRentalAmount] = useState(0);
   const [rentals, setRentals] = useState<Array<{ id: string; title: string; amount: number; payment_day: number; landlord_user_id?: number; tenant_user_id?: number; status: string }>>([]);
@@ -400,6 +405,12 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
     });
   }
 
+  function handlePersonalLoanSave(loan: PersonalLoan) {
+    const updated = [loan, ...personalLoans];
+    setPersonalLoans(updated);
+    localStorage.setItem("df-personal-loans", JSON.stringify(updated));
+  }
+
   function handleDebtCreated(d: Record<string, string | number | null>) {
     const newDebt: Debt = {
       id: Date.now(),
@@ -419,6 +430,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
     <div className={`min-h-screen text-foreground flex flex-col`} style={{ background: "var(--app-bg)" }}>
       <div className="mesh-bg" />
       <NewDebtModal open={showNewDebt} onClose={() => setShowNewDebt(false)} myName={profile.name} myPhone={profile.phone} onCreated={handleDebtCreated} />
+      {showPersonalLoan && <PersonalLoanModal onClose={() => setShowPersonalLoan(false)} onSave={handlePersonalLoanSave} />}
       {rentalInvite && (
         <RentalInviteModal token={rentalInvite} authToken={token} onClose={() => {
           setRentalInvite(null);
@@ -492,8 +504,8 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
       <main className="relative z-10 flex-1 px-4 pb-32 overflow-y-auto">
         <div className="max-w-lg mx-auto">
           {section === "dashboard"     && <Dashboard onNav={setSection} contacts={contacts} t={t} lentDebts={lentDebts} borrowedDebts={borrowedDebts} activeRentalCount={activeRentalCount} totalRentalAmount={totalRentalAmount} />}
-          {section === "lent"          && <DebtList debts={lentDebts} dir="lent" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => setActiveChat({ debtId: id, title })} onMarkPaid={handleMarkPaid} />}
-          {section === "borrowed"      && <DebtList debts={borrowedDebts} dir="borrowed" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => setActiveChat({ debtId: id, title })} onMarkPaid={handleMarkPaid} />}
+          {section === "lent"          && <DebtList debts={lentDebts} dir="lent" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => setActiveChat({ debtId: id, title })} onMarkPaid={handleMarkPaid} onAddNew={() => setShowNewDebt(true)} />}
+          {section === "borrowed"      && <DebtList debts={borrowedDebts} dir="borrowed" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => setActiveChat({ debtId: id, title })} onMarkPaid={handleMarkPaid} onAddNew={() => setShowPersonalLoan(true)} personalLoans={personalLoans} onPersonalLoanUpdate={(loans) => { setPersonalLoans(loans); localStorage.setItem("df-personal-loans", JSON.stringify(loans)); }} />}
           {section === "calendar"      && <CalendarSection contacts={contacts} t={t} debts={[...lentDebts, ...borrowedDebts]} rentals={rentals} userId={user.id} />}
           {section === "notifications" && <NotificationsSection notifs={notifs} onMarkAllRead={handleMarkAllRead} onMarkRead={handleMarkRead} t={t} />}
           {section === "archive"       && <ArchiveSection contacts={contacts} t={t} locale={locale} archiveDebts={archiveDebts} />}

@@ -4,10 +4,14 @@ import DebtDetailModal from "@/components/DebtDetailModal";
 import { type Lang, LANGUAGES, getT } from "@/i18n";
 import { type Section, type Theme, type Contact, type Debt, type Notification, type ContactColor, getColor, fmt, calcTotalWithInterest } from "./types";
 import { Avatar, ColorPicker, StatusBadge, NotifIcon } from "./SharedComponents";
+import { type PersonalLoan } from "@/components/PersonalLoanModal";
 
 // ─── Section: DebtList ────────────────────────────────────────────────────────
-export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPaid }: { debts: Debt[]; dir: "lent" | "borrowed"; contacts: Contact[]; t: ReturnType<typeof getT>; locale: string; onOpenChat?: (debtId: string, title: string) => void; onMarkPaid?: (debtId: string) => void }) {
+const MONTHS_RU_SHORT = ["Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"];
+
+export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPaid, onAddNew, personalLoans = [], onPersonalLoanUpdate }: { debts: Debt[]; dir: "lent" | "borrowed"; contacts: Contact[]; t: ReturnType<typeof getT>; locale: string; onOpenChat?: (debtId: string, title: string) => void; onMarkPaid?: (debtId: string) => void; onAddNew?: () => void; personalLoans?: PersonalLoan[]; onPersonalLoanUpdate?: (loans: PersonalLoan[]) => void }) {
   const [selectedDebt, setSelectedDebt] = useState<Debt | null>(null);
+  const [expandedLoan, setExpandedLoan] = useState<string | null>(null);
   const total = debts.filter(d => d.status !== "paid").reduce((s, d) => s + d.amount, 0);
   const overdue = debts.filter(d => d.status === "overdue").length;
 
@@ -129,7 +133,104 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
         </div>
       )}
 
-      <button className={`mt-4 w-full py-3 rounded-2xl glass border border-dashed ${dir === "lent" ? "border-purple-500/30 text-purple-400 hover:bg-purple-500/10" : "border-sky-500/30 text-sky-400 hover:bg-sky-500/10"} transition-all duration-200 font-medium flex items-center justify-center gap-2`}>
+      {/* Личные займы (только в разделе "Взятые") */}
+      {dir === "borrowed" && personalLoans.length > 0 && (
+        <div className="mt-4 space-y-3">
+          <p className="text-xs font-semibold text-muted-foreground px-1 uppercase tracking-wider">Личные займы</p>
+          {personalLoans.map(loan => {
+            const paid = loan.paidMonths.length;
+            const remaining = loan.totalAmount - loan.paidMonths.reduce((s, _m) => s + loan.monthlyPayment, 0);
+            const isExpanded = expandedLoan === loan.id;
+            const schedule = Array.from({ length: Math.ceil(loan.totalAmount / loan.monthlyPayment) }, (_, i) => {
+              const d = new Date(loan.startDate + "-01");
+              d.setMonth(d.getMonth() + i);
+              return d.toISOString().slice(0, 7);
+            });
+            const monthCount = schedule.length;
+
+            function togglePaid(month: string) {
+              if (!onPersonalLoanUpdate) return;
+              const already = loan.paidMonths.includes(month);
+              const updated = already
+                ? loan.paidMonths.filter(m => m !== month)
+                : [...loan.paidMonths, month];
+              onPersonalLoanUpdate(personalLoans.map(l => l.id === loan.id ? { ...l, paidMonths: updated } : l));
+            }
+
+            function deleteLoan() {
+              if (!onPersonalLoanUpdate) return;
+              onPersonalLoanUpdate(personalLoans.filter(l => l.id !== loan.id));
+            }
+
+            return (
+              <div key={loan.id} className="glass rounded-2xl p-4 space-y-3" style={{ borderLeft: "3px solid rgba(56,189,248,0.4)" }}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-foreground truncate">{loan.title}</p>
+                    <p className="text-xs text-muted-foreground">Личный займ · {loan.notifyDay}-е число</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-lg font-bold font-heading" style={{ color: "#7dd3fc" }}>{fmt(remaining > 0 ? remaining : 0)}</p>
+                    <p className="text-xs text-muted-foreground">осталось</p>
+                  </div>
+                </div>
+
+                {/* Прогресс */}
+                <div className="space-y-1">
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Оплачено {paid} из {monthCount} платежей</span>
+                    <span>{Math.round(paid / monthCount * 100)}%</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-white/10">
+                    <div className="h-1.5 rounded-full transition-all" style={{ width: `${paid / monthCount * 100}%`, background: "linear-gradient(90deg, #38bdf8, #0ea5e9)" }} />
+                  </div>
+                </div>
+
+                {/* График */}
+                <button onClick={() => setExpandedLoan(isExpanded ? null : loan.id)}
+                  className="w-full flex items-center justify-between text-xs text-muted-foreground hover:text-foreground transition-colors">
+                  <span>График платежей</span>
+                  <Icon name={isExpanded ? "ChevronUp" : "ChevronDown"} size={14} />
+                </button>
+
+                {isExpanded && (
+                  <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                    {schedule.map((month, i) => {
+                      const [y, m] = month.split("-");
+                      const isPaid = loan.paidMonths.includes(month);
+                      const payment = i < monthCount - 1 ? loan.monthlyPayment : Math.max(0, loan.totalAmount - loan.monthlyPayment * (monthCount - 1));
+                      return (
+                        <button key={month} onClick={() => togglePaid(month)}
+                          className="w-full flex items-center justify-between rounded-xl px-3 py-2 transition-all text-left"
+                          style={{ background: isPaid ? "rgba(34,197,94,0.1)" : "rgba(255,255,255,0.03)", border: isPaid ? "1px solid rgba(34,197,94,0.2)" : "1px solid transparent" }}>
+                          <span className="text-xs text-muted-foreground">{MONTHS_RU_SHORT[parseInt(m) - 1]} {y}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-medium" style={{ color: isPaid ? "#4ade80" : "#7dd3fc" }}>{fmt(payment)}</span>
+                            {isPaid
+                              ? <Icon name="CheckCircle2" size={14} className="text-green-400" />
+                              : <Icon name="Circle" size={14} className="text-muted-foreground" />
+                            }
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <button onClick={deleteLoan} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-red-400 transition-colors">
+                  <Icon name="Trash2" size={11} />
+                  Удалить займ
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <button
+        onClick={onAddNew}
+        className={`mt-4 w-full py-3 rounded-2xl glass border border-dashed ${dir === "lent" ? "border-purple-500/30 text-purple-400 hover:bg-purple-500/10" : "border-sky-500/30 text-sky-400 hover:bg-sky-500/10"} transition-all duration-200 font-medium flex items-center justify-center gap-2`}
+      >
         <Icon name="Plus" size={16} />
         {dir === "lent" ? t.addLent : t.addBorrowed}
       </button>
