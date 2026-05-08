@@ -204,12 +204,12 @@ export function SharedRentalView({ token: shareToken }: { token: string }) {
   const [rental, setRental] = useState<Rental | null>(null);
   const [loading, setLoading] = useState(true);
   const [decision, setDecision] = useState<string | null>(null);
-  const authToken = localStorage.getItem("df-token") || "";
 
   useEffect(() => {
     import("../../backend/func2url.json").then(({ default: urls }) => {
+      const t = localStorage.getItem("df-token");
       fetch(`${urls["rentals"]}?token=${shareToken}`, {
-        headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+        headers: t ? { Authorization: `Bearer ${t}` } : {},
       })
         .then(r => r.ok ? r.json() : null)
         .then(data => { setRental(data); setLoading(false); });
@@ -219,8 +219,9 @@ export function SharedRentalView({ token: shareToken }: { token: string }) {
   async function handleDecision(d: string) {
     setDecision(d);
     const urls = (await import("../../backend/func2url.json")).default;
+    const t = localStorage.getItem("df-token");
     const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (authToken) headers["Authorization"] = `Bearer ${authToken}`;
+    if (t) headers["Authorization"] = `Bearer ${t}`;
     await fetch(`${urls["rentals"]}?token=${shareToken}`, {
       method: "PUT",
       headers,
@@ -282,7 +283,7 @@ export function SharedRentalView({ token: shareToken }: { token: string }) {
                 </p>
               </div>
               {decision === "accepted" && (
-                <a href="/" className="block w-full py-3 rounded-xl font-semibold text-white text-sm text-center"
+                <a href="/?section=rental" className="block w-full py-3 rounded-xl font-semibold text-white text-sm text-center"
                   style={{ background: "linear-gradient(135deg, #14b8a6, #6366f1)" }}>
                   Открыть приложение
                 </a>
@@ -294,7 +295,7 @@ export function SharedRentalView({ token: shareToken }: { token: string }) {
                 <Icon name="CheckCircle" size={32} className="text-green-400 mx-auto mb-2" />
                 <p className="text-sm text-muted-foreground">Аренда уже подтверждена</p>
               </div>
-              <a href="/" className="block w-full py-3 rounded-xl font-semibold text-white text-sm text-center"
+              <a href="/?section=rental" className="block w-full py-3 rounded-xl font-semibold text-white text-sm text-center"
                 style={{ background: "linear-gradient(135deg, #14b8a6, #6366f1)" }}>
                 Открыть приложение
               </a>

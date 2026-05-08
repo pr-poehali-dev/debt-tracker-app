@@ -19,7 +19,8 @@ interface AuthUser { id: number; full_name: string; phone: string; email: string
 export default function Index({ user, onLogout }: { user: AuthUser; onLogout: () => void }) {
   const isDemo = user.id === 0;
   const token = localStorage.getItem("df-token") || "";
-  const [section, setSection] = useState<Section>("dashboard");
+  const initSection = new URLSearchParams(window.location.search).get("section") as Section | null;
+  const [section, setSection] = useState<Section>(initSection || "dashboard");
   const [contacts, setContacts] = useState<Contact[]>(isDemo ? DEMO_CONTACTS : INIT_CONTACTS);
   const [lentDebts, setLentDebts] = useState<Debt[]>(isDemo ? DEMO_LENT : []);
   const [borrowedDebts, setBorrowedDebts] = useState<Debt[]>(isDemo ? DEMO_BORROWED : []);
