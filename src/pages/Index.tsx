@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 import NewDebtModal, { SharedDebtView } from "@/components/NewDebtModal";
 import ChatWindow from "@/components/ChatWindow";
-import RentalSection, { SharedRentalView, RentalInviteModal } from "@/components/RentalSection";
+import RentalSection, { RentalInviteModal } from "@/components/RentalSection";
 import { type Lang, getT } from "@/i18n";
 import {
   type Section, type Theme, type Contact, type Debt, type Notification, type ContactColor,

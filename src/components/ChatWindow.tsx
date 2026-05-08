@@ -21,7 +21,6 @@ interface Props {
   title: string;
   token: string;
   onClose: () => void;
-  onUnreadChange?: (count: number) => void;
 }
 
 let notifSound: AudioContext | null = null;
@@ -44,13 +43,12 @@ function playNotifSound() {
   } catch (_e) { /* звук не поддерживается */ }
 }
 
-export default function ChatWindow({ debtId, rentalId, title, token, onClose, onUnreadChange }: Props) {
+export default function ChatWindow({ debtId, rentalId, title, token, onClose }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const prevCountRef = useRef(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dragStartY = useRef<number | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);

@@ -156,8 +156,8 @@ function RentalCard({ rental, userId, token, onUpdate, onDelete }: { rental: Ren
       });
       if (res.ok) {
         const d = await res.json();
-        const cnt = d.messages.filter((m: { is_mine: boolean }) => !m.is_mine).length;
-        setUnread(0);
+        const cnt = (d.messages as { is_mine: boolean; is_read: boolean }[]).filter(m => !m.is_mine && !m.is_read).length;
+        setUnread(cnt);
       }
     }
     fetchUnread();
