@@ -11,6 +11,7 @@ interface Message {
   text: string;
   created_at: string;
   is_mine: boolean;
+  is_read: boolean;
 }
 
 interface Props {
@@ -199,7 +200,14 @@ export default function ChatWindow({ debtId, rentalId, title, token, onClose, on
                           >
                             {m.text}
                           </div>
-                          <p className="text-[10px] text-muted-foreground px-1">{formatTime(m.created_at)}</p>
+                          <div className="flex items-center gap-1 px-1">
+                            <p className="text-[10px] text-muted-foreground">{formatTime(m.created_at)}</p>
+                            {m.is_mine && (
+                              m.is_read
+                                ? <span title="Прочитано" style={{ color: "#a855f7", fontSize: 11, lineHeight: 1 }}>✓✓</span>
+                                : <span title="Доставлено" style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, lineHeight: 1 }}>✓</span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     );

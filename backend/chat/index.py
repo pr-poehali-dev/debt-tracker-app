@@ -175,6 +175,7 @@ def handler(event: dict, context) -> dict:
                 "sender_name": r[2],
                 "text": r[3],
                 "created_at": str(r[4]),
+                "is_read": r[5],
                 "is_mine": r[1] == user_id,
             }
             for r in rows
