@@ -11,6 +11,8 @@ interface Debt {
   note?: string;
   debtDbId?: string;
   borrowerDecision?: string;
+  interestRate?: number;
+  interestType?: "simple" | "compound";
 }
 
 interface Props {
@@ -26,6 +28,16 @@ function fmt(n: number) {
   return n.toLocaleString("ru-RU") + " ₽";
 }
 
+function calcTotalWithInterest(amount: number, rate: number, type: string, dueDate: string): number {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const due = new Date(dueDate); due.setHours(0, 0, 0, 0);
+  const days = Math.round((due.getTime() - today.getTime()) / 86400000);
+  if (days <= 0) return amount;
+  const years = days / 365;
+  if (type === "compound") return Math.round(amount * Math.pow(1 + rate / 100, years));
+  return Math.round(amount * (1 + (rate / 100) * years));
+}
+
 export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat, onMarkPaid }: Props) {
   if (!debt) return null;
 
@@ -35,12 +47,14 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
     paid:    { label: "Возвращён",  cls: "bg-green-500/15 text-green-400 border border-green-500/20" },
   };
   const status = statusMap[debt.status];
-
-  const isOverdue = debt.status === "overdue";
-  const amountColor = isOverdue ? "#f87171" : dir === "lent" ? "#c084fc" : "#7dd3fc";
   const gradientClass = dir === "lent" ? "from-purple-500 to-indigo-500" : "from-sky-500 to-blue-600";
-
   const daysLeft = Math.ceil((new Date(debt.dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+
+  const total = debt.interestRate
+    ? calcTotalWithInterest(debt.amount, debt.interestRate, debt.interestType || "simple", debt.dueDate)
+    : null;
+  const interest = total ? total - debt.amount : null;
+  const hasInterest = total && total !== debt.amount;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
@@ -56,7 +70,10 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
             <span className={`text-xs px-3 py-1 rounded-full font-medium ${status.cls}`}>{status.label}</span>
           </div>
           <p className="text-white/70 text-sm mb-1">{dir === "lent" ? "Вы дали в долг" : "Вы взяли в долг"}</p>
-          <p className="text-3xl font-bold text-white font-heading">{fmt(debt.amount)}</p>
+          <p className="text-3xl font-bold text-white font-heading">{fmt(total ?? debt.amount)}</p>
+          {hasInterest && (
+            <p className="text-white/60 text-sm mt-1">{fmt(debt.amount)} + {debt.interestRate}% ({debt.interestType === "compound" ? "сложные" : "простые"})</p>
+          )}
         </div>
 
         {/* Avatar overlap */}
@@ -76,6 +93,23 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
 
           {/* Info rows */}
           <div className="space-y-2">
+
+            {/* Разбивка с процентами */}
+            {hasInterest && (
+              <div className="flex items-center gap-3 glass rounded-2xl px-4 py-3">
+                <div className="w-8 h-8 rounded-xl bg-violet-500/15 flex items-center justify-center flex-shrink-0">
+                  <Icon name="Percent" size={16} className="text-violet-400" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs text-muted-foreground">Разбивка суммы</p>
+                  <div className="flex gap-3 mt-0.5">
+                    <span className="text-sm text-foreground">Тело: <span className="font-medium">{fmt(debt.amount)}</span></span>
+                    <span className="text-sm text-violet-400">Проценты: <span className="font-medium">+{fmt(interest!)}</span></span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center gap-3 glass rounded-2xl px-4 py-3">
               <div className="w-8 h-8 rounded-xl bg-purple-500/15 flex items-center justify-center flex-shrink-0">
                 <Icon name="Calendar" size={16} className="text-purple-400" />

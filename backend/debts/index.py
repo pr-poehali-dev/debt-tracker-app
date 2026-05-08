@@ -100,6 +100,8 @@ def row_to_debt(row):
         "lender_user_id": row[13],
         "borrower_user_id": row[14],
         "borrower_decision": row[15],
+        "interest_rate": float(row[16]) if row[16] is not None else None,
+        "interest_type": row[17],
     }
 
 def handler(event: dict, context) -> dict:
@@ -131,14 +133,16 @@ def handler(event: dict, context) -> dict:
                 cur.execute(
                     f"""INSERT INTO {SCHEMA}.debts
                         (share_token, title, amount, note, due_date, lender_name, lender_phone,
-                         borrower_name, borrower_phone, lender_user_id)
-                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                         borrower_name, borrower_phone, lender_user_id, interest_rate, interest_type)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                         RETURNING id, share_token, title, amount, note, due_date,
                                   lender_name, lender_phone, borrower_name, borrower_phone,
-                                  status, created_at, updated_at, lender_user_id, borrower_user_id, borrower_decision""",
+                                  status, created_at, updated_at, lender_user_id, borrower_user_id, borrower_decision,
+                                  interest_rate, interest_type""",
                     (token, body["title"], float(body["amount"]), body.get("note"),
                      body.get("due_date"), body["lender_name"], body.get("lender_phone"),
-                     body.get("borrower_name"), body.get("borrower_phone"), lender_user_id)
+                     body.get("borrower_name"), body.get("borrower_phone"), lender_user_id,
+                     body.get("interest_rate"), body.get("interest_type", "simple"))
                 )
                 row = cur.fetchone()
             conn.commit()
@@ -152,7 +156,8 @@ def handler(event: dict, context) -> dict:
                 cur.execute(
                     f"""SELECT id, share_token, title, amount, note, due_date,
                                lender_name, lender_phone, borrower_name, borrower_phone,
-                               status, created_at, updated_at, lender_user_id, borrower_user_id, borrower_decision
+                               status, created_at, updated_at, lender_user_id, borrower_user_id, borrower_decision,
+                               interest_rate, interest_type
                         FROM {SCHEMA}.debts WHERE share_token = %s""",
                     (token,)
                 )
@@ -169,7 +174,8 @@ def handler(event: dict, context) -> dict:
                 cur.execute(
                     f"""SELECT id, share_token, title, amount, note, due_date,
                                lender_name, lender_phone, borrower_name, borrower_phone,
-                               status, created_at, updated_at, lender_user_id, borrower_user_id, borrower_decision
+                               status, created_at, updated_at, lender_user_id, borrower_user_id, borrower_decision,
+                               interest_rate, interest_type
                         FROM {SCHEMA}.debts
                         WHERE (lender_user_id = %s OR borrower_user_id = %s)
                           AND status != 'archived'
@@ -209,7 +215,8 @@ def handler(event: dict, context) -> dict:
                         WHERE share_token = %s
                         RETURNING id, share_token, title, amount, note, due_date,
                                   lender_name, lender_phone, borrower_name, borrower_phone,
-                                  status, created_at, updated_at, lender_user_id, borrower_user_id, borrower_decision""",
+                                  status, created_at, updated_at, lender_user_id, borrower_user_id, borrower_decision,
+                                  interest_rate, interest_type""",
                     vals
                 )
                 row = cur.fetchone()

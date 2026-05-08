@@ -33,6 +33,8 @@ interface Debt {
   note?: string;
   debtDbId?: string;
   borrowerDecision?: string;
+  interestRate?: number;
+  interestType?: "simple" | "compound";
 }
 
 interface Notification {
@@ -89,6 +91,16 @@ const INIT_CONTACTS: Contact[] = [];
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmt(n: number) {
   return n.toLocaleString("ru-RU") + " ₽";
+}
+
+function calcTotalWithInterest(amount: number, rate: number, type: string, dueDate: string): number {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const due = new Date(dueDate); due.setHours(0, 0, 0, 0);
+  const days = Math.round((due.getTime() - today.getTime()) / 86400000);
+  if (days <= 0) return amount;
+  const years = days / 365;
+  if (type === "compound") return Math.round(amount * Math.pow(1 + rate / 100, years));
+  return Math.round(amount * (1 + (rate / 100) * years));
 }
 
 // ─── Color Picker ─────────────────────────────────────────────────────────────
@@ -232,9 +244,19 @@ function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPaid }: {
                   </p>
                 </div>
                 <div className="text-right flex-shrink-0 flex flex-col items-end gap-1">
-                  <p className="text-lg font-bold font-heading" style={{ color: d.status === "overdue" ? "#f87171" : col ? col.text : dir === "lent" ? "#c084fc" : "#7dd3fc" }}>
-                    {fmt(d.amount)}
-                  </p>
+                  {(() => {
+                    const total = d.interestRate ? calcTotalWithInterest(d.amount, d.interestRate, d.interestType || "simple", d.dueDate) : null;
+                    return (
+                      <>
+                        <p className="text-lg font-bold font-heading" style={{ color: d.status === "overdue" ? "#f87171" : col ? col.text : dir === "lent" ? "#c084fc" : "#7dd3fc" }}>
+                          {fmt(total ?? d.amount)}
+                        </p>
+                        {total && total !== d.amount && (
+                          <p className="text-xs text-muted-foreground">{fmt(d.amount)} + {d.interestRate}%</p>
+                        )}
+                      </>
+                    );
+                  })()}
                   {d.debtDbId && onOpenChat && d.borrowerDecision === "accepted" && (
                     <button
                       onClick={e => { e.stopPropagation(); onOpenChat(d.debtDbId!, d.name); }}
@@ -1049,6 +1071,8 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
               note: d.note ? String(d.note) : undefined,
               debtDbId: String(d.id),
               borrowerDecision: decision || undefined,
+              interestRate: d.interest_rate != null ? Number(d.interest_rate) : undefined,
+              interestType: d.interest_type as "simple" | "compound" | undefined,
             };
 
             if (status === "archived") {
