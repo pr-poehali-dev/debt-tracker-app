@@ -35,6 +35,8 @@ export interface Notification {
   message: string;
   date: string;
   read: boolean;
+  rawType?: string;
+  data?: Record<string, unknown>;
 }
 
 export const COLOR_OPTIONS: { id: ContactColor; label: string; hex: string; bg: string; border: string; text: string }[] = [

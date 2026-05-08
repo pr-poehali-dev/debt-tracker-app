@@ -273,6 +273,115 @@ def handler(event: dict, context) -> dict:
             return err("Долг не найден", 404)
         return json_resp(row_to_debt(row))
 
+    # POST ?action=pay — должник отправляет запрос на погашение
+    if method == "POST" and qs.get("action") == "pay":
+        body = json.loads(event.get("body") or "{}")
+        debt_id = body.get("debt_id")
+        amount = body.get("amount")
+        note = (body.get("note") or "").strip()
+        if not debt_id or not amount:
+            return err("debt_id и amount обязательны")
+        with get_conn() as conn:
+            user_id = get_user_id_from_token(auth_header, conn)
+            if not user_id:
+                return err("Не авторизован", 401)
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""SELECT id, lender_user_id, borrower_user_id, title FROM {SCHEMA}.debts
+                        WHERE id = %s AND borrower_user_id = %s AND borrower_decision = 'accepted'""",
+                    (debt_id, user_id)
+                )
+                debt = cur.fetchone()
+                if not debt:
+                    return err("Долг не найден или нет доступа", 403)
+                lender_id = debt[1]
+                title = debt[3]
+                cur.execute(
+                    f"""INSERT INTO {SCHEMA}.payment_requests (debt_id, from_user_id, to_user_id, amount, note)
+                        VALUES (%s, %s, %s, %s, %s) RETURNING id""",
+                    (debt_id, user_id, lender_id, float(amount), note or None)
+                )
+                req_id = cur.fetchone()[0]
+                # Уведомление кредитору
+                cur.execute(
+                    f"""SELECT u.full_name FROM {SCHEMA}.users u WHERE u.id = %s""", (user_id,)
+                )
+                borrower_name = (cur.fetchone() or ["Должник"])[0]
+                cur.execute(
+                    f"""INSERT INTO {SCHEMA}.notifications (user_id, type, title, body, data)
+                        VALUES (%s, 'payment_request', %s, %s, %s)""",
+                    (lender_id,
+                     f"💳 {borrower_name} отправил платёж",
+                     f"«{title}» — {float(amount):,.0f} ₽".replace(",", " "),
+                     json.dumps({"payment_request_id": req_id, "debt_id": debt_id, "amount": float(amount), "from_name": borrower_name, "debt_title": title}))
+                )
+            conn.commit()
+        return json_resp({"ok": True, "payment_request_id": req_id}, 201)
+
+    # PUT ?action=pay — кредитор принимает или отклоняет платёж
+    if method == "PUT" and qs.get("action") == "pay":
+        body = json.loads(event.get("body") or "{}")
+        req_id = body.get("payment_request_id")
+        decision = body.get("decision")  # "accepted" | "rejected"
+        if not req_id or decision not in ("accepted", "rejected"):
+            return err("payment_request_id и decision обязательны")
+        with get_conn() as conn:
+            user_id = get_user_id_from_token(auth_header, conn)
+            if not user_id:
+                return err("Не авторизован", 401)
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""UPDATE {SCHEMA}.payment_requests SET status = %s, updated_at = NOW()
+                        WHERE id = %s AND to_user_id = %s AND status = 'pending'
+                        RETURNING debt_id, from_user_id, amount""",
+                    (decision, req_id, user_id)
+                )
+                row = cur.fetchone()
+                if not row:
+                    return err("Запрос не найден или уже обработан", 404)
+                debt_id, from_user_id, amount = row
+                # Уведомление должнику
+                cur.execute(f"SELECT title FROM {SCHEMA}.debts WHERE id = %s", (debt_id,))
+                title = (cur.fetchone() or ["Долг"])[0]
+                cur.execute(f"SELECT full_name FROM {SCHEMA}.users WHERE id = %s", (user_id,))
+                lender_name = (cur.fetchone() or ["Кредитор"])[0]
+                emoji = "✅" if decision == "accepted" else "❌"
+                status_text = "принял" if decision == "accepted" else "отклонил"
+                cur.execute(
+                    f"""INSERT INTO {SCHEMA}.notifications (user_id, type, title, body, data)
+                        VALUES (%s, 'payment_response', %s, %s, %s)""",
+                    (from_user_id,
+                     f"{emoji} {lender_name} {status_text} платёж",
+                     f"«{title}» — {float(amount):,.0f} ₽".replace(",", " "),
+                     json.dumps({"debt_id": str(debt_id), "decision": decision, "amount": float(amount)}))
+                )
+            conn.commit()
+        return json_resp({"ok": True})
+
+    # GET ?action=pay&debt_id=UUID — запросы на оплату по долгу
+    if method == "GET" and qs.get("action") == "pay":
+        debt_id = qs.get("debt_id")
+        if not debt_id:
+            return err("debt_id обязателен")
+        with get_conn() as conn:
+            user_id = get_user_id_from_token(auth_header, conn)
+            if not user_id:
+                return err("Не авторизован", 401)
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""SELECT pr.id, pr.amount, pr.note, pr.status, pr.created_at, u.full_name
+                        FROM {SCHEMA}.payment_requests pr
+                        JOIN {SCHEMA}.users u ON u.id = pr.from_user_id
+                        WHERE pr.debt_id = %s AND (pr.from_user_id = %s OR pr.to_user_id = %s)
+                        ORDER BY pr.created_at DESC LIMIT 20""",
+                    (debt_id, user_id, user_id)
+                )
+                rows = cur.fetchall()
+        return json_resp({"requests": [
+            {"id": r[0], "amount": float(r[1]), "note": r[2], "status": r[3],
+             "created_at": str(r[4]), "from_name": r[5]} for r in rows
+        ]})
+
     # DELETE ?token=XXX — удалить отклонённый долг (только кредитор)
     if method == "DELETE" and qs.get("token"):
         token = qs["token"].upper().strip()

@@ -137,11 +137,15 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
             id: Number(n.id) + 1000000,
             type: (n.type === "rental_decision"
               ? (String((n.data as Record<string, unknown>)?.decision) === "accepted" ? "success" : "warning")
+              : n.type === "payment_request" ? "info"
+              : n.type === "payment_response" ? (String((n.data as Record<string, unknown>)?.decision) === "accepted" ? "success" : "warning")
               : "info") as Notification["type"],
             title: String(n.title),
             message: String(n.body || ""),
             date: new Date(String(n.created_at)).toLocaleDateString("ru-RU"),
             read: Boolean(n.is_read),
+            rawType: String(n.type),
+            data: (n.data as Record<string, unknown>) || {},
           }));
           if (dbNotifs.length > 0) setNotifs(prev => {
             const existingIds = new Set(prev.map(n => n.id));
@@ -492,10 +496,10 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
       <main className="relative z-10 flex-1 px-4 pb-32 overflow-y-auto">
         <div className="max-w-lg mx-auto">
           {section === "dashboard"     && <Dashboard onNav={setSection} contacts={contacts} t={t} lentDebts={lentDebts} borrowedDebts={borrowedDebts} activeRentalCount={activeRentalCount} totalRentalAmount={totalRentalAmount} />}
-          {section === "lent"          && <DebtList debts={lentDebts} dir="lent" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => setActiveChat({ debtId: id, title })} onMarkPaid={handleMarkPaid} />}
-          {section === "borrowed"      && <DebtList debts={borrowedDebts} dir="borrowed" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => setActiveChat({ debtId: id, title })} onMarkPaid={handleMarkPaid} />}
+          {section === "lent"          && <DebtList debts={lentDebts} dir="lent" contacts={contacts} t={t} locale={locale} token={token} onOpenChat={(id, title) => setActiveChat({ debtId: id, title })} onMarkPaid={handleMarkPaid} />}
+          {section === "borrowed"      && <DebtList debts={borrowedDebts} dir="borrowed" contacts={contacts} t={t} locale={locale} token={token} onOpenChat={(id, title) => setActiveChat({ debtId: id, title })} onMarkPaid={handleMarkPaid} />}
           {section === "calendar"      && <CalendarSection contacts={contacts} t={t} debts={[...lentDebts, ...borrowedDebts]} rentals={rentals} userId={user.id} />}
-          {section === "notifications" && <NotificationsSection notifs={notifs} onMarkAllRead={handleMarkAllRead} onMarkRead={handleMarkRead} t={t} />}
+          {section === "notifications" && <NotificationsSection notifs={notifs} onMarkAllRead={handleMarkAllRead} onMarkRead={handleMarkRead} t={t} token={token} />}
           {section === "archive"       && <ArchiveSection contacts={contacts} t={t} locale={locale} archiveDebts={archiveDebts} />}
           {section === "rental"        && <RentalSection userId={user.id} token={token} myName={profile.name} isDemo={isDemo} openNew={showNewRental} onNewClose={() => setShowNewRental(false)} />}
           {section === "contacts"      && <ContactsSection contacts={contacts} onColorChange={handleColorChange} t={t} />}
