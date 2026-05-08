@@ -75,7 +75,7 @@ function PaymentCalendar({ rental, token, userId }: { rental: Rental; token: str
   const months = Array.from({ length: 12 }, (_, i) => {
     const d = new Date(viewMonth.year, viewMonth.month - i, 1);
     return { year: d.getFullYear(), month: d.getMonth(), key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}` };
-  }).reverse();
+  });
 
   const MONTHS_RU = ["Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"];
 
