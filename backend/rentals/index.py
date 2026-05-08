@@ -182,6 +182,25 @@ def handler(event: dict, context) -> dict:
             conn.commit()
         return json_resp(row_to_rental(row), 201)
 
+    # GET ?token=XXX&history=1 — история платежей по аренде
+    if method == "GET" and qs.get("token") and qs.get("history"):
+        token = qs["token"].upper().strip()
+        with get_conn() as conn:
+            auth_user_id = get_user_id_from_token(auth_header, conn)
+            with conn.cursor() as cur:
+                cur.execute(f"SELECT id, landlord_user_id, tenant_user_id, amount FROM {SCHEMA}.rentals WHERE share_token = %s", (token,))
+                row = cur.fetchone()
+                if not row:
+                    return err("Аренда не найдена", 404)
+                if auth_user_id not in [row[1], row[2]]:
+                    return err("Нет доступа", 403)
+                cur.execute(
+                    f"SELECT month, role, status, amount FROM {SCHEMA}.rental_payments WHERE rental_id = %s ORDER BY month DESC",
+                    (row[0],)
+                )
+                payments = [{"month": r[0], "role": r[1], "status": r[2], "amount": float(r[3]) if r[3] else None} for r in cur.fetchall()]
+        return json_resp({"payments": payments})
+
     # GET ?token=XXX — получить аренду по токену (для QR-страницы)
     if method == "GET" and qs.get("token"):
         token = qs["token"].upper().strip()
@@ -272,6 +291,20 @@ def handler(event: dict, context) -> dict:
                         params.append(status_val)
                     updates.append("last_payment_month = %s")
                     params.append(current_month)
+                    # Записать в историю платежей
+                    rental_id = rental["id"]
+                    if status_val == "paid":
+                        cur.execute(
+                            f"""INSERT INTO {SCHEMA}.rental_payments (rental_id, month, role, status, amount)
+                                VALUES (%s, %s, %s, 'paid', %s)
+                                ON CONFLICT (rental_id, month, role) DO UPDATE SET status='paid', amount=EXCLUDED.amount""",
+                            (rental_id, current_month, role, rental["amount"])
+                        )
+                    else:
+                        cur.execute(
+                            f"DELETE FROM {SCHEMA}.rental_payments WHERE rental_id=%s AND month=%s AND role=%s",
+                            (rental_id, current_month, role)
+                        )
 
                 # Изменение суммы арендодателем
                 if "new_amount" in body:

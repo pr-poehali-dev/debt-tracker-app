@@ -50,9 +50,104 @@ const DEMO_RENTALS: Rental[] = [
   },
 ];
 
-function RentalCard({ rental, userId, onUpdate, onDelete }: { rental: Rental; userId: number; onUpdate: (token: string, body: Record<string, unknown>) => void; onDelete: (token: string) => void }) {
-  const [confirmDelete, setConfirmDelete] = useState(false);
+function PaymentCalendar({ rental, token, userId }: { rental: Rental; token: string; userId: number }) {
+  const [payments, setPayments] = useState<{ month: string; role: string; status: string; amount: number | null }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [viewMonth, setViewMonth] = useState(() => {
+    const d = new Date(); return { year: d.getFullYear(), month: d.getMonth() };
+  });
+
+  useEffect(() => {
+    import("../../backend/func2url.json").then(({ default: urls }) => {
+      fetch(`${urls["rentals"]}?token=${rental.share_token}&history=1`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then(r => r.ok ? r.json() : { payments: [] })
+        .then(d => { setPayments(d.payments || []); setLoading(false); });
+    });
+  }, [rental.share_token, token]);
+
   const isLandlord = rental.landlord_user_id === userId;
+  const months = Array.from({ length: 12 }, (_, i) => {
+    const d = new Date(viewMonth.year, viewMonth.month - i, 1);
+    return { year: d.getFullYear(), month: d.getMonth(), key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}` };
+  }).reverse();
+
+  const MONTHS_RU = ["Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"];
+
+  function getStatus(monthKey: string, role: string) {
+    return payments.find(p => p.month === monthKey && p.role === role)?.status || null;
+  }
+
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-end justify-center" style={{ background: "rgba(0,0,0,0.6)" }}
+      onClick={e => e.currentTarget === e.target && document.dispatchEvent(new CustomEvent("close-payment-calendar"))}>
+      <div className="w-full max-w-lg rounded-t-3xl p-5 space-y-4" style={{ background: "#13152a", maxHeight: "80vh", overflowY: "auto" }}>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="font-bold text-foreground">{rental.title}</p>
+            <p className="text-xs text-muted-foreground">История платежей · {rental.payment_day}-е число</p>
+          </div>
+          <button onClick={() => document.dispatchEvent(new CustomEvent("close-payment-calendar"))}
+            className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "rgba(255,255,255,0.08)" }}>
+            <Icon name="X" size={14} className="text-muted-foreground" />
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="flex justify-center py-8"><Icon name="Loader2" size={24} className="text-teal-400 animate-spin" /></div>
+        ) : (
+          <div className="space-y-2">
+            <div className="grid grid-cols-4 gap-1 text-[10px] text-muted-foreground font-medium px-1">
+              <span>Месяц</span>
+              <span className="text-center">Арендодатель</span>
+              <span className="text-center">Арендатор</span>
+              <span className="text-right">Сумма</span>
+            </div>
+            {months.map(({ year, month, key }) => {
+              const landlordStatus = getStatus(key, "landlord");
+              const tenantStatus = getStatus(key, "tenant");
+              const isCurrentMonth = key === new Date().toISOString().slice(0, 7);
+              return (
+                <div key={key} className="grid grid-cols-4 gap-1 items-center rounded-xl px-3 py-2.5"
+                  style={{ background: isCurrentMonth ? "rgba(20,184,166,0.08)" : "rgba(255,255,255,0.03)", border: isCurrentMonth ? "1px solid rgba(20,184,166,0.2)" : "1px solid transparent" }}>
+                  <span className={`text-xs font-medium ${isCurrentMonth ? "text-teal-400" : "text-foreground"}`}>
+                    {MONTHS_RU[month]} {year !== new Date().getFullYear() ? year : ""}
+                  </span>
+                  <div className="flex justify-center">
+                    {landlordStatus === "paid"
+                      ? <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium" style={{ background: "rgba(34,197,94,0.15)", color: "#4ade80" }}><Icon name="Check" size={9} />Оплачено</span>
+                      : <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium" style={{ background: "rgba(255,255,255,0.05)", color: "#6b7280" }}>—</span>}
+                  </div>
+                  <div className="flex justify-center">
+                    {tenantStatus === "paid"
+                      ? <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium" style={{ background: "rgba(34,197,94,0.15)", color: "#4ade80" }}><Icon name="Check" size={9} />Оплачено</span>
+                      : <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium" style={{ background: "rgba(255,255,255,0.05)", color: "#6b7280" }}>—</span>}
+                  </div>
+                  <span className="text-xs text-right text-muted-foreground">
+                    {(landlordStatus === "paid" || tenantStatus === "paid") ? `${Number(rental.amount).toLocaleString("ru-RU")} ₽` : ""}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+function RentalCard({ rental, userId, token, onUpdate, onDelete }: { rental: Rental; userId: number; token: string; onUpdate: (token: string, body: Record<string, unknown>) => void; onDelete: (token: string) => void }) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
+  const isLandlord = rental.landlord_user_id === userId;
+
+  useEffect(() => {
+    const close = () => setShowCalendar(false);
+    document.addEventListener("close-payment-calendar", close);
+    return () => document.removeEventListener("close-payment-calendar", close);
+  }, []);
   const isPendingAmount = rental.tenant_decision === "pending_amount";
   const today = new Date().getDate();
   const daysUntil = rental.payment_day >= today ? rental.payment_day - today : (rental.payment_day + 30 - today);
@@ -116,14 +211,20 @@ function RentalCard({ rental, userId, onUpdate, onDelete }: { rental: Rental; us
       )}
 
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
-          <Icon name="CalendarDays" size={13} className="text-muted-foreground" />
+        <button className="flex items-center gap-1.5 hover:opacity-70 transition-opacity" onClick={() => setShowCalendar(true)}>
+          <Icon name="CalendarDays" size={13} style={{ color: "#5eead4" }} />
           <span className={`text-xs ${isNear ? "text-amber-400 font-medium" : "text-muted-foreground"}`}>
             {daysUntil === 0 ? "Сегодня платёж" : `Платёж ${rental.payment_day}-го (через ${daysUntil} дн.)`}
           </span>
-        </div>
+        </button>
         <PayBadge status={myPayStatus} />
       </div>
+
+      {showCalendar && (
+        <PaymentCalendar rental={rental} token={token} userId={userId}
+          key={rental.share_token}
+        />
+      )}
 
       <div className="flex gap-2">
         {myPayStatus !== "paid" ? (
@@ -562,7 +663,7 @@ export default function RentalSection({ userId, token, myName, isDemo, openNew, 
       ) : (
         <div className="space-y-3">
           {active.map(r => (
-            <RentalCard key={r.id} rental={r} userId={userId} onUpdate={handleUpdate} onDelete={handleDelete} />
+            <RentalCard key={r.id} rental={r} userId={userId} token={token} onUpdate={handleUpdate} onDelete={handleDelete} />
           ))}
         </div>
       )}
@@ -571,7 +672,7 @@ export default function RentalSection({ userId, token, myName, isDemo, openNew, 
         <div className="space-y-2">
           <p className="text-xs text-muted-foreground font-medium px-1">Архив</p>
           {archived.map(r => (
-            <RentalCard key={r.id} rental={r} userId={userId} onUpdate={handleUpdate} onDelete={handleDelete} />
+            <RentalCard key={r.id} rental={r} userId={userId} token={token} onUpdate={handleUpdate} onDelete={handleDelete} />
           ))}
         </div>
       )}
