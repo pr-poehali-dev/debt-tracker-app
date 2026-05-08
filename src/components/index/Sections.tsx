@@ -568,13 +568,16 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
     if (next) {
       try {
         const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-        const osc = ctx.createOscillator(); const gain = ctx.createGain();
-        osc.connect(gain); gain.connect(ctx.destination);
-        osc.frequency.setValueAtTime(660, ctx.currentTime);
-        osc.frequency.setValueAtTime(880, ctx.currentTime + 0.12);
-        gain.gain.setValueAtTime(0.25, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
-        osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.4);
+        [0, 0.12].forEach(offset => {
+          const osc = ctx.createOscillator(); const gain = ctx.createGain();
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(2200, ctx.currentTime + offset);
+          osc.frequency.exponentialRampToValueAtTime(1400, ctx.currentTime + offset + 0.18);
+          gain.gain.setValueAtTime(0.55, ctx.currentTime + offset);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + offset + 0.35);
+          osc.start(ctx.currentTime + offset); osc.stop(ctx.currentTime + offset + 0.35);
+        });
       } catch { /* ignore */ }
     }
   }
