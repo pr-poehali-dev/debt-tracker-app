@@ -267,7 +267,6 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
     { id: "rental" as Section,        icon: "Home",             label: "Аренда" },
     { id: "calendar" as Section,      icon: "CalendarDays",     label: t.navCalendar },
     { id: "notifications" as Section, icon: "Bell",             label: t.navNotifications },
-    { id: "archive" as Section,       icon: "Archive",          label: t.navArchive },
   ];
 
   const sectionTitles: Record<Section, string> = {
@@ -423,7 +422,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
                 <button
                   key={item.id}
                   onClick={() => setSection(item.id)}
-                  className={`relative flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl transition-all duration-200 ${active ? "gradient-purple glow-purple" : "hover:bg-white/5"}`}
+                  className={`relative flex flex-col items-center gap-0.5 px-1 py-1.5 rounded-xl transition-all duration-200 min-w-0 ${active ? "gradient-purple glow-purple" : "hover:bg-white/5"}`}
                 >
                   <div className="relative">
                     <Icon name={item.icon} size={20} className={active ? "text-white" : "text-muted-foreground"} />
@@ -433,7 +432,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
                       </span>
                     )}
                   </div>
-                  <span className={`text-[10px] font-medium leading-none ${active ? "text-white" : "text-muted-foreground"}`}>{item.label}</span>
+                  <span className={`text-[9px] font-medium leading-none truncate max-w-[44px] ${active ? "text-white" : "text-muted-foreground"}`}>{item.label}</span>
                 </button>
               );
             })}
