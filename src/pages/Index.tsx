@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 import NewDebtModal, { SharedDebtView } from "@/components/NewDebtModal";
 import DebtChat from "@/components/DebtChat";
-import RentalSection, { SharedRentalView } from "@/components/RentalSection";
+import RentalSection, { SharedRentalView, RentalInviteModal } from "@/components/RentalSection";
 import { type Lang, getT } from "@/i18n";
 import {
   type Section, type Theme, type Contact, type Debt, type Notification, type ContactColor,
@@ -27,6 +27,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
   const [archiveDebts, setArchiveDebts] = useState<Debt[]>(isDemo ? DEMO_ARCHIVE : []);
   const [showNewDebt, setShowNewDebt] = useState(false);
   const [showNewRental, setShowNewRental] = useState(false);
+  const [rentalInvite, setRentalInvite] = useState<string | null>(() => new URLSearchParams(window.location.search).get("rental"));
   const [activeChat, setActiveChat] = useState<{ debtId: string; title: string } | null>(null);
   const [notifs, setNotifs] = useState<Notification[]>([]);
 
@@ -206,9 +207,6 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
   const debtToken = new URLSearchParams(window.location.search).get("debt");
   if (debtToken) return <SharedDebtView token={debtToken} />;
 
-  const rentalToken = new URLSearchParams(window.location.search).get("rental");
-  if (rentalToken) return <SharedRentalView token={rentalToken} />;
-
   function handleColorChange(id: number, color: ContactColor) {
     setContacts(prev => prev.map(c => c.id === id ? { ...c, color } : c));
   }
@@ -255,6 +253,13 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
     <div className={`min-h-screen text-foreground flex flex-col`} style={{ background: "var(--app-bg)" }}>
       <div className="mesh-bg" />
       <NewDebtModal open={showNewDebt} onClose={() => setShowNewDebt(false)} myName={profile.name} myPhone={profile.phone} onCreated={handleDebtCreated} />
+      {rentalInvite && (
+        <RentalInviteModal token={rentalInvite} authToken={token} onClose={() => {
+          setRentalInvite(null);
+          window.history.replaceState({}, "", "/");
+          setSection("rental");
+        }} />
+      )}
       {activeChat && !isDemo && (
         <DebtChat
           debtId={activeChat.debtId}

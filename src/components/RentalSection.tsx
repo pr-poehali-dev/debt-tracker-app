@@ -369,6 +369,98 @@ function QRButton({ shareToken }: { shareToken: string }) {
   );
 }
 
+export function RentalInviteModal({ token: shareToken, authToken, onClose }: { token: string; authToken: string; onClose: () => void }) {
+  const [rental, setRental] = useState<Rental | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [decision, setDecision] = useState<string | null>(null);
+
+  useEffect(() => {
+    import("../../backend/func2url.json").then(({ default: urls }) => {
+      fetch(`${urls["rentals"]}?token=${shareToken}`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => { setRental(data); setLoading(false); });
+    });
+  }, [shareToken, authToken]);
+
+  async function handleDecision(d: string) {
+    setDecision(d);
+    const urls = (await import("../../backend/func2url.json")).default;
+    await fetch(`${urls["rentals"]}?token=${shareToken}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
+      body: JSON.stringify({ tenant_decision: d }),
+    });
+    if (d === "accepted") setTimeout(onClose, 1500);
+    else setTimeout(onClose, 1200);
+  }
+
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.75)" }} onClick={e => e.currentTarget === e.target && onClose()}>
+      <div className="glass rounded-2xl p-6 max-w-sm w-full space-y-4" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <p className="font-semibold text-foreground">Приглашение на аренду</p>
+          <button onClick={onClose} className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "rgba(255,255,255,0.08)" }}>
+            <Icon name="X" size={13} className="text-muted-foreground" />
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="flex justify-center py-6"><Icon name="Loader2" size={28} className="text-teal-400 animate-spin" /></div>
+        ) : !rental ? (
+          <p className="text-sm text-center text-muted-foreground py-4">Аренда не найдена</p>
+        ) : decision ? (
+          <div className="text-center py-4">
+            <Icon name={decision === "accepted" ? "CheckCircle" : "XCircle"} size={44}
+              className={`mx-auto mb-2 ${decision === "accepted" ? "text-green-400" : "text-red-400"}`} />
+            <p className="font-semibold text-foreground">
+              {decision === "accepted" ? "Аренда принята!" : "Аренда отклонена"}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">Раздел «Аренда» обновится автоматически</p>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(20,184,166,0.2)" }}>
+                <Icon name="Home" size={22} style={{ color: "#5eead4" }} />
+              </div>
+              <div>
+                <p className="font-bold text-foreground">{rental.title}</p>
+                <p className="text-xs text-muted-foreground">от {rental.landlord_name}</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-xl p-3" style={{ background: "rgba(255,255,255,0.05)" }}>
+                <p className="text-xs text-muted-foreground mb-1">Сумма</p>
+                <p className="font-bold" style={{ color: "#5eead4" }}>{fmt(rental.amount)}/мес</p>
+              </div>
+              <div className="rounded-xl p-3" style={{ background: "rgba(255,255,255,0.05)" }}>
+                <p className="text-xs text-muted-foreground mb-1">Дата платежа</p>
+                <p className="font-bold text-foreground">{rental.payment_day}-е число</p>
+              </div>
+            </div>
+            {rental.note && <p className="text-sm text-muted-foreground">{rental.note}</p>}
+            <div className="flex gap-3">
+              <button onClick={() => handleDecision("accepted")}
+                className="flex-1 py-3 rounded-xl font-semibold text-white transition-all"
+                style={{ background: "#22c55e" }}>
+                Принять
+              </button>
+              <button onClick={() => handleDecision("rejected")}
+                className="flex-1 py-3 rounded-xl font-semibold text-white transition-all"
+                style={{ background: "#f43f5e" }}>
+                Отклонить
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 export function SharedRentalView({ token: shareToken }: { token: string }) {
   const [rental, setRental] = useState<Rental | null>(null);
   const [loading, setLoading] = useState(true);
