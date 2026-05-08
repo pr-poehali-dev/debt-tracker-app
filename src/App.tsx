@@ -125,7 +125,7 @@ const App = () => {
       .finally(() => setAuthChecked(true));
   }, []);
 
-  function handleAuth(token: string, u: AuthUser) {
+  function handleAuth(_token: string, u: AuthUser) {
     setUser(u);
   }
 

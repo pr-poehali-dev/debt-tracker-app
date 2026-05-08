@@ -30,7 +30,6 @@ function PinInput({ title, subtitle, pin, onChange, onComplete, error, onClear }
   title: string; subtitle: string; pin: string[]; onChange: (pin: string[]) => void;
   onComplete?: (pin: string) => void; error: string; onClear: () => void;
 }) {
-  const inputRef = useRef<HTMLInputElement>(null);
 
   function handleDigit(digit: string) {
     if (pin.length >= 4) return;
