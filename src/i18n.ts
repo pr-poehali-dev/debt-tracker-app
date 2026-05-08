@@ -16,7 +16,7 @@ const translations = {
     navLent: "Выдано",
     navBorrowed: "Взято",
     navCalendar: "Календарь",
-    navNotifications: "Уведомления",
+    navNotifications: "Уведомл.",
     navArchive: "Архив",
     navContacts: "Контакты",
     navSettings: "Настройки",

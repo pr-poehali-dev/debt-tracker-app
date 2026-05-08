@@ -267,6 +267,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
     { id: "rental" as Section,        icon: "Home",             label: "Аренда" },
     { id: "calendar" as Section,      icon: "CalendarDays",     label: t.navCalendar },
     { id: "notifications" as Section, icon: "Bell",             label: t.navNotifications },
+    { id: "archive" as Section,       icon: "Archive",          label: t.navArchive },
   ];
 
   const sectionTitles: Record<Section, string> = {
@@ -414,7 +415,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
 
       <nav className="fixed bottom-0 left-0 right-0 z-20 px-2 pb-safe">
         <div className="max-w-lg mx-auto">
-          <div className="glass rounded-2xl px-2 py-2 flex items-center justify-around" style={{ borderTop: "1px solid rgba(255,255,255,0.06)", backdropFilter: "blur(24px)" }}>
+          <div className="glass rounded-2xl px-1 py-1.5 flex items-center justify-around" style={{ borderTop: "1px solid rgba(255,255,255,0.06)", backdropFilter: "blur(24px)" }}>
             {navItems.map(item => {
               const active = section === item.id;
               const isNotif = item.id === "notifications";
@@ -422,17 +423,17 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
                 <button
                   key={item.id}
                   onClick={() => setSection(item.id)}
-                  className={`relative flex flex-col items-center gap-0.5 px-1 py-1.5 rounded-xl transition-all duration-200 min-w-0 ${active ? "gradient-purple glow-purple" : "hover:bg-white/5"}`}
+                  className={`relative flex flex-col items-center gap-0.5 px-1 py-1 rounded-xl transition-all duration-200 min-w-0 flex-1 ${active ? "gradient-purple glow-purple" : "hover:bg-white/5"}`}
                 >
                   <div className="relative">
-                    <Icon name={item.icon} size={20} className={active ? "text-white" : "text-muted-foreground"} />
+                    <Icon name={item.icon} size={18} className={active ? "text-white" : "text-muted-foreground"} />
                     {isNotif && unreadCount > 0 && !active && (
-                      <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 rounded-full flex items-center justify-center text-[9px] font-bold text-white leading-none">
+                      <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full flex items-center justify-center text-[8px] font-bold text-white leading-none">
                         {unreadCount > 9 ? "9" : unreadCount}
                       </span>
                     )}
                   </div>
-                  <span className={`text-[9px] font-medium leading-none truncate max-w-[44px] ${active ? "text-white" : "text-muted-foreground"}`}>{item.label}</span>
+                  <span className={`text-[8px] font-medium leading-none truncate w-full text-center ${active ? "text-white" : "text-muted-foreground"}`}>{item.label}</span>
                 </button>
               );
             })}
