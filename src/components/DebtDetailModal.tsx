@@ -1,0 +1,152 @@
+import Icon from "@/components/ui/icon";
+
+interface Debt {
+  id: number;
+  contactId: number;
+  name: string;
+  amount: number;
+  dueDate: string;
+  status: "active" | "overdue" | "paid";
+  avatar: string;
+  note?: string;
+  debtDbId?: string;
+  borrowerDecision?: string;
+}
+
+interface Props {
+  debt: Debt | null;
+  dir: "lent" | "borrowed";
+  locale: string;
+  onClose: () => void;
+  onOpenChat?: (debtId: string, title: string) => void;
+  onMarkPaid?: (debtId: string) => void;
+}
+
+function fmt(n: number) {
+  return n.toLocaleString("ru-RU") + " ₽";
+}
+
+export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat, onMarkPaid }: Props) {
+  if (!debt) return null;
+
+  const statusMap = {
+    active:  { label: "Активен",    cls: "bg-blue-500/15 text-blue-400 border border-blue-500/20" },
+    overdue: { label: "Просрочен",  cls: "bg-red-500/15 text-red-400 border border-red-500/20" },
+    paid:    { label: "Возвращён",  cls: "bg-green-500/15 text-green-400 border border-green-500/20" },
+  };
+  const status = statusMap[debt.status];
+
+  const isOverdue = debt.status === "overdue";
+  const amountColor = isOverdue ? "#f87171" : dir === "lent" ? "#c084fc" : "#7dd3fc";
+  const gradientClass = dir === "lent" ? "from-purple-500 to-indigo-500" : "from-sky-500 to-blue-600";
+
+  const daysLeft = Math.ceil((new Date(debt.dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full sm:max-w-md glass rounded-t-3xl sm:rounded-3xl overflow-hidden animate-fade-in">
+
+        {/* Header */}
+        <div className={`bg-gradient-to-r ${gradientClass} p-5 pb-8`}>
+          <div className="flex items-center justify-between mb-4">
+            <button onClick={onClose} className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center hover:bg-white/30 transition-colors">
+              <Icon name="ChevronLeft" size={18} className="text-white" />
+            </button>
+            <span className={`text-xs px-3 py-1 rounded-full font-medium ${status.cls}`}>{status.label}</span>
+          </div>
+          <p className="text-white/70 text-sm mb-1">{dir === "lent" ? "Вы дали в долг" : "Вы взяли в долг"}</p>
+          <p className="text-3xl font-bold text-white font-heading">{fmt(debt.amount)}</p>
+        </div>
+
+        {/* Avatar overlap */}
+        <div className="flex justify-center -mt-6 mb-2 relative z-10">
+          <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${gradientClass} flex items-center justify-center font-bold text-white text-base shadow-lg ring-4 ring-[#0d0f1a]`}>
+            {debt.avatar}
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="px-5 pb-6 space-y-3">
+
+          {/* Title */}
+          <div className="text-center mb-4">
+            <p className="font-semibold text-foreground text-lg">{debt.name}</p>
+          </div>
+
+          {/* Info rows */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-3 glass rounded-2xl px-4 py-3">
+              <div className="w-8 h-8 rounded-xl bg-purple-500/15 flex items-center justify-center flex-shrink-0">
+                <Icon name="Calendar" size={16} className="text-purple-400" />
+              </div>
+              <div className="flex-1">
+                <p className="text-xs text-muted-foreground">Срок возврата</p>
+                <p className="text-sm font-medium text-foreground">
+                  {new Date(debt.dueDate).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" })}
+                </p>
+              </div>
+              {debt.status !== "paid" && (
+                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${daysLeft < 0 ? "bg-red-500/15 text-red-400" : daysLeft <= 3 ? "bg-amber-500/15 text-amber-400" : "bg-green-500/15 text-green-400"}`}>
+                  {daysLeft < 0 ? `${Math.abs(daysLeft)} дн. назад` : daysLeft === 0 ? "Сегодня" : `${daysLeft} дн.`}
+                </span>
+              )}
+            </div>
+
+            {debt.note && (
+              <div className="flex items-start gap-3 glass rounded-2xl px-4 py-3">
+                <div className="w-8 h-8 rounded-xl bg-amber-500/15 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <Icon name="FileText" size={16} className="text-amber-400" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs text-muted-foreground">Заметка</p>
+                  <p className="text-sm text-foreground">{debt.note}</p>
+                </div>
+              </div>
+            )}
+
+            {debt.borrowerDecision && (
+              <div className="flex items-center gap-3 glass rounded-2xl px-4 py-3">
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${debt.borrowerDecision === "accepted" ? "bg-green-500/15" : "bg-red-500/15"}`}>
+                  <Icon name={debt.borrowerDecision === "accepted" ? "CheckCircle2" : "XCircle"} size={16} className={debt.borrowerDecision === "accepted" ? "text-green-400" : "text-red-400"} />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs text-muted-foreground">Решение</p>
+                  <p className="text-sm font-medium text-foreground">
+                    {debt.borrowerDecision === "accepted" ? "Должник принял долг" : "Должник отклонил долг"}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-2 pt-2">
+            {debt.debtDbId && onOpenChat && debt.borrowerDecision === "accepted" && (
+              <button
+                onClick={() => { onClose(); onOpenChat(debt.debtDbId!, debt.name); }}
+                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-purple-500/15 text-purple-400 hover:bg-purple-500/25 transition-colors font-medium text-sm border border-purple-500/20"
+              >
+                <Icon name="MessageCircle" size={16} />
+                Открыть чат
+              </button>
+            )}
+            {debt.debtDbId && debt.status !== "paid" && onMarkPaid && (
+              <button
+                onClick={() => { onMarkPaid(debt.debtDbId!); onClose(); }}
+                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-green-500/15 text-green-400 hover:bg-green-500/25 transition-colors font-medium text-sm border border-green-500/20"
+              >
+                <Icon name="CheckCircle2" size={16} />
+                Возвращён
+              </button>
+            )}
+          </div>
+
+          {!debt.debtDbId && (
+            <p className="text-center text-xs text-muted-foreground pt-1">Демо-данные — действия недоступны</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

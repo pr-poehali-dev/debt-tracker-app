@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 import NewDebtModal, { SharedDebtView } from "@/components/NewDebtModal";
 import DebtChat from "@/components/DebtChat";
+import DebtDetailModal from "@/components/DebtDetailModal";
 import { type Lang, LANGUAGES, getT } from "@/i18n";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -165,11 +166,20 @@ function NotifIcon({ type }: { type: Notification["type"] }) {
 
 // ─── Section: Debts ───────────────────────────────────────────────────────────
 function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPaid }: { debts: Debt[]; dir: "lent" | "borrowed"; contacts: Contact[]; t: ReturnType<typeof getT>; locale: string; onOpenChat?: (debtId: string, title: string) => void; onMarkPaid?: (debtId: string) => void }) {
+  const [selectedDebt, setSelectedDebt] = useState<Debt | null>(null);
   const total = debts.filter(d => d.status !== "paid").reduce((s, d) => s + d.amount, 0);
   const overdue = debts.filter(d => d.status === "overdue").length;
 
   return (
     <div className="animate-fade-in">
+      <DebtDetailModal
+        debt={selectedDebt}
+        dir={dir}
+        locale={locale}
+        onClose={() => setSelectedDebt(null)}
+        onOpenChat={onOpenChat}
+        onMarkPaid={onMarkPaid}
+      />
       {debts.length > 0 && (
         <div className="grid grid-cols-3 gap-3 mb-6">
           <div className={`glass rounded-2xl p-4 col-span-3 sm:col-span-1 ${dir === "lent" ? "glow-purple" : "glow-blue"}`}>
@@ -205,6 +215,7 @@ function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPaid }: {
             return (
               <div
                 key={d.id}
+                onClick={() => setSelectedDebt(d)}
                 className="glass rounded-2xl p-4 flex items-center gap-4 hover:bg-white/[0.06] transition-all duration-200 cursor-pointer group"
                 style={{ animationDelay: `${i * 0.05}s`, borderLeft: col ? `3px solid ${col.hex}` : undefined }}
               >
