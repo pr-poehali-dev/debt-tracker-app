@@ -106,10 +106,11 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                   {d.debtDbId && onOpenChat && d.borrowerDecision === "accepted" && (
                     <button
                       onClick={e => { e.stopPropagation(); onOpenChat(d.debtDbId!, d.name); }}
-                      className="flex items-center gap-1 text-xs text-purple-400 hover:text-purple-300 transition-colors"
+                      className="relative flex items-center gap-1 px-2 py-1 rounded-lg transition-all active:scale-95"
+                      style={{ background: "rgba(168,85,247,0.15)", border: "1px solid rgba(168,85,247,0.3)" }}
                     >
-                      <Icon name="MessageCircle" size={12} />
-                      Чат
+                      <Icon name="MessageCircle" size={13} style={{ color: "#a855f7" }} />
+                      <span className="text-[11px] font-medium" style={{ color: "#a855f7" }}>Чат</span>
                     </button>
                   )}
                   {d.debtDbId && d.status !== "paid" && onMarkPaid && (

@@ -432,11 +432,13 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
           </div>
           <div className="flex items-center gap-2">
             {unreadMessages > 0 && (
-              <div className="flex items-center gap-1 px-2 py-1 rounded-xl text-[10px] font-medium"
-                style={{ background: "rgba(168,85,247,0.15)", border: "1px solid rgba(168,85,247,0.3)", color: "#a855f7" }}>
+              <button onClick={() => setSection(section === "lent" ? "lent" : "borrowed")}
+                className="flex items-center gap-1 px-2 py-1 rounded-xl text-[10px] font-medium animate-pulse"
+                style={{ background: "rgba(168,85,247,0.2)", border: "1px solid rgba(168,85,247,0.5)", color: "#a855f7" }}
+                title="Новые сообщения — откройте раздел займов">
                 <Icon name="MessageCircle" size={12} />
-                {unreadMessages}
-              </div>
+                {unreadMessages} новых
+              </button>
             )}
             {section !== "notifications" && (
               <button onClick={() => setSection("notifications")} className="relative w-9 h-9 glass rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors">
