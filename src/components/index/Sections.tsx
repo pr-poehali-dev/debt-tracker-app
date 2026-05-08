@@ -407,13 +407,38 @@ export function CalendarSection({ contacts, t, debts, rentals = [], userId = 0 }
 }
 
 // ─── Section: Notifications ───────────────────────────────────────────────────
-export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t }: {
+export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, token = "", onOpenChat }: {
   notifs: Notification[];
   onMarkAllRead: () => void;
   onMarkRead: (id: number) => void;
   t: ReturnType<typeof getT>;
+  token?: string;
+  onOpenChat?: (debtId: string | undefined, rentalId: number | undefined, title: string) => void;
 }) {
+  const [replyText, setReplyText] = useState<Record<number, string>>({});
+  const [sending, setSending] = useState<number | null>(null);
   const unread = notifs.filter(n => !n.read).length;
+
+  async function sendReply(n: Notification) {
+    const text = (replyText[n.id] || "").trim();
+    if (!text || !n.chatMeta) return;
+    setSending(n.id);
+    try {
+      const urls = (await import("../../backend/func2url.json")).default;
+      const body: Record<string, unknown> = { text };
+      if (n.chatMeta.debtId) body.debt_id = n.chatMeta.debtId;
+      if (n.chatMeta.rentalId) body.rental_id = n.chatMeta.rentalId;
+      const res = await fetch(urls["chat"], {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
+        setReplyText(prev => ({ ...prev, [n.id]: "" }));
+        onMarkRead(n.id);
+      }
+    } finally { setSending(null); }
+  }
 
   return (
     <div className="animate-fade-in">
@@ -441,24 +466,70 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t }: {
         </div>
       )}
       <div className="space-y-3">
-        {notifs.map((n, i) => (
+        {notifs.map((n, i) => {
+          const isChat = !!n.chatMeta;
+          return (
             <div
               key={n.id}
-              onClick={() => onMarkRead(n.id)}
-              className={`glass rounded-2xl p-4 flex items-start gap-3 transition-all duration-200 hover:bg-white/[0.06] cursor-pointer ${!n.read ? "border border-white/10" : "opacity-60"}`}
+              className={`glass rounded-2xl overflow-hidden transition-all duration-200 ${!n.read ? "border border-white/10" : "opacity-60"}`}
               style={{ animationDelay: `${i * 0.04}s` }}
             >
-              <NotifIcon type={n.type} />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <p className="font-semibold text-sm text-foreground">{n.title}</p>
-                  {!n.read && <div className="w-1.5 h-1.5 rounded-full bg-purple-400 flex-shrink-0" />}
+              {/* Шапка уведомления */}
+              <div
+                className={`p-4 flex items-start gap-3 ${!isChat ? "cursor-pointer hover:bg-white/[0.06]" : ""}`}
+                onClick={() => !isChat && onMarkRead(n.id)}
+              >
+                <NotifIcon type={n.type} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <p className="font-semibold text-sm text-foreground">{n.title}</p>
+                    {!n.read && <div className="w-1.5 h-1.5 rounded-full bg-purple-400 flex-shrink-0" />}
+                  </div>
+                  {isChat && n.chatMeta && (
+                    <p className="text-xs text-muted-foreground mb-0.5">{n.chatMeta.chatTitle}</p>
+                  )}
+                  <p className="text-xs text-muted-foreground leading-relaxed">{n.message}</p>
+                  <p className="text-[11px] text-muted-foreground/60 mt-1">{n.date}</p>
                 </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">{n.message}</p>
-                <p className="text-[11px] text-muted-foreground/60 mt-1">{n.date}</p>
+                {isChat && onOpenChat && n.chatMeta && (
+                  <button
+                    onClick={() => onOpenChat(n.chatMeta!.debtId, n.chatMeta!.rentalId, n.chatMeta!.chatTitle)}
+                    className="flex-shrink-0 px-2.5 py-1.5 rounded-xl text-[11px] font-medium transition-all"
+                    style={{ background: "rgba(168,85,247,0.15)", border: "1px solid rgba(168,85,247,0.3)", color: "#c084fc" }}
+                  >
+                    Открыть
+                  </button>
+                )}
               </div>
+
+              {/* Быстрый ответ для чат-уведомлений */}
+              {isChat && !n.read && (
+                <div className="px-4 pb-3 border-t border-white/5">
+                  <div className="flex gap-2 mt-3 items-center">
+                    <input
+                      value={replyText[n.id] || ""}
+                      onChange={e => setReplyText(prev => ({ ...prev, [n.id]: e.target.value }))}
+                      onKeyDown={e => e.key === "Enter" && sendReply(n)}
+                      placeholder="Ответить..."
+                      className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:border-purple-500/40 transition-colors"
+                    />
+                    <button
+                      onClick={() => sendReply(n)}
+                      disabled={!replyText[n.id]?.trim() || sending === n.id}
+                      className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 disabled:opacity-40 transition-all"
+                      style={{ background: "linear-gradient(135deg, #a855f7, #6366f1)" }}
+                    >
+                      {sending === n.id
+                        ? <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
+                        : <Icon name="Send" size={13} className="text-white" />
+                      }
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

@@ -6,7 +6,7 @@ import RentalSection, { RentalInviteModal } from "@/components/RentalSection";
 import PersonalLoanModal, { type PersonalLoan } from "@/components/PersonalLoanModal";
 import { type Lang, getT } from "@/i18n";
 import {
-  type Section, type Theme, type Contact, type Debt, type Notification, type ContactColor,
+  type Section, type Theme, type Contact, type Debt, type Notification, type ContactColor, type ChatMeta,
   DEMO_CONTACTS, DEMO_LENT, DEMO_BORROWED, DEMO_ARCHIVE, INIT_CONTACTS,
 } from "@/components/index/types";
 import {
@@ -36,7 +36,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
   const [totalRentalAmount, setTotalRentalAmount] = useState(0);
   const [rentals, setRentals] = useState<Array<{ id: string; title: string; amount: number; payment_day: number; landlord_user_id?: number; tenant_user_id?: number; status: string }>>([]);
   const [rentalInvite, setRentalInvite] = useState<string | null>(() => new URLSearchParams(window.location.search).get("rental"));
-  const [activeChat, setActiveChat] = useState<{ debtId: string; title: string } | null>(null);
+  const [activeChat, setActiveChat] = useState<{ debtId?: string; rentalId?: number; title: string } | null>(null);
   const [notifs, setNotifs] = useState<Notification[]>([]);
   const audioCtxRef = { current: null as AudioContext | null };
   const [unreadMessages, setUnreadMessages] = useState(0);
@@ -274,34 +274,42 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
       if (!res.ok) return;
       const d = await res.json();
       const count: number = d.unread || 0;
+      const chats: Array<{ debt_id?: string; rental_id?: number; chat_title: string; sender_name: string; last_text: string }> = d.chats || [];
 
       if (count > prevUnread && prevUnread !== -1) {
-        // Звук
         playChatSound();
-        // Добавляем уведомление в колокольчик
-        const newNotif: Notification = {
-          id: Date.now(),
-          type: "info",
-          title: "💬 Новое сообщение",
-          message: `У вас ${count} непрочитанных сообщений в чате`,
-          date: new Date().toLocaleDateString("ru-RU"),
-          read: false,
-        };
+        // Создаём уведомление для каждого чата с новыми сообщениями
         setNotifs(prev => {
-          // Не дублируем если уже есть такое
-          const hasMsgNotif = prev.some(n => n.title === "💬 Новое сообщение" && !n.read);
-          if (hasMsgNotif) return prev.map(n =>
-            n.title === "💬 Новое сообщение" && !n.read
-              ? { ...n, message: `У вас ${count} непрочитанных сообщений в чате` }
-              : n
-          );
-          return [newNotif, ...prev];
+          let updated = prev.filter(n => n.chatMeta === undefined || n.read);
+          chats.forEach(chat => {
+            const meta: ChatMeta = {
+              debtId: chat.debt_id || undefined,
+              rentalId: chat.rental_id || undefined,
+              chatTitle: chat.chat_title,
+              senderName: chat.sender_name,
+              lastText: chat.last_text,
+            };
+            const existing = updated.find(n => n.chatMeta?.debtId === meta.debtId && n.chatMeta?.rentalId === meta.rentalId && !n.read);
+            if (existing) {
+              updated = updated.map(n => n === existing ? { ...n, chatMeta: meta, message: chat.last_text } : n);
+            } else {
+              updated = [{
+                id: Date.now() + Math.random(),
+                type: "info" as const,
+                title: `💬 ${chat.sender_name}`,
+                message: chat.last_text,
+                date: new Date().toLocaleDateString("ru-RU"),
+                read: false,
+                chatMeta: meta,
+              }, ...updated];
+            }
+          });
+          return updated;
         });
       }
 
-      // Убираем уведомление о сообщениях если всё прочитано
       if (count === 0 && prevUnread > 0) {
-        setNotifs(prev => prev.filter(n => n.title !== "💬 Новое сообщение"));
+        setNotifs(prev => prev.filter(n => !n.chatMeta || n.read));
       }
 
       prevUnread = count;
@@ -497,6 +505,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
       {activeChat && !isDemo && (
         <ChatWindow
           debtId={activeChat.debtId}
+          rentalId={activeChat.rentalId}
           title={activeChat.title}
           token={token}
           onClose={() => setActiveChat(null)}
@@ -563,7 +572,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
           {section === "lent"          && <DebtList debts={lentDebts} dir="lent" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => setActiveChat({ debtId: id, title })} onMarkPaid={handleMarkPaid} onAddNew={() => setShowNewDebt(true)} />}
           {section === "borrowed"      && <DebtList debts={borrowedDebts} dir="borrowed" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => setActiveChat({ debtId: id, title })} onMarkPaid={handleMarkPaid} onAddNew={() => setShowPersonalLoan(true)} personalLoans={personalLoans} onPersonalLoanUpdate={(loans) => { setPersonalLoans(loans); localStorage.setItem("df-personal-loans", JSON.stringify(loans)); }} />}
           {section === "calendar"      && <CalendarSection contacts={contacts} t={t} debts={[...lentDebts, ...borrowedDebts]} rentals={rentals} userId={user.id} />}
-          {section === "notifications" && <NotificationsSection notifs={notifs} onMarkAllRead={handleMarkAllRead} onMarkRead={handleMarkRead} t={t} />}
+          {section === "notifications" && <NotificationsSection notifs={notifs} onMarkAllRead={handleMarkAllRead} onMarkRead={handleMarkRead} t={t} token={token} onOpenChat={(debtId, rentalId, title) => setActiveChat({ debtId: debtId || undefined, rentalId: rentalId || undefined, title })} />}
           {section === "archive"       && <ArchiveSection contacts={contacts} t={t} locale={locale} archiveDebts={archiveDebts} />}
           {section === "rental"        && <RentalSection userId={user.id} token={token} myName={profile.name} isDemo={isDemo} openNew={showNewRental} onNewClose={() => setShowNewRental(false)} />}
           {section === "contacts"      && <ContactsSection contacts={contacts} onColorChange={handleColorChange} t={t} />}

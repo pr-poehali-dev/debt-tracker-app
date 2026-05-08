@@ -84,31 +84,55 @@ def handler(event: dict, context) -> dict:
     if method == "GET" and qs.get("action") == "vapid-key":
         return json_resp({"public_key": os.environ.get("VAPID_PUBLIC_KEY", "")})
 
-    # GET ?unread=1 — общий счётчик непрочитанных
+    # GET ?unread=1 — непрочитанные с деталями чатов
     if method == "GET" and qs.get("unread") == "1":
         with get_conn() as conn:
             user_id, _ = get_user_from_token(auth, conn)
             if not user_id:
                 return err("Не авторизован", 401)
             with conn.cursor() as cur:
+                # Получаем непрочитанные с деталями по каждому чату
                 cur.execute(
-                    f"""SELECT COUNT(*) FROM {SCHEMA}.messages m
+                    f"""SELECT
+                          m.debt_id, m.rental_id,
+                          m.sender_name, m.text, m.created_at,
+                          COALESCE(d.title, r.title) as chat_title,
+                          COUNT(*) OVER (PARTITION BY COALESCE(m.debt_id::text, m.rental_id::text)) as chat_unread
+                        FROM {SCHEMA}.messages m
+                        LEFT JOIN {SCHEMA}.debts d ON d.id = m.debt_id
+                        LEFT JOIN {SCHEMA}.rentals r ON r.id = m.rental_id
                         WHERE m.is_read = false AND m.sender_user_id != %s
                         AND (
-                          (m.debt_id IS NOT NULL AND EXISTS (
-                            SELECT 1 FROM {SCHEMA}.debts d
-                            WHERE d.id = m.debt_id AND (d.lender_user_id = %s OR d.borrower_user_id = %s)
-                          ))
+                          (m.debt_id IS NOT NULL AND (d.lender_user_id = %s OR d.borrower_user_id = %s))
                           OR
                           (m.rental_id IS NOT NULL AND EXISTS (
-                            SELECT 1 FROM {SCHEMA}.rentals r
-                            WHERE r.id = m.rental_id AND (r.landlord_user_id = %s OR r.tenant_user_id = %s)
+                            SELECT 1 FROM {SCHEMA}.rentals rr
+                            WHERE rr.id = m.rental_id AND (rr.landlord_user_id = %s OR rr.tenant_user_id = %s)
                           ))
-                        )""",
+                        )
+                        ORDER BY m.created_at DESC LIMIT 50""",
                     (user_id, user_id, user_id, user_id, user_id)
                 )
-                count = cur.fetchone()[0]
-        return json_resp({"unread": count})
+                rows = cur.fetchall()
+
+            # Группируем по чатам — берём последнее сообщение каждого
+            chats: dict = {}
+            for debt_id, rental_id, sender_name, text, created_at, chat_title, _ in rows:
+                key = str(debt_id) if debt_id else f"r{rental_id}"
+                if key not in chats:
+                    chats[key] = {
+                        "debt_id": str(debt_id) if debt_id else None,
+                        "rental_id": rental_id,
+                        "chat_title": chat_title,
+                        "sender_name": sender_name,
+                        "last_text": text,
+                        "created_at": str(created_at),
+                    }
+
+        return json_resp({
+            "unread": len(rows),
+            "chats": list(chats.values())
+        })
 
     # GET ?debt_id=UUID или ?rental_id=N — получить сообщения
     if method == "GET" and (qs.get("debt_id") or qs.get("rental_id")):

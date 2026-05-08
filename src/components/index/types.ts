@@ -28,6 +28,14 @@ export interface Debt {
   interestType?: "simple" | "compound";
 }
 
+export interface ChatMeta {
+  debtId?: string;
+  rentalId?: number;
+  chatTitle: string;
+  senderName: string;
+  lastText: string;
+}
+
 export interface Notification {
   id: number;
   type: "warning" | "danger" | "info" | "success";
@@ -35,6 +43,7 @@ export interface Notification {
   message: string;
   date: string;
   read: boolean;
+  chatMeta?: ChatMeta;
 }
 
 export const COLOR_OPTIONS: { id: ContactColor; label: string; hex: string; bg: string; border: string; text: string }[] = [
