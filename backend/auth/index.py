@@ -126,14 +126,18 @@ def handler(event: dict, context) -> dict:
             conn.close()
             return err("Пользователь не найден", 404)
 
+        try:
+            send_email(email, code, full_name if full_name else None)
+        except Exception as e:
+            conn.close()
+            return err(f"Не удалось отправить письмо: {e}", 502)
+
         cur.execute(
             f"INSERT INTO {SCHEMA}.verification_codes (email, code, expires_at) VALUES (%s, %s, %s)",
             (email, code, expires_at),
         )
         conn.commit()
         conn.close()
-
-        send_email(email, code, full_name if full_name else None)
         return resp({"ok": True, "message": "Код отправлен на email"})
 
     # ── POST verify ───────────────────────────────────────────────────────────
