@@ -56,6 +56,7 @@
     "next-themes": "^0.3.0",
     "o": "^2.3.2",
     "q": "^1.5.1",
+    "qrcode": "^1.5.4",
     "r": "^0.0.5",
     "react": "^18.3.1",
     "react-day-picker": "^8.10.1",
@@ -78,6 +79,7 @@
     "@eslint/js": "^9.9.0",
     "@tailwindcss/typography": "^0.5.15",
     "@types/node": "^22.5.5",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.4.1",
@@ -88,12 +90,12 @@
     "eslint-plugin-react-refresh": "^0.4.9",
     "globals": "^15.9.0",
     "postcss": "^8.4.47",
+    "pp-tagger": "^1.0.1",
     "react": "^18.3.1",
     "tailwindcss": "^3.4.11",
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.44.1",
-    "vite": "npm:rolldown-vite@7.1.13",
-    "pp-tagger": "^1.0.1"
+    "vite": "npm:rolldown-vite@7.1.13"
   },
   "overrides": {
     "vite": "npm:rolldown-vite@7.1.13"

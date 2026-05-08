@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import QRCode from "qrcode";
 import Icon from "@/components/ui/icon";
 import { fmt } from "@/components/index/types";
 
@@ -169,6 +170,16 @@ function PayBadge({ status }: { status: string }) {
   );
 }
 
+function QRCanvas({ url }: { url: string }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    if (canvasRef.current) {
+      QRCode.toCanvas(canvasRef.current, url, { width: 200, margin: 2, color: { dark: "#000000", light: "#ffffff" } });
+    }
+  }, [url]);
+  return <canvas ref={canvasRef} className="rounded-xl" />;
+}
+
 function QRButton({ shareToken }: { shareToken: string }) {
   const [show, setShow] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -197,10 +208,9 @@ function QRButton({ shareToken }: { shareToken: string }) {
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }} onClick={() => setShow(false)}>
           <div className="glass rounded-2xl p-6 flex flex-col items-center gap-4 max-w-xs w-full" onClick={e => e.stopPropagation()}>
             <p className="font-semibold text-foreground text-sm">QR-код для арендатора</p>
-            <img
-              src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`}
-              alt="QR" className="rounded-xl" width={200} height={200}
-            />
+            <div className="bg-white p-3 rounded-xl">
+              <QRCanvas url={url} />
+            </div>
             <p className="text-xs text-muted-foreground text-center break-all">{url}</p>
             <button onClick={copyLink} className="w-full py-2 rounded-xl text-xs font-medium gradient-purple text-white flex items-center justify-center gap-2">
               <Icon name={copied ? "Check" : "Copy"} size={14} />
