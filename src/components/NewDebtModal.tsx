@@ -235,17 +235,7 @@ export function SharedDebtView({ token }: { token: string }) {
             </div>
           </div>
         )}
-        {debt!.note && (
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 bg-amber-500/20 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5">
-              <Icon name="FileText" size={16} className="text-amber-400" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Заметка</p>
-              <p className="font-medium text-foreground">{String(debt!.note)}</p>
-            </div>
-          </div>
-        )}
+
       </div>
     </div>
   );
