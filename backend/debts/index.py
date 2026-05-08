@@ -197,6 +197,11 @@ def handler(event: dict, context) -> dict:
     if method == "GET" and qs.get("user_id"):
         uid = int(qs["user_id"])
         with get_conn() as conn:
+            auth_user_id = get_user_id_from_token(auth_header, conn)
+            if not auth_user_id:
+                return err("Не авторизован", 401)
+            if auth_user_id != uid:
+                return err("Нет доступа", 403)
             with conn.cursor() as cur:
                 cur.execute(
                     f"""SELECT id, share_token, title, amount, note, due_date,
