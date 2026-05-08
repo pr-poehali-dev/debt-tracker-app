@@ -4,7 +4,7 @@ import json
 import psycopg2
 from datetime import datetime, timezone
 
-ADMIN_EMAIL = "elovyh@liust.ru"
+ADMIN_EMAIL = "elovyh@list.ru"
 
 CORS = {
     "Access-Control-Allow-Origin": "*",

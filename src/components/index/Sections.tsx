@@ -792,7 +792,7 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
         </div>
       </div>
 
-      {email === "elovyh@liust.ru" && (
+      {email === "elovyh@list.ru" && (
         <button
           onClick={() => window.location.href = "/admin"}
           className="w-full py-3 rounded-2xl glass border border-purple-500/20 text-purple-400 hover:bg-purple-500/10 transition-all font-medium flex items-center justify-center gap-2"
