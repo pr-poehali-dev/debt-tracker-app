@@ -176,12 +176,22 @@ function RentalCard({ rental, userId, token, onUpdate, onDelete }: { rental: Ren
   const isNear = daysUntil <= 3;
   const myPayStatus = isLandlord ? rental.current_month_status_landlord : rental.current_month_status_tenant;
 
+  const roleColor = isLandlord
+    ? { bg: "rgba(168,85,247,0.18)", icon: "#c084fc", badge: "rgba(168,85,247,0.2)", badgeText: "#c084fc", border: "rgba(168,85,247,0.25)", amount: "#c084fc" }
+    : { bg: "rgba(56,189,248,0.15)", icon: "#7dd3fc", badge: "rgba(56,189,248,0.15)", badgeText: "#7dd3fc", border: "rgba(56,189,248,0.2)", amount: "#7dd3fc" };
+
   return (
-    <div className="glass rounded-2xl p-4 space-y-3">
+    <div className="glass rounded-2xl p-4 space-y-3" style={{ borderLeft: `3px solid ${roleColor.border}` }}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(20,184,166,0.2)" }}>
-            <Icon name="Home" size={20} style={{ color: "#5eead4" }} />
+          <div className="relative flex-shrink-0">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: roleColor.bg }}>
+              <Icon name={isLandlord ? "KeyRound" : "Home"} size={20} style={{ color: roleColor.icon }} />
+            </div>
+            <span className="absolute -bottom-1 -right-1 text-[8px] font-bold px-1 py-0.5 rounded-full leading-none"
+              style={{ background: roleColor.badge, color: roleColor.badgeText, border: `1px solid ${roleColor.border}` }}>
+              {isLandlord ? "сдаю" : "снимаю"}
+            </span>
           </div>
           <div className="min-w-0">
             <p className="font-semibold text-foreground truncate">{rental.title}</p>
@@ -191,7 +201,7 @@ function RentalCard({ rental, userId, token, onUpdate, onDelete }: { rental: Ren
           </div>
         </div>
         <div className="text-right flex-shrink-0">
-          <p className="text-lg font-bold font-heading" style={{ color: "#5eead4" }}>{fmt(rental.amount)}</p>
+          <p className="text-lg font-bold font-heading" style={{ color: roleColor.amount }}>{fmt(rental.amount)}</p>
           <p className="text-xs text-muted-foreground">в месяц</p>
         </div>
       </div>
