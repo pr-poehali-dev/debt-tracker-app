@@ -766,6 +766,31 @@ export default function RentalSection({ userId, token, myName, isDemo, openNew, 
 
   const active = rentals.filter(r => r.status === "active");
   const archived = rentals.filter(r => r.status === "archived");
+  const lendingOut = active.filter(r => r.landlord_user_id === userId);
+  const renting = active.filter(r => r.tenant_user_id === userId);
+
+  function RentalGroup({ list, label, color, icon }: { list: Rental[]; label: string; color: string; icon: string }) {
+    if (list.length === 0) return null;
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 px-1">
+          <div className="w-5 h-5 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${color}22` }}>
+            <Icon name={icon} size={11} style={{ color }} />
+          </div>
+          <p className="text-xs font-semibold" style={{ color }}>{label}</p>
+          <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: `${color}18`, color }}>
+            {list.length}
+          </span>
+          <div className="flex-1 h-px" style={{ background: `${color}20` }} />
+        </div>
+        <div className="space-y-3">
+          {list.map(r => (
+            <RentalCard key={r.id} rental={r} userId={userId} token={token} onUpdate={handleUpdate} onDelete={handleDelete} />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="animate-fade-in space-y-4">
@@ -807,10 +832,9 @@ export default function RentalSection({ userId, token, myName, isDemo, openNew, 
           </button>
         </div>
       ) : (
-        <div className="space-y-3">
-          {active.map(r => (
-            <RentalCard key={r.id} rental={r} userId={userId} token={token} onUpdate={handleUpdate} onDelete={handleDelete} />
-          ))}
+        <div className="space-y-5">
+          <RentalGroup list={lendingOut} label="Сдаю" color="#c084fc" icon="KeyRound" />
+          <RentalGroup list={renting} label="Снимаю" color="#7dd3fc" icon="Home" />
         </div>
       )}
 
