@@ -137,7 +137,6 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
     { id: "calendar" as Section,      icon: "CalendarDays",     label: t.navCalendar },
     { id: "notifications" as Section, icon: "Bell",             label: t.navNotifications },
     { id: "archive" as Section,       icon: "Archive",          label: t.navArchive },
-    { id: "contacts" as Section,      icon: "Users",            label: t.navContacts },
   ];
 
   const sectionTitles: Record<Section, string> = {
