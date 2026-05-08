@@ -142,7 +142,7 @@ export default function ChatWindow({ debtId, rentalId, title, token, onClose, on
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
       <div
         className="relative w-full flex flex-col animate-slide-up"
-        style={{ height: "80%", background: "var(--app-bg)", borderRadius: "20px 20px 0 0", maxWidth: 640 }}
+        style={{ height: "80vh", background: "var(--app-bg)", borderRadius: "20px 20px 0 0", maxWidth: 640 }}
         onClick={e => e.stopPropagation()}
       >
         <div className="mesh-bg absolute inset-0 pointer-events-none rounded-t-[20px]" />
