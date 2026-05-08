@@ -568,16 +568,18 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
     if (next) {
       try {
         const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-        [0, 0.12].forEach(offset => {
-          const osc = ctx.createOscillator(); const gain = ctx.createGain();
-          osc.connect(gain); gain.connect(ctx.destination);
-          osc.type = "sine";
-          osc.frequency.setValueAtTime(2200, ctx.currentTime + offset);
-          osc.frequency.exponentialRampToValueAtTime(1400, ctx.currentTime + offset + 0.18);
-          gain.gain.setValueAtTime(0.55, ctx.currentTime + offset);
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + offset + 0.35);
-          osc.start(ctx.currentTime + offset); osc.stop(ctx.currentTime + offset + 0.35);
-        });
+        const t = ctx.currentTime;
+        [{ freqs: [1567, 2093, 3136, 4186], offset: 0 }, { freqs: [1567, 2093, 3136, 4186], offset: 0.18 }]
+          .forEach(({ freqs, offset }) => freqs.forEach((freq, i) => {
+            const osc = ctx.createOscillator(); const gain = ctx.createGain();
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.type = "sine"; osc.frequency.setValueAtTime(freq, t + offset);
+            const vol = i === 0 ? 0.5 : i === 1 ? 0.3 : i === 2 ? 0.15 : 0.08;
+            const decay = i === 0 ? 0.7 : i === 1 ? 0.5 : 0.3;
+            gain.gain.setValueAtTime(vol, t + offset);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + offset + decay);
+            osc.start(t + offset); osc.stop(t + offset + decay);
+          }));
       } catch { /* ignore */ }
     }
   }
