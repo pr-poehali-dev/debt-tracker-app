@@ -600,9 +600,9 @@ export function Dashboard({ onNav, contacts, t, lentDebts, borrowedDebts, active
 
   return (
     <div className="animate-fade-in space-y-5">
-      <div className="grid grid-cols-5 gap-3">
-        {/* Баланс — занимает 3 колонки */}
-        <div className="col-span-3 relative rounded-3xl overflow-hidden p-4" style={{ background: "linear-gradient(135deg, rgba(168,85,247,0.3) 0%, rgba(99,102,241,0.2) 50%, rgba(56,189,248,0.2) 100%)", border: "1px solid rgba(168,85,247,0.3)" }}>
+      <div className="grid grid-cols-2 gap-3">
+        {/* Баланс */}
+        <div className="relative rounded-3xl overflow-hidden p-4" style={{ background: "linear-gradient(135deg, rgba(168,85,247,0.3) 0%, rgba(99,102,241,0.2) 50%, rgba(56,189,248,0.2) 100%)", border: "1px solid rgba(168,85,247,0.3)" }}>
           <div className="absolute inset-0 opacity-30" style={{ background: "radial-gradient(circle at 70% 50%, rgba(168,85,247,0.5), transparent 60%)" }} />
           <div className="relative">
             <p className="text-muted-foreground text-xs mb-1">{t.totalBalance}</p>
@@ -613,8 +613,8 @@ export function Dashboard({ onNav, contacts, t, lentDebts, borrowedDebts, active
           </div>
         </div>
 
-        {/* Аренда — занимает 2 колонки */}
-        <button onClick={() => onNav("rental")} className="col-span-2 relative rounded-3xl overflow-hidden p-4 text-left hover:opacity-90 transition-all" style={{ background: "linear-gradient(135deg, rgba(20,184,166,0.25) 0%, rgba(6,148,162,0.15) 100%)", border: "1px solid rgba(20,184,166,0.35)" }}>
+        {/* Аренда */}
+        <button onClick={() => onNav("rental")} className="relative rounded-3xl overflow-hidden p-4 text-left hover:opacity-90 transition-all" style={{ background: "linear-gradient(135deg, rgba(20,184,166,0.25) 0%, rgba(6,148,162,0.15) 100%)", border: "1px solid rgba(20,184,166,0.35)" }}>
           <div className="absolute inset-0 opacity-20" style={{ background: "radial-gradient(circle at 30% 50%, rgba(20,184,166,0.6), transparent 60%)" }} />
           <div className="relative">
             <div className="flex items-center gap-1.5 mb-1">
