@@ -27,6 +27,8 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
   const [archiveDebts, setArchiveDebts] = useState<Debt[]>(isDemo ? DEMO_ARCHIVE : []);
   const [showNewDebt, setShowNewDebt] = useState(false);
   const [showNewRental, setShowNewRental] = useState(false);
+  const [activeRentalCount, setActiveRentalCount] = useState(0);
+  const [totalRentalAmount, setTotalRentalAmount] = useState(0);
   const [rentalInvite, setRentalInvite] = useState<string | null>(() => new URLSearchParams(window.location.search).get("rental"));
   const [activeChat, setActiveChat] = useState<{ debtId: string; title: string } | null>(null);
   const [notifs, setNotifs] = useState<Notification[]>([]);
@@ -95,6 +97,19 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
           setBorrowedDebts(borrowed);
           setArchiveDebts(archive);
           if (newNotifs.length > 0) setNotifs(prev => [...newNotifs, ...prev]);
+        });
+    });
+  }, [isDemo, user.id, token]);
+
+  useEffect(() => {
+    if (isDemo) return;
+    import("../../backend/func2url.json").then(({ default: urls }) => {
+      fetch(`${urls["rentals"]}?user_id=${user.id}`, { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.ok ? r.json() : [])
+        .then((data: Array<Record<string, unknown>>) => {
+          const active = data.filter(r => r.status === "active");
+          setActiveRentalCount(active.length);
+          setTotalRentalAmount(active.reduce((s, r) => s + Number(r.amount), 0));
         });
     });
   }, [isDemo, user.id, token]);
@@ -386,7 +401,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
 
       <main className="relative z-10 flex-1 px-4 pb-32 overflow-y-auto">
         <div className="max-w-lg mx-auto">
-          {section === "dashboard"     && <Dashboard onNav={setSection} contacts={contacts} t={t} lentDebts={lentDebts} borrowedDebts={borrowedDebts} />}
+          {section === "dashboard"     && <Dashboard onNav={setSection} contacts={contacts} t={t} lentDebts={lentDebts} borrowedDebts={borrowedDebts} activeRentalCount={activeRentalCount} totalRentalAmount={totalRentalAmount} />}
           {section === "lent"          && <DebtList debts={lentDebts} dir="lent" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => setActiveChat({ debtId: id, title })} onMarkPaid={handleMarkPaid} />}
           {section === "borrowed"      && <DebtList debts={borrowedDebts} dir="borrowed" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => setActiveChat({ debtId: id, title })} onMarkPaid={handleMarkPaid} />}
           {section === "calendar"      && <CalendarSection contacts={contacts} t={t} debts={[...lentDebts, ...borrowedDebts]} />}

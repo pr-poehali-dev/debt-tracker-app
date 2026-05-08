@@ -432,7 +432,7 @@ export function ContactsSection({ contacts, onColorChange, t }: { contacts: Cont
 }
 
 // ─── Section: Dashboard ───────────────────────────────────────────────────────
-export function Dashboard({ onNav, contacts, t, lentDebts, borrowedDebts }: { onNav: (s: Section) => void; contacts: Contact[]; t: ReturnType<typeof getT>; lentDebts: Debt[]; borrowedDebts: Debt[] }) {
+export function Dashboard({ onNav, contacts, t, lentDebts, borrowedDebts, activeRentalCount = 0, totalRentalAmount = 0 }: { onNav: (s: Section) => void; contacts: Contact[]; t: ReturnType<typeof getT>; lentDebts: Debt[]; borrowedDebts: Debt[]; activeRentalCount?: number; totalRentalAmount?: number }) {
   const totalLent = lentDebts.filter(d => d.status !== "paid").reduce((s, d) => s + d.amount, 0);
   const totalBorrowed = borrowedDebts.filter(d => d.status !== "paid").reduce((s, d) => s + d.amount, 0);
   const balance = totalLent - totalBorrowed;
@@ -442,15 +442,35 @@ export function Dashboard({ onNav, contacts, t, lentDebts, borrowedDebts }: { on
 
   return (
     <div className="animate-fade-in space-y-5">
-      <div className="relative rounded-3xl overflow-hidden p-6" style={{ background: "linear-gradient(135deg, rgba(168,85,247,0.3) 0%, rgba(99,102,241,0.2) 50%, rgba(56,189,248,0.2) 100%)", border: "1px solid rgba(168,85,247,0.3)" }}>
-        <div className="absolute inset-0 opacity-30" style={{ background: "radial-gradient(circle at 70% 50%, rgba(168,85,247,0.5), transparent 60%)" }} />
-        <div className="relative">
-          <p className="text-muted-foreground text-sm mb-1">{t.totalBalance}</p>
-          <p className={`text-4xl font-black font-heading mb-1 ${balance >= 0 ? "text-gradient-purple" : "text-red-400"}`}>
-            {balance >= 0 ? "+" : ""}{fmt(balance)}
-          </p>
-          <p className="text-xs text-muted-foreground">{balance >= 0 ? t.youAreOwed : t.youOweTotal}</p>
+      <div className="grid grid-cols-5 gap-3">
+        {/* Баланс — занимает 3 колонки */}
+        <div className="col-span-3 relative rounded-3xl overflow-hidden p-4" style={{ background: "linear-gradient(135deg, rgba(168,85,247,0.3) 0%, rgba(99,102,241,0.2) 50%, rgba(56,189,248,0.2) 100%)", border: "1px solid rgba(168,85,247,0.3)" }}>
+          <div className="absolute inset-0 opacity-30" style={{ background: "radial-gradient(circle at 70% 50%, rgba(168,85,247,0.5), transparent 60%)" }} />
+          <div className="relative">
+            <p className="text-muted-foreground text-xs mb-1">{t.totalBalance}</p>
+            <p className={`text-2xl font-black font-heading mb-0.5 ${balance >= 0 ? "text-gradient-purple" : "text-red-400"}`}>
+              {balance >= 0 ? "+" : ""}{fmt(balance)}
+            </p>
+            <p className="text-[10px] text-muted-foreground">{balance >= 0 ? t.youAreOwed : t.youOweTotal}</p>
+          </div>
         </div>
+
+        {/* Аренда — занимает 2 колонки */}
+        <button onClick={() => onNav("rental")} className="col-span-2 relative rounded-3xl overflow-hidden p-4 text-left hover:opacity-90 transition-all" style={{ background: "linear-gradient(135deg, rgba(20,184,166,0.25) 0%, rgba(6,148,162,0.15) 100%)", border: "1px solid rgba(20,184,166,0.35)" }}>
+          <div className="absolute inset-0 opacity-20" style={{ background: "radial-gradient(circle at 30% 50%, rgba(20,184,166,0.6), transparent 60%)" }} />
+          <div className="relative">
+            <div className="flex items-center gap-1.5 mb-1">
+              <Icon name="Home" size={12} style={{ color: "#5eead4" }} />
+              <p className="text-[10px] text-muted-foreground">Аренда</p>
+            </div>
+            <p className="text-xl font-black font-heading mb-0.5" style={{ color: "#5eead4" }}>
+              {activeRentalCount}
+            </p>
+            <p className="text-[10px] text-muted-foreground">
+              {activeRentalCount === 0 ? "нет аренд" : `${fmt(totalRentalAmount)}/мес`}
+            </p>
+          </div>
+        </button>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
