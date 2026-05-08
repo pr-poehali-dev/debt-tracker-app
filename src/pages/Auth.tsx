@@ -46,9 +46,7 @@ export default function Auth({ onAuth }: Props) {
         signal: AbortSignal.timeout(15000),
       });
       const data = await res.json();
-      if (res.status === 409) {
-        setIsNewUser(false); setCountdown(60); setStep("code");
-      } else if (res.ok) {
+      if (res.ok) {
         setIsNewUser(false); setCountdown(60); setStep("code");
       } else if (res.status === 404) {
         setIsNewUser(true); setStep("register");

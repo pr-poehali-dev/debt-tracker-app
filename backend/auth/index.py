@@ -118,10 +118,6 @@ def handler(event: dict, context) -> dict:
         cur.execute(f"SELECT id FROM {SCHEMA}.users WHERE email = %s", (email,))
         existing = cur.fetchone()
 
-        if full_name and existing:
-            conn.close()
-            return err("Пользователь с таким email уже существует", 409)
-
         if not full_name and not existing:
             conn.close()
             return err("Пользователь не найден", 404)
