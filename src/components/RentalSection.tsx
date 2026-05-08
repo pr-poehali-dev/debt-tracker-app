@@ -140,7 +140,7 @@ function RentalCard({ rental, userId, onUpdate }: { rental: Rental; userId: numb
             Отменить оплату
           </button>
         )}
-        <QRButton shareToken={rental.share_token} />
+        {isLandlord && <QRButton shareToken={rental.share_token} />}
       </div>
 
       {isLandlord && (
@@ -170,33 +170,46 @@ function PayBadge({ status }: { status: string }) {
 
 function QRButton({ shareToken }: { shareToken: string }) {
   const [show, setShow] = useState(false);
+  const [copied, setCopied] = useState(false);
   const url = `${window.location.origin}/?rental=${shareToken}`;
 
-  if (show) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }} onClick={() => setShow(false)}>
-        <div className="glass rounded-2xl p-6 flex flex-col items-center gap-4 max-w-xs w-full" onClick={e => e.stopPropagation()}>
-          <p className="font-semibold text-foreground text-sm">QR-код для арендатора</p>
-          <img
-            src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`}
-            alt="QR" className="rounded-xl"
-          />
-          <p className="text-xs text-muted-foreground text-center break-all">{url}</p>
-          <button onClick={() => { navigator.clipboard.writeText(url); }} className="w-full py-2 rounded-xl text-xs font-medium gradient-purple text-white">
-            Скопировать ссылку
-          </button>
-          <button onClick={() => setShow(false)} className="text-xs text-muted-foreground">Закрыть</button>
-        </div>
-      </div>
-    );
+  function copyLink() {
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   }
 
   return (
-    <button onClick={() => setShow(true)}
-      className="w-10 h-9 rounded-xl flex items-center justify-center transition-all"
-      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
-      <Icon name="QrCode" size={16} className="text-muted-foreground" />
-    </button>
+    <>
+      <button onClick={() => setShow(true)}
+        className="w-10 h-9 rounded-xl flex items-center justify-center transition-all"
+        style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
+        <Icon name="QrCode" size={16} className="text-muted-foreground" />
+      </button>
+      <button onClick={copyLink}
+        className="w-10 h-9 rounded-xl flex items-center justify-center transition-all"
+        style={{ background: copied ? "rgba(20,184,166,0.2)" : "rgba(255,255,255,0.05)", border: `1px solid ${copied ? "rgba(20,184,166,0.5)" : "rgba(255,255,255,0.1)"}` }}>
+        <Icon name={copied ? "Check" : "Copy"} size={16} className={copied ? "text-teal-400" : "text-muted-foreground"} />
+      </button>
+
+      {show && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }} onClick={() => setShow(false)}>
+          <div className="glass rounded-2xl p-6 flex flex-col items-center gap-4 max-w-xs w-full" onClick={e => e.stopPropagation()}>
+            <p className="font-semibold text-foreground text-sm">QR-код для арендатора</p>
+            <img
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`}
+              alt="QR" className="rounded-xl"
+            />
+            <p className="text-xs text-muted-foreground text-center break-all">{url}</p>
+            <button onClick={copyLink} className="w-full py-2 rounded-xl text-xs font-medium gradient-purple text-white flex items-center justify-center gap-2">
+              <Icon name={copied ? "Check" : "Copy"} size={14} />
+              {copied ? "Скопировано!" : "Скопировать ссылку"}
+            </button>
+            <button onClick={() => setShow(false)} className="text-xs text-muted-foreground">Закрыть</button>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
