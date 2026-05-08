@@ -98,18 +98,17 @@ function PaymentCalendar({ rental, token, userId }: { rental: Rental; token: str
           <div className="flex justify-center py-8"><Icon name="Loader2" size={24} className="text-teal-400 animate-spin" /></div>
         ) : (
           <div className="space-y-2">
-            <div className="grid grid-cols-4 gap-1 text-[10px] text-muted-foreground font-medium px-1">
+            <div className="grid grid-cols-3 gap-1 text-[10px] text-muted-foreground font-medium px-1">
               <span>Месяц</span>
               <span className="text-center">Арендодатель</span>
               <span className="text-center">Арендатор</span>
-              <span className="text-right">Сумма</span>
             </div>
             {months.map(({ year, month, key }) => {
               const landlordStatus = getStatus(key, "landlord");
               const tenantStatus = getStatus(key, "tenant");
               const isCurrentMonth = key === new Date().toISOString().slice(0, 7);
               return (
-                <div key={key} className="grid grid-cols-4 gap-1 items-center rounded-xl px-3 py-2.5"
+                <div key={key} className="grid grid-cols-3 gap-1 items-center rounded-xl px-3 py-2.5"
                   style={{ background: isCurrentMonth ? "rgba(20,184,166,0.08)" : "rgba(255,255,255,0.03)", border: isCurrentMonth ? "1px solid rgba(20,184,166,0.2)" : "1px solid transparent" }}>
                   <span className={`text-xs font-medium ${isCurrentMonth ? "text-teal-400" : "text-foreground"}`}>
                     {MONTHS_RU[month]} {year !== new Date().getFullYear() ? year : ""}
@@ -124,9 +123,6 @@ function PaymentCalendar({ rental, token, userId }: { rental: Rental; token: str
                       ? <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium" style={{ background: "rgba(34,197,94,0.15)", color: "#4ade80" }}><Icon name="Check" size={9} />Оплачено</span>
                       : <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium" style={{ background: "rgba(255,255,255,0.05)", color: "#6b7280" }}>—</span>}
                   </div>
-                  <span className="text-xs text-right text-muted-foreground">
-                    {(landlordStatus === "paid" || tenantStatus === "paid") ? `${Number(rental.amount).toLocaleString("ru-RU")} ₽` : ""}
-                  </span>
                 </div>
               );
             })}
