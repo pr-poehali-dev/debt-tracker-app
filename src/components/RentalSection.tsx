@@ -50,7 +50,8 @@ const DEMO_RENTALS: Rental[] = [
   },
 ];
 
-function RentalCard({ rental, userId, onUpdate }: { rental: Rental; userId: number; onUpdate: (token: string, body: Record<string, unknown>) => void }) {
+function RentalCard({ rental, userId, onUpdate, onDelete }: { rental: Rental; userId: number; onUpdate: (token: string, body: Record<string, unknown>) => void; onDelete: (token: string) => void }) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const isLandlord = rental.landlord_user_id === userId;
   const isPendingAmount = rental.tenant_decision === "pending_amount";
   const today = new Date().getDate();
@@ -166,6 +167,35 @@ function RentalCard({ rental, userId, onUpdate }: { rental: Rental; userId: numb
             )}
             <PayBadge status={rental.current_month_status_tenant} />
           </div>
+        </div>
+      )}
+
+      {/* Удалить (арендодатель) или Покинуть (арендатор) */}
+      {confirmDelete ? (
+        <div className="rounded-xl p-3 space-y-2 pt-2 border-t" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+          <p className="text-xs text-center text-muted-foreground">
+            {isLandlord ? "Удалить аренду безвозвратно?" : "Покинуть эту аренду?"}
+          </p>
+          <div className="flex gap-2">
+            <button onClick={() => setConfirmDelete(false)}
+              className="flex-1 py-1.5 rounded-lg text-xs font-medium text-muted-foreground"
+              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
+              Отмена
+            </button>
+            <button onClick={() => onDelete(rental.share_token)}
+              className="flex-1 py-1.5 rounded-lg text-xs font-medium text-white"
+              style={{ background: "#f43f5e" }}>
+              {isLandlord ? "Удалить" : "Покинуть"}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex justify-end pt-1 border-t" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+          <button onClick={() => setConfirmDelete(true)}
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-red-400 transition-colors">
+            <Icon name={isLandlord ? "Trash2" : "LogOut"} size={11} />
+            {isLandlord ? "Удалить аренду" : "Покинуть"}
+          </button>
         </div>
       )}
     </div>
@@ -472,6 +502,16 @@ export default function RentalSection({ userId, token, myName, isDemo, openNew, 
     }
   }
 
+  async function handleDelete(shareToken: string) {
+    if (isDemo) { setRentals(prev => prev.filter(r => r.share_token !== shareToken)); return; }
+    const urls = (await import("../../backend/func2url.json")).default;
+    const res = await fetch(`${urls["rentals"]}?token=${shareToken}&user_id=${userId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) setRentals(prev => prev.filter(r => r.share_token !== shareToken));
+  }
+
   function handleCreated(rental: Rental) {
     setRentals(prev => [rental, ...prev]);
     setShowNew(false);
@@ -522,7 +562,7 @@ export default function RentalSection({ userId, token, myName, isDemo, openNew, 
       ) : (
         <div className="space-y-3">
           {active.map(r => (
-            <RentalCard key={r.id} rental={r} userId={userId} onUpdate={handleUpdate} />
+            <RentalCard key={r.id} rental={r} userId={userId} onUpdate={handleUpdate} onDelete={handleDelete} />
           ))}
         </div>
       )}
@@ -531,7 +571,7 @@ export default function RentalSection({ userId, token, myName, isDemo, openNew, 
         <div className="space-y-2">
           <p className="text-xs text-muted-foreground font-medium px-1">Архив</p>
           {archived.map(r => (
-            <RentalCard key={r.id} rental={r} userId={userId} onUpdate={handleUpdate} />
+            <RentalCard key={r.id} rental={r} userId={userId} onUpdate={handleUpdate} onDelete={handleDelete} />
           ))}
         </div>
       )}
