@@ -119,7 +119,27 @@ export default function Auth({ onAuth }: Props) {
     setCode(next);
     if (digit && i < 3) codeRefs[i + 1].current?.focus();
     if (next.every(d => d !== "")) {
-      setTimeout(() => verifyCode(), 100);
+      const c = next.join("");
+      setLoading(true); setError("");
+      const body: Record<string, string> = { email: email.trim().toLowerCase(), code: c };
+      if (isNewUser) { body.full_name = fullName.trim(); body.phone = phone.trim(); }
+      fetch(`${AUTH_URL}?action=verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(15000),
+      }).then(res => res.json().then(data => {
+        if (res.ok) {
+          localStorage.setItem("df-token", data.token);
+          onAuth(data.token, data.user);
+        } else {
+          setError(data.error || "Неверный код");
+          setCode(["", "", "", ""]);
+          codeRefs[0].current?.focus();
+        }
+      })).catch(() => {
+        setError("Нет ответа от сервера.");
+      }).finally(() => setLoading(false));
     }
   }
 
