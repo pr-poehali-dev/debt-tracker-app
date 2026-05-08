@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import Icon from "@/components/ui/icon";
 import { fmt } from "@/components/index/types";
 
@@ -192,13 +193,13 @@ function QRButton({ shareToken }: { shareToken: string }) {
         <Icon name={copied ? "Check" : "Copy"} size={16} className={copied ? "text-teal-400" : "text-muted-foreground"} />
       </button>
 
-      {show && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }} onClick={() => setShow(false)}>
+      {show && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }} onClick={() => setShow(false)}>
           <div className="glass rounded-2xl p-6 flex flex-col items-center gap-4 max-w-xs w-full" onClick={e => e.stopPropagation()}>
             <p className="font-semibold text-foreground text-sm">QR-код для арендатора</p>
             <img
               src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`}
-              alt="QR" className="rounded-xl"
+              alt="QR" className="rounded-xl" width={200} height={200}
             />
             <p className="text-xs text-muted-foreground text-center break-all">{url}</p>
             <button onClick={copyLink} className="w-full py-2 rounded-xl text-xs font-medium gradient-purple text-white flex items-center justify-center gap-2">
@@ -207,7 +208,8 @@ function QRButton({ shareToken }: { shareToken: string }) {
             </button>
             <button onClick={() => setShow(false)} className="text-xs text-muted-foreground">Закрыть</button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
