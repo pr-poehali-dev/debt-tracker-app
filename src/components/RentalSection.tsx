@@ -29,6 +29,8 @@ interface Props {
   token: string;
   myName: string;
   isDemo: boolean;
+  openNew?: boolean;
+  onNewClose?: () => void;
 }
 
 const DEMO_RENTALS: Rental[] = [
@@ -298,9 +300,13 @@ export function SharedRentalView({ token: shareToken }: { token: string }) {
   );
 }
 
-export default function RentalSection({ userId, token, myName, isDemo }: Props) {
+export default function RentalSection({ userId, token, myName, isDemo, openNew, onNewClose }: Props) {
   const [rentals, setRentals] = useState<Rental[]>(isDemo ? DEMO_RENTALS : []);
   const [showNew, setShowNew] = useState(false);
+
+  useEffect(() => {
+    if (openNew) setShowNew(true);
+  }, [openNew]);
   const [loading, setLoading] = useState(!isDemo);
 
   useEffect(() => {
@@ -354,7 +360,7 @@ export default function RentalSection({ userId, token, myName, isDemo }: Props) 
         <NewRentalModal
           myName={myName}
           token={token}
-          onClose={() => setShowNew(false)}
+          onClose={() => { setShowNew(false); onNewClose?.(); }}
           onCreated={handleCreated}
         />
       )}

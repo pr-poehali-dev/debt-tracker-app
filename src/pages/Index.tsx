@@ -25,6 +25,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
   const [borrowedDebts, setBorrowedDebts] = useState<Debt[]>(isDemo ? DEMO_BORROWED : []);
   const [archiveDebts, setArchiveDebts] = useState<Debt[]>(isDemo ? DEMO_ARCHIVE : []);
   const [showNewDebt, setShowNewDebt] = useState(false);
+  const [showNewRental, setShowNewRental] = useState(false);
   const [activeChat, setActiveChat] = useState<{ debtId: string; title: string } | null>(null);
   const [notifs, setNotifs] = useState<Notification[]>([]);
 
@@ -253,7 +254,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
               <Icon name="Settings" size={17} className={section === "settings" ? "text-white" : ""} />
             </button>
             <button
-              onClick={() => setShowNewDebt(true)}
+              onClick={() => section === "rental" ? setShowNewRental(true) : setShowNewDebt(true)}
               className="w-9 h-9 rounded-xl flex items-center justify-center transition-colors gradient-purple glow-purple"
             >
               <Icon name="Plus" size={17} className="text-white" />
@@ -272,7 +273,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
           {section === "calendar"      && <CalendarSection contacts={contacts} t={t} debts={[...lentDebts, ...borrowedDebts]} />}
           {section === "notifications" && <NotificationsSection notifs={notifs} onMarkAllRead={handleMarkAllRead} onMarkRead={handleMarkRead} t={t} />}
           {section === "archive"       && <ArchiveSection contacts={contacts} t={t} locale={locale} archiveDebts={archiveDebts} />}
-          {section === "rental"        && <RentalSection userId={user.id} token={token} myName={profile.name} isDemo={isDemo} />}
+          {section === "rental"        && <RentalSection userId={user.id} token={token} myName={profile.name} isDemo={isDemo} openNew={showNewRental} onNewClose={() => setShowNewRental(false)} />}
           {section === "contacts"      && <ContactsSection contacts={contacts} onColorChange={handleColorChange} t={t} />}
           {section === "settings"      && <SettingsSection theme={theme} onThemeChange={setTheme} profile={profile} onProfileChange={handleProfileChange} t={t} lang={lang} onLangChange={handleLangChange} email={user.email} onLogout={onLogout} isDemo={isDemo} />}
         </div>
