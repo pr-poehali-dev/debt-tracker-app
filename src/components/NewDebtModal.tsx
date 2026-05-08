@@ -173,11 +173,36 @@ export function SharedDebtView({ token }: { token: string }) {
   const inputCls = "w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-purple-500/50 transition-colors";
   const btnCls = "w-full py-3 rounded-xl font-semibold text-white text-sm disabled:opacity-50 transition-all";
 
+  // Расчёт суммы с процентами
+  const baseAmount = Number(debt!.amount);
+  const interestRate = debt!.interest_rate != null ? Number(debt!.interest_rate) : null;
+  const interestType = String(debt!.interest_type || "simple");
+  const totalAmount = (() => {
+    if (!interestRate || !debt!.due_date) return baseAmount;
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const due = new Date(String(debt!.due_date)); due.setHours(0, 0, 0, 0);
+    const days = Math.round((due.getTime() - today.getTime()) / 86400000);
+    if (days <= 0) return baseAmount;
+    const years = days / 365;
+    if (interestType === "compound") return Math.round(baseAmount * Math.pow(1 + interestRate / 100, years));
+    return Math.round(baseAmount * (1 + (interestRate / 100) * years));
+  })();
+  const interestAmount = totalAmount - baseAmount;
+
   // Карточка долга (показывается всегда)
   const DebtCard = () => (
     <div className="glass rounded-3xl p-5 mb-4" style={{ border: "1px solid rgba(168,85,247,0.3)" }}>
-      <p className="text-muted-foreground text-xs mb-1 uppercase tracking-wider">Сумма долга</p>
-      <p className="text-4xl font-black font-heading text-gradient-purple mb-4">{fmt(Number(debt!.amount))}</p>
+      <p className="text-muted-foreground text-xs mb-1 uppercase tracking-wider">
+        {interestRate ? "Итого к возврату" : "Сумма долга"}
+      </p>
+      <p className="text-4xl font-black font-heading text-gradient-purple mb-1">{fmt(totalAmount)}</p>
+      {interestRate && interestAmount > 0 && (
+        <div className="flex gap-3 mb-4">
+          <span className="text-xs text-muted-foreground">Тело: {fmt(baseAmount)}</span>
+          <span className="text-xs text-violet-400">+ проценты: {fmt(interestAmount)}</span>
+        </div>
+      )}
+      {!interestRate && <div className="mb-4" />}
       <div className="space-y-3">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 gradient-purple rounded-xl flex items-center justify-center flex-shrink-0">
@@ -188,6 +213,17 @@ export function SharedDebtView({ token }: { token: string }) {
             <p className="font-semibold text-foreground">{String(debt!.lender_name)}</p>
           </div>
         </div>
+        {interestRate && (
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-violet-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
+              <Icon name="Percent" size={16} className="text-violet-400" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Процентная ставка</p>
+              <p className="font-semibold text-foreground">{interestRate}% ({interestType === "compound" ? "сложные" : "простые"})</p>
+            </div>
+          </div>
+        )}
         {debt!.due_date && (
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-emerald-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
