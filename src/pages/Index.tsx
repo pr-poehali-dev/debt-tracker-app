@@ -29,6 +29,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
   const [showNewRental, setShowNewRental] = useState(false);
   const [activeRentalCount, setActiveRentalCount] = useState(0);
   const [totalRentalAmount, setTotalRentalAmount] = useState(0);
+  const [rentals, setRentals] = useState<Array<{ id: string; title: string; amount: number; payment_day: number; landlord_user_id?: number; tenant_user_id?: number; status: string }>>([]);
   const [rentalInvite, setRentalInvite] = useState<string | null>(() => new URLSearchParams(window.location.search).get("rental"));
   const [activeChat, setActiveChat] = useState<{ debtId: string; title: string } | null>(null);
   const [notifs, setNotifs] = useState<Notification[]>([]);
@@ -111,6 +112,15 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
           const active = data.filter(r => r.status === "active");
           setActiveRentalCount(active.length);
           setTotalRentalAmount(active.reduce((s, r) => s + Number(r.amount), 0));
+          setRentals(data.map(r => ({
+            id: String(r.id),
+            title: String(r.title),
+            amount: Number(r.amount),
+            payment_day: Number(r.payment_day),
+            landlord_user_id: r.landlord_user_id ? Number(r.landlord_user_id) : undefined,
+            tenant_user_id: r.tenant_user_id ? Number(r.tenant_user_id) : undefined,
+            status: String(r.status),
+          })));
         });
     });
   }, [isDemo, user.id, token]);
@@ -458,7 +468,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
           {section === "dashboard"     && <Dashboard onNav={setSection} contacts={contacts} t={t} lentDebts={lentDebts} borrowedDebts={borrowedDebts} activeRentalCount={activeRentalCount} totalRentalAmount={totalRentalAmount} />}
           {section === "lent"          && <DebtList debts={lentDebts} dir="lent" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => setActiveChat({ debtId: id, title })} onMarkPaid={handleMarkPaid} />}
           {section === "borrowed"      && <DebtList debts={borrowedDebts} dir="borrowed" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => setActiveChat({ debtId: id, title })} onMarkPaid={handleMarkPaid} />}
-          {section === "calendar"      && <CalendarSection contacts={contacts} t={t} debts={[...lentDebts, ...borrowedDebts]} />}
+          {section === "calendar"      && <CalendarSection contacts={contacts} t={t} debts={[...lentDebts, ...borrowedDebts]} rentals={rentals} userId={user.id} />}
           {section === "notifications" && <NotificationsSection notifs={notifs} onMarkAllRead={handleMarkAllRead} onMarkRead={handleMarkRead} t={t} />}
           {section === "archive"       && <ArchiveSection contacts={contacts} t={t} locale={locale} archiveDebts={archiveDebts} />}
           {section === "rental"        && <RentalSection userId={user.id} token={token} myName={profile.name} isDemo={isDemo} openNew={showNewRental} onNewClose={() => setShowNewRental(false)} />}
