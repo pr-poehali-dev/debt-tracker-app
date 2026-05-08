@@ -200,7 +200,7 @@ export default function DebtDetailModal({ debt, dir, locale, token = "", onClose
                     <p className="text-xs text-muted-foreground">Разбивка суммы</p>
                     <div className="flex gap-3 mt-0.5">
                       <span className="text-sm text-foreground">Тело: <span className="font-medium">{fmt(debt.amount)}</span></span>
-                      <span className="text-sm text-violet-400">Проценты: <span className="font-medium">+{fmt(interest!)}</span></span>
+                      <span className="text-sm text-violet-400">Проценты: <span className="font-medium">+{fmt(interest ?? 0)}</span></span>
                     </div>
                   </div>
                 </div>

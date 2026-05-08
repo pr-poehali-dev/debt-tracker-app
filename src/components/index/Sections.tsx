@@ -319,7 +319,7 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
   const unread = notifs.filter(n => !n.read).length;
 
   async function handlePayDecision(notif: Notification, decision: "accepted" | "rejected") {
-    const reqId = notif.data?.payment_request_id;
+    const reqId = notif.data?.payment_request_id as number | undefined;
     if (!reqId) return;
     setProcessing(notif.id);
     try {

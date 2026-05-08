@@ -145,7 +145,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
             date: new Date(String(n.created_at)).toLocaleDateString("ru-RU"),
             read: Boolean(n.is_read),
             rawType: String(n.type),
-            data: (n.data as Record<string, unknown>) || {},
+            data: (() => { try { return typeof n.data === "string" ? JSON.parse(n.data) : (n.data as Record<string, unknown>) || {}; } catch { return {}; } })(),
           }));
           if (dbNotifs.length > 0) setNotifs(prev => {
             const existingIds = new Set(prev.map(n => n.id));
