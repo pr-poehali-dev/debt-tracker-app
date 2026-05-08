@@ -222,19 +222,43 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
     return () => clearInterval(interval);
   }, [isDemo, token]);
 
-  // Счётчик непрочитанных сообщений чата
+  // Счётчик непрочитанных сообщений чата + звук при новых
   useEffect(() => {
     if (isDemo) return;
+    let prevUnread = 0;
+
+    function playChatSound() {
+      try {
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(1046, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.12);
+        gain.gain.setValueAtTime(0.2, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.35);
+      } catch { /* ignore */ }
+    }
+
     async function pollUnreadMessages() {
       const urls = (await import("../../backend/func2url.json")).default;
       const res = await fetch(`${urls["chat"]}?unread=1`, { headers: { Authorization: `Bearer ${token}` } });
       if (res.ok) {
         const d = await res.json();
-        setUnreadMessages(d.unread || 0);
+        const count = d.unread || 0;
+        if (count > prevUnread && prevUnread !== -1) {
+          playChatSound();
+        }
+        prevUnread = count;
+        setUnreadMessages(count);
       }
     }
+    prevUnread = -1; // первый запрос без звука
     pollUnreadMessages();
-    const iv = setInterval(pollUnreadMessages, 20000);
+    const iv = setInterval(pollUnreadMessages, 10000);
     return () => clearInterval(iv);
   }, [isDemo, token]);
 
