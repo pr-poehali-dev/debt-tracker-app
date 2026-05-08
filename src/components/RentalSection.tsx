@@ -300,9 +300,62 @@ export function SharedRentalView({ token: shareToken }: { token: string }) {
   );
 }
 
+function playNotificationSound() {
+  try {
+    const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.setValueAtTime(660, ctx.currentTime + 0.15);
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.5);
+  } catch (e) { void e; }
+}
+
+async function requestNotificationPermission(): Promise<boolean> {
+  if (!("Notification" in window)) return false;
+  if (Notification.permission === "granted") return true;
+  if (Notification.permission === "denied") return false;
+  const result = await Notification.requestPermission();
+  return result === "granted";
+}
+
+function checkAndNotify(rentals: Rental[], myName: string) {
+  const today = new Date().getDate();
+  const seenKey = "df-rental-notif-" + new Date().toISOString().slice(0, 7);
+  const seen: string[] = JSON.parse(localStorage.getItem(seenKey) || "[]");
+
+  rentals.forEach(r => {
+    if (r.status !== "active") return;
+    if (r.payment_day !== today) return;
+    if (seen.includes(r.share_token)) return;
+    if (r.current_month_status_landlord === "paid" && r.current_month_status_tenant === "paid") return;
+
+    seen.push(r.share_token);
+    localStorage.setItem(seenKey, JSON.stringify(seen));
+
+    playNotificationSound();
+
+    if (Notification.permission === "granted") {
+      new Notification("Напоминание об оплате аренды", {
+        body: `${r.title} — ${r.amount.toLocaleString("ru-RU")} ₽`,
+        icon: "/favicon.ico",
+        tag: `rental-${r.share_token}`,
+      });
+    }
+  });
+}
+
 export default function RentalSection({ userId, token, myName, isDemo, openNew, onNewClose }: Props) {
   const [rentals, setRentals] = useState<Rental[]>(isDemo ? DEMO_RENTALS : []);
   const [showNew, setShowNew] = useState(false);
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">(
+    "Notification" in window ? Notification.permission : "unsupported"
+  );
 
   useEffect(() => {
     if (openNew) setShowNew(true);
@@ -319,6 +372,17 @@ export default function RentalSection({ userId, token, myName, isDemo, openNew, 
         .then(data => { setRentals(data); setLoading(false); });
     });
   }, [isDemo, userId, token]);
+
+  useEffect(() => {
+    if (rentals.length === 0) return;
+    checkAndNotify(rentals, myName);
+  }, [rentals, myName]);
+
+  async function handleRequestPermission() {
+    const granted = await requestNotificationPermission();
+    setNotifPermission(granted ? "granted" : "denied");
+    if (granted && rentals.length > 0) checkAndNotify(rentals, myName);
+  }
 
   async function handleUpdate(shareToken: string, body: Record<string, unknown>) {
     if (isDemo) {
@@ -356,6 +420,16 @@ export default function RentalSection({ userId, token, myName, isDemo, openNew, 
 
   return (
     <div className="animate-fade-in space-y-4">
+      {notifPermission === "default" && (
+        <div className="rounded-xl px-4 py-3 flex items-center gap-3" style={{ background: "rgba(20,184,166,0.1)", border: "1px solid rgba(20,184,166,0.3)" }}>
+          <Icon name="Bell" size={16} style={{ color: "#5eead4", flexShrink: 0 }} />
+          <p className="text-xs flex-1" style={{ color: "#5eead4" }}>Включить напоминания в день оплаты?</p>
+          <button onClick={handleRequestPermission} className="text-xs font-semibold px-3 py-1.5 rounded-lg text-white flex-shrink-0" style={{ background: "rgba(20,184,166,0.4)" }}>
+            Включить
+          </button>
+        </div>
+      )}
+
       {showNew && (
         <NewRentalModal
           myName={myName}
