@@ -6,7 +6,7 @@ import { type Section, type Theme, type Contact, type Debt, type Notification, t
 import { Avatar, ColorPicker, StatusBadge, NotifIcon } from "./SharedComponents";
 
 // ─── Section: DebtList ────────────────────────────────────────────────────────
-export function DebtList({ debts, dir, contacts, t, locale, token, onOpenChat, onMarkPaid }: { debts: Debt[]; dir: "lent" | "borrowed"; contacts: Contact[]; t: ReturnType<typeof getT>; locale: string; token?: string; onOpenChat?: (debtId: string, title: string) => void; onMarkPaid?: (debtId: string) => void }) {
+export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPaid }: { debts: Debt[]; dir: "lent" | "borrowed"; contacts: Contact[]; t: ReturnType<typeof getT>; locale: string; onOpenChat?: (debtId: string, title: string) => void; onMarkPaid?: (debtId: string) => void }) {
   const [selectedDebt, setSelectedDebt] = useState<Debt | null>(null);
   const total = debts.filter(d => d.status !== "paid").reduce((s, d) => s + d.amount, 0);
   const overdue = debts.filter(d => d.status === "overdue").length;
@@ -17,7 +17,6 @@ export function DebtList({ debts, dir, contacts, t, locale, token, onOpenChat, o
         debt={selectedDebt}
         dir={dir}
         locale={locale}
-        token={token}
         onClose={() => setSelectedDebt(null)}
         onOpenChat={onOpenChat}
         onMarkPaid={onMarkPaid}
@@ -307,34 +306,13 @@ export function CalendarSection({ contacts, t, debts, rentals = [], userId = 0 }
 }
 
 // ─── Section: Notifications ───────────────────────────────────────────────────
-export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, token = "" }: {
+export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t }: {
   notifs: Notification[];
   onMarkAllRead: () => void;
   onMarkRead: (id: number) => void;
   t: ReturnType<typeof getT>;
-  token?: string;
 }) {
-  const [processing, setProcessing] = useState<number | null>(null);
-  const [decided, setDecided] = useState<Record<number, string>>({});
   const unread = notifs.filter(n => !n.read).length;
-
-  async function handlePayDecision(notif: Notification, decision: "accepted" | "rejected") {
-    const reqId = notif.data?.payment_request_id as number | undefined;
-    if (!reqId) return;
-    setProcessing(notif.id);
-    try {
-      const urls = (await import("../../backend/func2url.json")).default;
-      const res = await fetch(`${urls["debts"]}?action=pay`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ payment_request_id: reqId, decision }),
-      });
-      if (res.ok) {
-        setDecided(prev => ({ ...prev, [notif.id]: decision }));
-        onMarkRead(notif.id);
-      }
-    } finally { setProcessing(null); }
-  }
 
   return (
     <div className="animate-fade-in">
@@ -362,14 +340,11 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
         </div>
       )}
       <div className="space-y-3">
-        {notifs.map((n, i) => {
-          const isPayRequest = n.rawType === "payment_request";
-          const alreadyDecided = decided[n.id];
-          return (
+        {notifs.map((n, i) => (
             <div
               key={n.id}
-              onClick={() => !isPayRequest && onMarkRead(n.id)}
-              className={`glass rounded-2xl p-4 flex items-start gap-3 transition-all duration-200 ${!isPayRequest ? "hover:bg-white/[0.06] cursor-pointer" : ""} ${!n.read ? "border border-white/10" : "opacity-60"}`}
+              onClick={() => onMarkRead(n.id)}
+              className={`glass rounded-2xl p-4 flex items-start gap-3 transition-all duration-200 hover:bg-white/[0.06] cursor-pointer ${!n.read ? "border border-white/10" : "opacity-60"}`}
               style={{ animationDelay: `${i * 0.04}s` }}
             >
               <NotifIcon type={n.type} />
@@ -379,41 +354,10 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
                   {!n.read && <div className="w-1.5 h-1.5 rounded-full bg-purple-400 flex-shrink-0" />}
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed">{n.message}</p>
-                {n.data?.note && (
-                  <p className="text-xs text-muted-foreground/70 mt-0.5 italic">«{String(n.data.note)}»</p>
-                )}
                 <p className="text-[11px] text-muted-foreground/60 mt-1">{n.date}</p>
-
-                {/* Кнопки для запроса платежа */}
-                {isPayRequest && !alreadyDecided && (
-                  <div className="flex gap-2 mt-3">
-                    <button
-                      onClick={() => handlePayDecision(n, "accepted")}
-                      disabled={processing === n.id}
-                      className="flex-1 py-2 rounded-xl text-xs font-semibold text-white transition-all disabled:opacity-50"
-                      style={{ background: "#22c55e" }}
-                    >
-                      {processing === n.id ? "..." : "✓ Принять"}
-                    </button>
-                    <button
-                      onClick={() => handlePayDecision(n, "rejected")}
-                      disabled={processing === n.id}
-                      className="flex-1 py-2 rounded-xl text-xs font-semibold text-white transition-all disabled:opacity-50"
-                      style={{ background: "#f43f5e" }}
-                    >
-                      {processing === n.id ? "..." : "✗ Отклонить"}
-                    </button>
-                  </div>
-                )}
-                {isPayRequest && alreadyDecided && (
-                  <p className="text-xs mt-2 font-medium" style={{ color: alreadyDecided === "accepted" ? "#4ade80" : "#fb7185" }}>
-                    {alreadyDecided === "accepted" ? "✓ Платёж принят" : "✗ Платёж отклонён"}
-                  </p>
-                )}
               </div>
             </div>
-          );
-        })}
+        ))}
       </div>
     </div>
   );
