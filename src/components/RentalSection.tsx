@@ -204,10 +204,13 @@ export function SharedRentalView({ token: shareToken }: { token: string }) {
   const [rental, setRental] = useState<Rental | null>(null);
   const [loading, setLoading] = useState(true);
   const [decision, setDecision] = useState<string | null>(null);
+  const authToken = localStorage.getItem("df-token") || "";
 
   useEffect(() => {
     import("../../backend/func2url.json").then(({ default: urls }) => {
-      fetch(`${urls["rentals"]}?token=${shareToken}`)
+      fetch(`${urls["rentals"]}?token=${shareToken}`, {
+        headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+      })
         .then(r => r.ok ? r.json() : null)
         .then(data => { setRental(data); setLoading(false); });
     });
@@ -216,9 +219,11 @@ export function SharedRentalView({ token: shareToken }: { token: string }) {
   async function handleDecision(d: string) {
     setDecision(d);
     const urls = (await import("../../backend/func2url.json")).default;
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (authToken) headers["Authorization"] = `Bearer ${authToken}`;
     await fetch(`${urls["rentals"]}?token=${shareToken}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ tenant_decision: d }),
     });
   }
@@ -268,17 +273,31 @@ export function SharedRentalView({ token: shareToken }: { token: string }) {
           {rental.note && <p className="text-sm text-muted-foreground">{rental.note}</p>}
 
           {decision ? (
-            <div className="text-center py-4">
-              <Icon name={decision === "accepted" ? "CheckCircle" : "XCircle"} size={48}
-                className={`mx-auto mb-2 ${decision === "accepted" ? "text-green-400" : "text-red-400"}`} />
-              <p className="font-semibold text-foreground">
-                {decision === "accepted" ? "Вы приняли аренду!" : "Вы отклонили аренду"}
-              </p>
+            <div className="text-center py-4 space-y-4">
+              <div>
+                <Icon name={decision === "accepted" ? "CheckCircle" : "XCircle"} size={48}
+                  className={`mx-auto mb-2 ${decision === "accepted" ? "text-green-400" : "text-red-400"}`} />
+                <p className="font-semibold text-foreground">
+                  {decision === "accepted" ? "Вы приняли аренду!" : "Вы отклонили аренду"}
+                </p>
+              </div>
+              {decision === "accepted" && (
+                <a href="/" className="block w-full py-3 rounded-xl font-semibold text-white text-sm text-center"
+                  style={{ background: "linear-gradient(135deg, #14b8a6, #6366f1)" }}>
+                  Открыть приложение
+                </a>
+              )}
             </div>
           ) : rental.tenant_decision === "accepted" ? (
-            <div className="text-center py-3">
-              <Icon name="CheckCircle" size={32} className="text-green-400 mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">Аренда уже подтверждена</p>
+            <div className="text-center py-3 space-y-3">
+              <div>
+                <Icon name="CheckCircle" size={32} className="text-green-400 mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">Аренда уже подтверждена</p>
+              </div>
+              <a href="/" className="block w-full py-3 rounded-xl font-semibold text-white text-sm text-center"
+                style={{ background: "linear-gradient(135deg, #14b8a6, #6366f1)" }}>
+                Открыть приложение
+              </a>
             </div>
           ) : (
             <div className="flex gap-3">
