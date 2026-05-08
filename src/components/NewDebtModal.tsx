@@ -1,25 +1,23 @@
 import { useState, useEffect, useRef } from "react";
+import QRCodeLib from "qrcode";
 import Icon from "@/components/ui/icon";
 import func2url from "../../backend/func2url.json";
 
 const API_URL = func2url["debts"];
 const AUTH_URL = func2url["auth"];
 
-// ─── Tiny QR via Google Charts API (no deps) ────────────────────────────────
+// ─── QR через canvas (локально, без внешних сервисов) ────────────────────────
 function QRCode({ value, size = 200 }: { value: string; size?: number }) {
-  const url = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(value)}&bgcolor=13-15-26&color=168-85-247&format=svg&qzone=2`;
-  return (
-    <div className="relative" style={{ width: size, height: size }}>
-      <img
-        src={`https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(value)}&format=png&qzone=2`}
-        width={size}
-        height={size}
-        alt="QR код"
-        className="rounded-2xl"
-        style={{ filter: "invert(1) hue-rotate(270deg) saturate(3)" }}
-      />
-    </div>
-  );
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    if (!canvasRef.current || !value) return;
+    QRCodeLib.toCanvas(canvasRef.current, value, {
+      width: size,
+      margin: 2,
+      color: { dark: "#a855f7", light: "#13152a" },
+    });
+  }, [value, size]);
+  return <canvas ref={canvasRef} className="rounded-2xl" style={{ width: size, height: size }} />;
 }
 
 // ─── Share debt viewer (when opened via QR link) ─────────────────────────────
