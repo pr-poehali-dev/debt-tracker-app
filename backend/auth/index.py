@@ -113,6 +113,25 @@ def handler(event: dict, context) -> dict:
         has_pin = bool(row[1])
         return resp({"exists": True, "has_pin": has_pin})
 
+    # ── POST check-code — проверить код из письма (без создания сессии) ──
+    if method == "POST" and action == "check-code":
+        body = json.loads(event.get("body") or "{}")
+        email = (body.get("email") or "").strip().lower()
+        code = (body.get("code") or "").strip()
+        if not email or not code:
+            return err("Email и код обязательны")
+        now = datetime.now(timezone.utc)
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"SELECT id FROM {SCHEMA}.verification_codes WHERE email = %s AND code = %s AND used = FALSE AND expires_at > %s ORDER BY created_at DESC LIMIT 1",
+                    (email, code, now),
+                )
+                row = cur.fetchone()
+        if not row:
+            return err("Неверный или истёкший код")
+        return resp({"ok": True})
+
     # ── POST send-code — отправить код на почту (только для регистрации / сброса) ──
     if method == "POST" and action == "send-code":
         body = json.loads(event.get("body") or "{}")

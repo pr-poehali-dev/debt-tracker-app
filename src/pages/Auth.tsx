@@ -148,27 +148,35 @@ export default function Auth({ onAuth }: Props) {
     finally { setLoading(false); }
   }
 
-  // ── Проверка email-кода ──
-  async function verifyEmailCode() {
-    const c = emailCode.join("");
+  // ── Проверка email-кода на сервере ──
+  async function verifyEmailCode(codeStr?: string) {
+    const c = codeStr || emailCode.join("");
     if (c.length < 4) { setError("Введите 4-значный код"); return; }
-    setError("");
-    // Просто переходим к установке PIN — реальная проверка будет при финальном запросе
-    setPinStep("first"); setPin([]); setPinConfirm([]);
-    setStep("set-pin");
+    setLoading(true); setError("");
+    try {
+      const res = await fetch(`${AUTH_URL}?action=check-code`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim().toLowerCase(), code: c }),
+        signal: AbortSignal.timeout(15000),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setPinStep("first"); setPin([]); setPinConfirm([]);
+        setStep("set-pin");
+      } else {
+        setError(data.error || "Неверный код");
+        setEmailCode(["","","",""]);
+        codeRefs[0].current?.focus();
+      }
+    } catch { setError("Нет ответа от сервера."); }
+    finally { setLoading(false); }
   }
 
   function handleEmailCodeInput(i: number, val: string) {
     const digit = val.replace(/\D/g, "").slice(-1);
     const next = [...emailCode]; next[i] = digit; setEmailCode(next);
     if (digit && i < 3) codeRefs[i + 1].current?.focus();
-    if (next.every(d => d !== "")) verifyEmailCodeAuto(next.join(""));
-  }
-
-  async function verifyEmailCodeAuto(c: string) {
-    setError("");
-    setPinStep("first"); setPin([]); setPinConfirm([]);
-    setStep("set-pin");
+    if (next.every(d => d !== "")) verifyEmailCode(next.join(""));
   }
 
   // ── Установка PIN ──
