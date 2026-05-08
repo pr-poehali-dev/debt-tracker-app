@@ -314,6 +314,8 @@ export default function Auth({ onAuth }: Props) {
                 <label className="text-xs text-muted-foreground mb-1 block">Телефон</label>
                 <input type="tel" value={phone}
                   onChange={e => { setPhone(e.target.value); setError(""); }}
+                  onFocus={() => { if (!phone) setPhone("+"); }}
+                  onBlur={() => { if (phone === "+") setPhone(""); }}
                   placeholder="+7 900 000 00 00"
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-purple-500/50 transition-colors"
                 />
