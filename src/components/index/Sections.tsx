@@ -156,15 +156,22 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                       <span className="text-[11px] font-medium" style={{ color: "#a855f7" }}>Чат</span>
                     </button>
                   )}
-                  {d.debtDbId && d.status !== "paid" && onMarkPaid && (
-                    <button
-                      onClick={e => { e.stopPropagation(); markPaidWithFeedback(d.debtDbId!); }}
-                      className="flex items-center gap-1 text-xs text-green-400 hover:text-green-300 transition-colors"
-                    >
-                      <Icon name="CheckCircle2" size={12} />
-                      Возвращён
-                    </button>
-                  )}
+                  {d.debtDbId && d.status !== "paid" && onMarkPaid && (() => {
+                    const accepted = d.borrowerDecision === "accepted";
+                    return (
+                      <button
+                        onClick={e => { e.stopPropagation(); markPaidWithFeedback(d.debtDbId!); }}
+                        className="flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-lg transition-all active:scale-95"
+                        style={accepted
+                          ? { background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.35)", color: "#4ade80" }
+                          : { background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(180,180,200,0.75)" }
+                        }
+                      >
+                        <Icon name="CheckCircle2" size={12} />
+                        Отметить возврат
+                      </button>
+                    );
+                  })()}
                   {dir === "borrowed" && d.debtDbId && d.status !== "paid" && token && (
                     <div onClick={e => e.stopPropagation()}>
                       <PayButton
