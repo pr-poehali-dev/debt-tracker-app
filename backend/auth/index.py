@@ -8,10 +8,14 @@ import json
 import os
 import random
 import secrets
+import smtplib
+import ssl
 import string
 import urllib.request
 import urllib.error
 from datetime import datetime, timedelta, timezone
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 import psycopg2
 
 SCHEMA = "t_p29977622_debt_tracker_app"
@@ -32,10 +36,9 @@ def err(msg, status=400):
 def get_conn():
     return psycopg2.connect(os.environ["DATABASE_URL"])
 
-def send_email(to_email: str, code: str, full_name: str = None):
-    api_key = os.environ["RESEND_API_KEY"]
+def _build_email_html(code: str, full_name: str = None) -> str:
     greeting = f"Привет, {full_name}!" if full_name else "Добро пожаловать!"
-    body_html = f"""
+    return f"""
     <div style="font-family:sans-serif;max-width:400px;margin:0 auto;padding:24px">
       <h2 style="color:#a855f7;margin-bottom:8px">Debt-Debt</h2>
       <p style="color:#555">{greeting}</p>
@@ -46,6 +49,12 @@ def send_email(to_email: str, code: str, full_name: str = None):
       <p style="color:#999;font-size:13px">Код действителен 10 минут. Не передавайте его никому.</p>
     </div>
     """
+
+def send_email_resend(to_email: str, code: str, full_name: str = None):
+    api_key = os.environ.get("RESEND_API_KEY")
+    if not api_key:
+        raise RuntimeError("RESEND_API_KEY не задан")
+    body_html = _build_email_html(code, full_name)
     payload = json.dumps({
         "from": "Debt-Debt <noreply@debt-debt.ru>",
         "to": [to_email],
@@ -62,7 +71,6 @@ def send_email(to_email: str, code: str, full_name: str = None):
         with urllib.request.urlopen(req, timeout=10) as r:
             return r.status
     except urllib.error.HTTPError as e:
-        # Читаем тело ответа Resend для понятного сообщения
         body = ""
         try:
             body = e.read().decode("utf-8", errors="ignore")
@@ -71,6 +79,49 @@ def send_email(to_email: str, code: str, full_name: str = None):
         raise RuntimeError(f"Resend HTTP {e.code}: {body[:300]}")
     except urllib.error.URLError as e:
         raise RuntimeError(f"Сеть недоступна: {e}")
+
+def send_email_smtp(to_email: str, code: str, full_name: str = None):
+    host = os.environ.get("SMTP_HOST")
+    port = int(os.environ.get("SMTP_PORT") or "465")
+    user = os.environ.get("SMTP_USER")
+    password = os.environ.get("SMTP_PASSWORD")
+    if not (host and user and password):
+        raise RuntimeError("SMTP не настроен")
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = "Код подтверждения — Debt-Debt"
+    msg["From"] = f"Debt-Debt <{user}>"
+    msg["To"] = to_email
+    msg.attach(MIMEText(_build_email_html(code, full_name), "html", "utf-8"))
+
+    context = ssl.create_default_context()
+    if port == 465:
+        with smtplib.SMTP_SSL(host, port, timeout=15, context=context) as server:
+            server.login(user, password)
+            server.sendmail(user, [to_email], msg.as_string())
+    else:
+        with smtplib.SMTP(host, port, timeout=15) as server:
+            server.ehlo()
+            server.starttls(context=context)
+            server.ehlo()
+            server.login(user, password)
+            server.sendmail(user, [to_email], msg.as_string())
+    return 200
+
+def send_email(to_email: str, code: str, full_name: str = None):
+    """Пытается отправить через Resend. Если не удалось — пробует SMTP-fallback."""
+    errors = []
+    try:
+        return send_email_resend(to_email, code, full_name)
+    except Exception as e:
+        errors.append(f"Resend: {e}")
+
+    # Fallback на SMTP
+    try:
+        return send_email_smtp(to_email, code, full_name)
+    except Exception as e:
+        errors.append(f"SMTP: {e}")
+        raise RuntimeError(" | ".join(errors))
 
 def make_session(conn, user_id):
     token = secrets.token_hex(32)
