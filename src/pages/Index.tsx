@@ -6,6 +6,7 @@ import RentalSection, { RentalInviteModal } from "@/components/RentalSection";
 import PersonalLoanModal, { type PersonalLoan } from "@/components/PersonalLoanModal";
 import SupportModal from "@/components/SupportModal";
 import PaymentsHistory from "@/components/PaymentsHistory";
+import BalanceReportModal from "@/components/BalanceReportModal";
 import { type Lang, getT } from "@/i18n";
 import {
   type Section, type Theme, type Contact, type Debt, type Notification, type ContactColor, type ChatMeta,
@@ -42,6 +43,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
   const [showSupport, setShowSupport] = useState(false);
   const [supportTicketId, setSupportTicketId] = useState<number | null>(null);
   const [showPayments, setShowPayments] = useState(false);
+  const [showReport, setShowReport] = useState(false);
   const [notifs, setNotifs] = useState<Notification[]>([]);
   const audioCtxRef = { current: null as AudioContext | null };
   const [unreadMessages, setUnreadMessages] = useState(0);
@@ -634,6 +636,17 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
       )}
       {showSupport && !isDemo && <SupportModal token={token} initialTicketId={supportTicketId ?? undefined} onClose={() => { setShowSupport(false); setSupportTicketId(null); }} />}
       {showPayments && !isDemo && <PaymentsHistory token={token} onClose={() => setShowPayments(false)} />}
+      {showReport && (
+        <BalanceReportModal
+          onClose={() => setShowReport(false)}
+          lentDebts={lentDebts}
+          borrowedDebts={borrowedDebts}
+          archiveDebts={archiveDebts}
+          personalLoans={personalLoans}
+          totalRentalAmount={totalRentalAmount}
+          activeRentalCount={activeRentalCount}
+        />
+      )}
       {activeChat && !isDemo && (
         <ChatWindow
           debtId={activeChat.debtId}
@@ -700,7 +713,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
 
       <main className="relative z-10 flex-1 px-4 pb-32 overflow-y-auto">
         <div className="max-w-lg mx-auto">
-          {section === "dashboard"     && <Dashboard onNav={setSection} contacts={contacts} t={t} lentDebts={lentDebts} borrowedDebts={borrowedDebts} activeRentalCount={activeRentalCount} totalRentalAmount={totalRentalAmount} personalLoans={personalLoans} />}
+          {section === "dashboard"     && <Dashboard onNav={setSection} contacts={contacts} t={t} lentDebts={lentDebts} borrowedDebts={borrowedDebts} activeRentalCount={activeRentalCount} totalRentalAmount={totalRentalAmount} personalLoans={personalLoans} onOpenReport={() => setShowReport(true)} />}
           {section === "lent"          && <DebtList debts={lentDebts} dir="lent" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => setActiveChat({ debtId: id, title })} onMarkPaid={handleMarkPaid} onDeleteDebt={handleDeleteDebt} onAddNew={() => setShowNewDebt(true)} token={token} />}
           {section === "borrowed"      && <DebtList debts={borrowedDebts} dir="borrowed" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => setActiveChat({ debtId: id, title })} onMarkPaid={handleMarkPaid} onAddNew={() => setShowPersonalLoan(true)} personalLoans={personalLoans} onPersonalLoanUpdate={(loans) => { setPersonalLoans(loans); localStorage.setItem("df-personal-loans", JSON.stringify(loans)); }} token={token} />}
           {section === "calendar"      && <CalendarSection contacts={contacts} t={t} debts={[...lentDebts, ...borrowedDebts]} rentals={rentals} userId={user.id} />}

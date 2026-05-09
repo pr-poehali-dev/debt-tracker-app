@@ -1112,7 +1112,7 @@ export function ContactsSection({ contacts, onColorChange, t }: { contacts: Cont
 }
 
 // ─── Section: Dashboard ───────────────────────────────────────────────────────
-export function Dashboard({ onNav, contacts, t, lentDebts, borrowedDebts, activeRentalCount = 0, totalRentalAmount = 0, personalLoans = [] }: { onNav: (s: Section) => void; contacts: Contact[]; t: ReturnType<typeof getT>; lentDebts: Debt[]; borrowedDebts: Debt[]; activeRentalCount?: number; totalRentalAmount?: number; personalLoans?: PersonalLoan[] }) {
+export function Dashboard({ onNav, contacts, t, lentDebts, borrowedDebts, activeRentalCount = 0, totalRentalAmount = 0, personalLoans = [], onOpenReport }: { onNav: (s: Section) => void; contacts: Contact[]; t: ReturnType<typeof getT>; lentDebts: Debt[]; borrowedDebts: Debt[]; activeRentalCount?: number; totalRentalAmount?: number; personalLoans?: PersonalLoan[]; onOpenReport?: () => void }) {
   const totalLent = lentDebts.filter(d => d.status !== "paid").reduce((s, d) => s + d.amount, 0);
   const personalRemaining = personalLoans.reduce((s, l) => {
     const monthsTotal = Math.max(1, Math.round((new Date(l.dueDate + "-01").getTime() - new Date(l.startDate + "-01").getTime()) / (30 * 86400000)) + 1);
@@ -1135,16 +1135,24 @@ export function Dashboard({ onNav, contacts, t, lentDebts, borrowedDebts, active
     <div className="animate-fade-in space-y-5">
       <div className="grid grid-cols-2 gap-3">
         {/* Баланс */}
-        <div className="relative rounded-3xl overflow-hidden p-4" style={{ background: "linear-gradient(135deg, rgba(168,85,247,0.3) 0%, rgba(99,102,241,0.2) 50%, rgba(56,189,248,0.2) 100%)", border: "1px solid rgba(168,85,247,0.3)" }}>
+        <button
+          onClick={onOpenReport}
+          disabled={!onOpenReport}
+          className="relative rounded-3xl overflow-hidden p-4 text-left hover:opacity-90 transition-all active:scale-[0.98] disabled:cursor-default"
+          style={{ background: "linear-gradient(135deg, rgba(168,85,247,0.3) 0%, rgba(99,102,241,0.2) 50%, rgba(56,189,248,0.2) 100%)", border: "1px solid rgba(168,85,247,0.3)" }}
+        >
           <div className="absolute inset-0 opacity-30" style={{ background: "radial-gradient(circle at 70% 50%, rgba(168,85,247,0.5), transparent 60%)" }} />
           <div className="relative">
-            <p className="text-muted-foreground text-xs mb-1">{t.totalBalance}</p>
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-muted-foreground text-xs">{t.totalBalance}</p>
+              {onOpenReport && <Icon name="BarChart3" size={12} className="text-muted-foreground opacity-70" />}
+            </div>
             <p className={`text-2xl font-black font-heading mb-0.5 ${balance >= 0 ? "text-gradient-purple" : "text-red-400"}`}>
               {balance >= 0 ? "+" : ""}{fmt(balance)}
             </p>
             <p className="text-[10px] text-muted-foreground">{balance >= 0 ? t.youAreOwed : t.youOweTotal}</p>
           </div>
-        </div>
+        </button>
 
         {/* Аренда */}
         <button onClick={() => onNav("rental")} className="relative rounded-3xl overflow-hidden p-4 text-left hover:opacity-90 transition-all" style={{ background: "linear-gradient(135deg, rgba(20,184,166,0.25) 0%, rgba(6,148,162,0.15) 100%)", border: "1px solid rgba(20,184,166,0.35)" }}>
