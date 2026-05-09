@@ -907,31 +907,70 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
 
 // ─── Section: Archive ─────────────────────────────────────────────────────────
 export function ArchiveSection({ contacts, t, locale, archiveDebts }: { contacts: Contact[]; t: ReturnType<typeof getT>; locale: string; archiveDebts: Debt[] }) {
-  const total = archiveDebts.reduce((s, d) => s + d.amount, 0);
+  const [filter, setFilter] = useState<"returned" | "deleted">("returned");
+  const returnedDebts = archiveDebts.filter(d => d.status !== "deleted");
+  const deletedDebts = archiveDebts.filter(d => d.status === "deleted");
+  const visible = filter === "returned" ? returnedDebts : deletedDebts;
+  const total = visible.reduce((s, d) => s + d.amount, 0);
+
   return (
     <div className="animate-fade-in">
       {archiveDebts.length > 0 && (
-        <div className="glass rounded-2xl p-4 mb-5 bg-green-500/5 border border-green-500/15">
+        <div className="glass rounded-2xl p-1 mb-4 flex gap-1">
+          <button
+            onClick={() => setFilter("returned")}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium transition-all"
+            style={filter === "returned"
+              ? { background: "rgba(34,197,94,0.15)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.3)" }
+              : { color: "rgba(180,180,200,0.7)" }
+            }
+          >
+            <Icon name="CheckCircle2" size={13} />
+            Возвращённые
+            <span className="text-[10px] opacity-70">{returnedDebts.length}</span>
+          </button>
+          <button
+            onClick={() => setFilter("deleted")}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium transition-all"
+            style={filter === "deleted"
+              ? { background: "rgba(239,68,68,0.12)", color: "#f87171", border: "1px solid rgba(239,68,68,0.3)" }
+              : { color: "rgba(180,180,200,0.7)" }
+            }
+          >
+            <Icon name="Trash2" size={13} />
+            Удалённые
+            <span className="text-[10px] opacity-70">{deletedDebts.length}</span>
+          </button>
+        </div>
+      )}
+      {visible.length > 0 && (
+        <div className={`glass rounded-2xl p-4 mb-5 ${filter === "returned" ? "bg-green-500/5 border border-green-500/15" : "bg-red-500/5 border border-red-500/15"}`}>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-green-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
-              <Icon name="CheckCircle2" size={20} className="text-green-400" />
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${filter === "returned" ? "bg-green-500/20" : "bg-red-500/20"}`}>
+              <Icon name={filter === "returned" ? "CheckCircle2" : "Trash2"} size={20} className={filter === "returned" ? "text-green-400" : "text-red-400"} />
             </div>
             <div>
-              <p className="font-semibold text-green-400">{t.paidOn} {fmt(total)}</p>
-              <p className="text-xs text-muted-foreground">{archiveDebts.length} {t.completedTx}</p>
+              <p className={`font-semibold ${filter === "returned" ? "text-green-400" : "text-red-400"}`}>
+                {filter === "returned" ? `${t.paidOn} ${fmt(total)}` : `Удалено на ${fmt(total)}`}
+              </p>
+              <p className="text-xs text-muted-foreground">{visible.length} {t.completedTx}</p>
             </div>
           </div>
         </div>
       )}
-      {archiveDebts.length === 0 && (
+      {visible.length === 0 && (
         <div className="glass rounded-2xl p-8 flex flex-col items-center text-center gap-3">
-          <Icon name="Archive" size={32} className="text-purple-400 opacity-50" />
-          <p className="font-semibold text-foreground">{t.archiveEmpty}</p>
-          <p className="text-xs text-muted-foreground">{t.archiveEmptyDesc}</p>
+          <Icon name={filter === "returned" ? "Archive" : "Trash2"} size={32} className="text-purple-400 opacity-50" />
+          <p className="font-semibold text-foreground">
+            {filter === "returned" ? t.archiveEmpty : "Удалённых займов нет"}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {filter === "returned" ? t.archiveEmptyDesc : "Здесь появятся займы, удалённые кредитором"}
+          </p>
         </div>
       )}
       <div className="space-y-3">
-        {archiveDebts.map((d, i) => {
+        {visible.map((d, i) => {
           const contact = contacts.find(c => c.id === d.contactId);
           const isDeleted = d.status === "deleted";
           return (
