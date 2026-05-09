@@ -86,18 +86,17 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
           animation: "splashRightD 0.8s 0.1s cubic-bezier(0.34,1.56,0.64,1) both",
         }}>D</div>
 
-        {/* Triangle between */}
+        {/* Chevron ">" between */}
         <div style={{
           position: "absolute",
           left: "50%", top: "50%",
-          width: 0, height: 0,
-          borderTop: "9px solid transparent",
-          borderBottom: "9px solid transparent",
-          borderLeft: "13px solid #ec4899",
+          fontSize: 26, lineHeight: 1, fontWeight: 900,
+          fontFamily: "Montserrat, sans-serif",
+          color: "#ec4899",
           transform: "translate(-50%, -50%)",
-          filter: "drop-shadow(0 0 8px rgba(236,72,153,0.95)) drop-shadow(0 0 14px rgba(236,72,153,0.6))",
+          textShadow: "0 0 8px rgba(236,72,153,0.95), 0 0 14px rgba(236,72,153,0.6)",
           animation: "splashTriangle 0.5s 0.85s cubic-bezier(0.34,1.56,0.64,1) both",
-        }} />
+        }}>{'>'}</div>
 
         {/* Pulse ring on impact */}
         <div style={{

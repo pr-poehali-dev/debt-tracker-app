@@ -251,7 +251,7 @@ export default function Auth({ onAuth }: Props) {
             <div className="auth-dd-glow" />
             <span className="auth-dd-left">D</span>
             <span className="auth-dd-right">D</span>
-            <span className="auth-dd-tri" />
+            <span className="auth-dd-tri">{'>'}</span>
             <span className="auth-dd-ring" />
           </div>
           <h1 className="font-heading font-black text-2xl text-gradient-purple auth-dd-title">Debt-Debt</h1>
@@ -290,11 +290,10 @@ export default function Auth({ onAuth }: Props) {
           }
           .auth-dd-tri {
             position: absolute; left: 50%; top: 50%;
-            width: 0; height: 0;
-            border-top: 6px solid transparent;
-            border-bottom: 6px solid transparent;
-            border-left: 9px solid #ec4899;
-            filter: drop-shadow(0 0 6px rgba(236,72,153,0.95)) drop-shadow(0 0 10px rgba(236,72,153,0.55));
+            font-size: 18px; line-height: 1; font-weight: 900;
+            font-family: Montserrat, sans-serif;
+            color: #ec4899;
+            text-shadow: 0 0 6px rgba(236,72,153,0.95), 0 0 10px rgba(236,72,153,0.55);
             animation: authTri 0.5s 0.75s cubic-bezier(0.34,1.56,0.64,1) both;
           }
           .auth-dd-ring {
