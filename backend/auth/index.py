@@ -68,11 +68,15 @@ def send_sms_smsru(phone: str, code: str) -> int:
         raise RuntimeError("SMSRU_API_ID не задан")
     to = phone.lstrip("+")
     text = f"Debt-Debt: код {code}. Никому не сообщайте его."
+    # test=1 — режим тестовой отправки (пока имя отправителя не согласовано модерацией SMS.ru).
+    # SMS физически не отправляется, но текст и код видны в кабинете SMS.ru → «История».
+    # После согласования имени — убрать test=1 и (опционально) добавить "from": "Debt-Debt".
     params = urllib.parse.urlencode({
         "api_id": api_id,
         "to": to,
         "msg": text,
         "json": "1",
+        "test": "1",
     })
     url = f"https://sms.ru/sms/send?{params}"
     req = urllib.request.Request(url, method="GET")
