@@ -14,7 +14,7 @@ import func2url from "../backend/func2url.json";
 
 const queryClient = new QueryClient();
 
-const ICON = "https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/files/9c378928-32cd-4a54-b04b-39afc16c42a6.jpg";
+const ICON = "https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/files/17f09282-9a79-4959-8461-35d86537da6c.jpg";
 
 function SplashScreen({ onDone }: { onDone: () => void }) {
   const [hiding, setHiding] = useState(false);
@@ -86,14 +86,14 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
           animation: "splashRightD 0.8s 0.1s cubic-bezier(0.34,1.56,0.64,1) both",
         }}>D</div>
 
-        {/* Chevron ">" between */}
+        {/* Chevron ">" between (slightly rotated) */}
         <div style={{
           position: "absolute",
           left: "50%", top: "50%",
           fontSize: 26, lineHeight: 1, fontWeight: 900,
           fontFamily: "Montserrat, sans-serif",
           color: "#ec4899",
-          transform: "translate(-50%, -50%)",
+          transform: "translate(-50%, -50%) rotate(-18deg)",
           textShadow: "0 0 8px rgba(236,72,153,0.95), 0 0 14px rgba(236,72,153,0.6)",
           animation: "splashTriangle 0.5s 0.85s cubic-bezier(0.34,1.56,0.64,1) both",
         }}>{'>'}</div>
@@ -155,9 +155,9 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
           100% { transform: translate(0, -50%) rotate(0); opacity: 1; }
         }
         @keyframes splashTriangle {
-          0%   { transform: translate(-50%, -50%) scale(0) rotate(-90deg); opacity: 0; }
-          60%  { transform: translate(-50%, -50%) scale(1.4) rotate(0deg); opacity: 1; }
-          100% { transform: translate(-50%, -50%) scale(1) rotate(0deg); opacity: 1; }
+          0%   { transform: translate(-50%, -50%) scale(0) rotate(-110deg); opacity: 0; }
+          60%  { transform: translate(-50%, -50%) scale(1.4) rotate(-8deg); opacity: 1; }
+          100% { transform: translate(-50%, -50%) scale(1) rotate(-18deg); opacity: 1; }
         }
         @keyframes splashRing {
           0%   { width: 14px;  height: 14px; opacity: 0.9; border-width: 2px; }

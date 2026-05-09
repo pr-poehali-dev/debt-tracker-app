@@ -294,6 +294,7 @@ export default function Auth({ onAuth }: Props) {
             font-family: Montserrat, sans-serif;
             color: #ec4899;
             text-shadow: 0 0 6px rgba(236,72,153,0.95), 0 0 10px rgba(236,72,153,0.55);
+            transform-origin: center;
             animation: authTri 0.5s 0.75s cubic-bezier(0.34,1.56,0.64,1) both;
           }
           .auth-dd-ring {
@@ -322,9 +323,9 @@ export default function Auth({ onAuth }: Props) {
             100% { transform: translate(0, -50%) rotate(0); opacity: 1; }
           }
           @keyframes authTri {
-            0%   { transform: translate(-50%, -50%) scale(0) rotate(-90deg); opacity: 0; }
-            60%  { transform: translate(-50%, -50%) scale(1.4) rotate(0); opacity: 1; }
-            100% { transform: translate(-50%, -50%) scale(1) rotate(0); opacity: 1; }
+            0%   { transform: translate(-50%, -50%) scale(0) rotate(-110deg); opacity: 0; }
+            60%  { transform: translate(-50%, -50%) scale(1.4) rotate(-8deg); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1) rotate(-18deg); opacity: 1; }
           }
           @keyframes authRing {
             0%   { width: 10px;  height: 10px; opacity: 0.9; border-width: 2px; }
