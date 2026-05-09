@@ -1548,6 +1548,7 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
             { label: t.appNameLabel, value: "Debt-Debt" },
             { label: t.version, value: "1.0.0" },
             { label: t.platform, value: "PWA (iOS / Android)" },
+            ...(profile.phone ? [{ label: "Телефон", value: profile.phone }] : []),
           ].map(row => (
             <div key={row.label} className="flex items-center justify-between py-1.5 border-b border-white/5 last:border-0">
               <span className="text-muted-foreground">{row.label}</span>
