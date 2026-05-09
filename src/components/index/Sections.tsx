@@ -7,6 +7,7 @@ import { Avatar, ColorPicker, StatusBadge, NotifIcon } from "./SharedComponents"
 import { type PersonalLoan } from "@/components/PersonalLoanModal";
 import ExtraPaymentModal from "@/components/ExtraPaymentModal";
 import { computeSchedule } from "@/lib/loanSchedule";
+import PayButton from "@/components/PayButton";
 
 // ─── Section: DebtList ────────────────────────────────────────────────────────
 const MONTHS_RU_SHORT = ["Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"];
@@ -32,7 +33,7 @@ function playPaymentSound() {
   } catch { /* ignore */ }
 }
 
-export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPaid, onAddNew, personalLoans = [], onPersonalLoanUpdate }: { debts: Debt[]; dir: "lent" | "borrowed"; contacts: Contact[]; t: ReturnType<typeof getT>; locale: string; onOpenChat?: (debtId: string, title: string) => void; onMarkPaid?: (debtId: string) => void; onAddNew?: () => void; personalLoans?: PersonalLoan[]; onPersonalLoanUpdate?: (loans: PersonalLoan[]) => void }) {
+export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPaid, onAddNew, personalLoans = [], onPersonalLoanUpdate, token = "" }: { debts: Debt[]; dir: "lent" | "borrowed"; contacts: Contact[]; t: ReturnType<typeof getT>; locale: string; onOpenChat?: (debtId: string, title: string) => void; onMarkPaid?: (debtId: string) => void; onAddNew?: () => void; personalLoans?: PersonalLoan[]; onPersonalLoanUpdate?: (loans: PersonalLoan[]) => void; token?: string }) {
   const [selectedDebt, setSelectedDebt] = useState<Debt | null>(null);
   const [expandedLoan, setExpandedLoan] = useState<string | null>(null);
   const [extraLoan, setExtraLoan] = useState<PersonalLoan | null>(null);
@@ -164,6 +165,19 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                       Возвращён
                     </button>
                   )}
+                  {dir === "borrowed" && d.debtDbId && d.status !== "paid" && token && (
+                    <div onClick={e => e.stopPropagation()}>
+                      <PayButton
+                        token={token}
+                        amount={d.interestRate ? calcTotalWithInterest(d.amount, d.interestRate, d.interestType || "simple", d.dueDate) : d.amount}
+                        description={`Возврат долга: ${d.name}`}
+                        targetType="debt"
+                        targetId={d.debtDbId}
+                        size="sm"
+                        label="Оплатить"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -240,13 +254,26 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                   </div>
                 </div>
 
-                {/* Кнопка внесения платежа */}
-                <button onClick={() => setExtraLoan(loan)}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
-                  style={{ background: "linear-gradient(135deg, #38bdf8, #0ea5e9)" }}>
-                  <Icon name="Wallet" size={16} />
-                  Внести платёж
-                </button>
+                {/* Кнопки оплаты */}
+                <div className="grid grid-cols-2 gap-2">
+                  <button onClick={() => setExtraLoan(loan)}
+                    className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
+                    style={{ background: "linear-gradient(135deg, #38bdf8, #0ea5e9)" }}>
+                    <Icon name="Wallet" size={16} />
+                    Внести
+                  </button>
+                  {token && sched.currentMonthly > 0 && (
+                    <PayButton
+                      token={token}
+                      amount={sched.currentMonthly}
+                      description={`Платёж по займу: ${loan.title}`}
+                      targetType="loan"
+                      targetId={loan.id}
+                      label={`Оплатить ${sched.currentMonthly.toLocaleString("ru-RU")} ₽`}
+                      className="w-full"
+                    />
+                  )}
+                </div>
 
                 {/* Список досрочных платежей */}
                 {extras.length > 0 && (
