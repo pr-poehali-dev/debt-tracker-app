@@ -146,6 +146,30 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                       </>
                     );
                   })()}
+                  {d.debtDbId && d.status !== "paid" && (() => {
+                    const dec = d.borrowerDecision;
+                    if (dec === "accepted") return (
+                      <span className="flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-md"
+                        style={{ background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.3)", color: "#4ade80" }}>
+                        <Icon name="CheckCircle2" size={11} />
+                        Подтверждён
+                      </span>
+                    );
+                    if (dec === "rejected") return (
+                      <span className="flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-md"
+                        style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", color: "#f87171" }}>
+                        <Icon name="XCircle" size={11} />
+                        Отклонён
+                      </span>
+                    );
+                    return (
+                      <span className="flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-md"
+                        style={{ background: "rgba(251,146,60,0.12)", border: "1px solid rgba(251,146,60,0.3)", color: "#fb923c" }}>
+                        <Icon name="Clock" size={11} />
+                        Не подтверждён заёмщиком
+                      </span>
+                    );
+                  })()}
                   {d.debtDbId && onOpenChat && d.borrowerDecision === "accepted" && (
                     <button
                       onClick={e => { e.stopPropagation(); onOpenChat(d.debtDbId!, d.name); }}
