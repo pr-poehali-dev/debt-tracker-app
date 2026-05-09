@@ -42,6 +42,14 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
     setToast(msg);
     window.setTimeout(() => setToast(null), 2200);
   }
+
+  function markPaidWithFeedback(debtDbId: string) {
+    if (!onMarkPaid) return;
+    const d = debts.find(x => x.debtDbId === debtDbId);
+    onMarkPaid(debtDbId);
+    playPaymentSound();
+    showToast(d ? `Долг «${d.name}» отмечен возвращённым` : "Долг отмечен возвращённым");
+  }
   const total = debts.filter(d => d.status !== "paid").reduce((s, d) => s + d.amount, 0);
   const overdue = debts.filter(d => d.status === "overdue").length;
 
@@ -53,7 +61,7 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
         locale={locale}
         onClose={() => setSelectedDebt(null)}
         onOpenChat={onOpenChat}
-        onMarkPaid={onMarkPaid}
+        onMarkPaid={onMarkPaid ? markPaidWithFeedback : undefined}
       />
       {debts.length > 0 && (
         <div className="grid grid-cols-3 gap-3 mb-6">
@@ -149,7 +157,7 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                   )}
                   {d.debtDbId && d.status !== "paid" && onMarkPaid && (
                     <button
-                      onClick={e => { e.stopPropagation(); onMarkPaid(d.debtDbId!); }}
+                      onClick={e => { e.stopPropagation(); markPaidWithFeedback(d.debtDbId!); }}
                       className="flex items-center gap-1 text-xs text-green-400 hover:text-green-300 transition-colors"
                     >
                       <Icon name="CheckCircle2" size={12} />
