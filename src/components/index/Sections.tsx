@@ -38,6 +38,7 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
   const [expandedLoan, setExpandedLoan] = useState<string | null>(null);
   const [extraLoan, setExtraLoan] = useState<PersonalLoan | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [confirmReturn, setConfirmReturn] = useState<Debt | null>(null);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -184,7 +185,7 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                     const accepted = d.borrowerDecision === "accepted";
                     return (
                       <button
-                        onClick={e => { e.stopPropagation(); markPaidWithFeedback(d.debtDbId!); }}
+                        onClick={e => { e.stopPropagation(); setConfirmReturn(d); }}
                         className="flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-lg transition-all active:scale-95"
                         style={accepted
                           ? { background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.35)", color: "#4ade80" }
@@ -404,6 +405,42 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
             style={{ border: "1px solid rgba(34,197,94,0.3)", background: "rgba(34,197,94,0.12)" }}>
             <Icon name="CheckCircle2" size={18} className="text-green-400" />
             <span className="text-sm font-medium text-foreground">{toast}</span>
+          </div>
+        </div>
+      )}
+
+      {confirmReturn && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center px-4 animate-fade-in"
+          style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
+          onClick={() => setConfirmReturn(null)}>
+          <div className="glass rounded-2xl p-5 w-full max-w-sm space-y-3"
+            style={{ border: "1px solid rgba(34,197,94,0.3)" }}
+            onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ background: "rgba(34,197,94,0.15)" }}>
+                <Icon name="CheckCircle2" size={20} style={{ color: "#4ade80" }} />
+              </div>
+              <div className="min-w-0">
+                <p className="font-semibold text-foreground">Подтвердить возврат долга?</p>
+                <p className="text-xs text-muted-foreground truncate">
+                  «{confirmReturn.name}» · {fmt(confirmReturn.interestRate ? calcTotalWithInterest(confirmReturn.amount, confirmReturn.interestRate, confirmReturn.interestType || "simple", confirmReturn.dueDate) : confirmReturn.amount)}
+                </p>
+              </div>
+            </div>
+            <p className="text-[11px] text-center text-muted-foreground">Отменить это действие будет нельзя</p>
+            <div className="flex gap-2">
+              <button onClick={() => setConfirmReturn(null)}
+                className="flex-1 py-2 rounded-xl text-sm font-medium text-muted-foreground"
+                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
+                Отмена
+              </button>
+              <button onClick={() => { if (confirmReturn.debtDbId) markPaidWithFeedback(confirmReturn.debtDbId); setConfirmReturn(null); }}
+                className="flex-1 py-2 rounded-xl text-sm font-semibold text-white"
+                style={{ background: "linear-gradient(135deg, #22c55e, #16a34a)" }}>
+                Подтвердить
+              </button>
+            </div>
           </div>
         </div>
       )}
