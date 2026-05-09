@@ -7,6 +7,13 @@ interface Props {
   onSave: (loan: PersonalLoan) => void;
 }
 
+export interface ExtraPayment {
+  id: string;
+  date: string;
+  amount: number;
+  mode: "reducePayment" | "reduceTerm";
+}
+
 export interface PersonalLoan {
   id: string;
   title: string;
@@ -18,6 +25,8 @@ export interface PersonalLoan {
   note?: string;
   notifyDay: number;
   interestRate?: number;
+  termMonths?: number;
+  extraPayments?: ExtraPayment[];
 }
 
 function fmt(n: number) {
@@ -72,6 +81,8 @@ export default function PersonalLoanModal({ onClose, onSave }: Props) {
       note: note.trim() || undefined,
       notifyDay: parseInt(notifyDay) || 1,
       interestRate: rate > 0 ? rate : undefined,
+      termMonths: monthCount,
+      extraPayments: [],
     };
 
     onSave(loan);
