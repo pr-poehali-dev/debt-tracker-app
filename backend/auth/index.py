@@ -123,6 +123,100 @@ def send_email(to_email: str, code: str, full_name: str = None):
         errors.append(f"SMTP: {e}")
         raise RuntimeError(" | ".join(errors))
 
+def _build_farewell_html(full_name: str = None) -> str:
+    greeting = f"Прощайте, {full_name}!" if full_name else "Прощайте!"
+    return f"""
+    <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+      <h2 style="color:#a855f7;margin-bottom:8px">Debt-Debt</h2>
+      <p style="color:#555;font-size:16px;margin-bottom:16px">{greeting}</p>
+      <p style="color:#555;line-height:1.6">
+        Ваш аккаунт в Debt-Debt был полностью удалён по вашему запросу.
+      </p>
+      <div style="background:#f5f0ff;border-radius:12px;padding:16px 20px;margin:20px 0;border-left:4px solid #a855f7">
+        <p style="color:#555;margin:0 0 8px 0;font-weight:600">Что было удалено:</p>
+        <ul style="color:#666;margin:0;padding-left:20px;line-height:1.6">
+          <li>Профиль, телефон и PIN-код</li>
+          <li>Все долги и займы</li>
+          <li>Аренды и платежи</li>
+          <li>Чаты и уведомления</li>
+          <li>История платежей и подписки</li>
+        </ul>
+      </div>
+      <p style="color:#555;line-height:1.6">
+        Если вы передумали, вы всегда можете <strong>зарегистрироваться заново</strong> с этим же email — мы будем рады видеть вас снова.
+      </p>
+      <p style="color:#555;line-height:1.6">
+        <a href="https://debt-debt.ru" style="color:#a855f7;text-decoration:none;font-weight:600">→ Открыть Debt-Debt</a>
+      </p>
+      <hr style="border:none;border-top:1px solid #eee;margin:24px 0" />
+      <p style="color:#999;font-size:12px;line-height:1.5">
+        Если удаление произошло без вашего ведома — срочно напишите в поддержку: support@debt-debt.ru.
+        Восстановление возможно в течение 30 дней.
+      </p>
+      <p style="color:#bbb;font-size:11px;margin-top:16px">
+        Это автоматическое письмо, отвечать на него не нужно.
+      </p>
+    </div>
+    """
+
+def send_farewell_resend(to_email: str, full_name: str = None):
+    api_key = os.environ.get("RESEND_API_KEY")
+    if not api_key:
+        raise RuntimeError("RESEND_API_KEY не задан")
+    payload = json.dumps({
+        "from": "Debt-Debt <noreply@debt-debt.ru>",
+        "to": [to_email],
+        "subject": "Ваш аккаунт удалён — Debt-Debt",
+        "html": _build_farewell_html(full_name),
+    }).encode()
+    req = urllib.request.Request(
+        "https://api.resend.com/emails",
+        data=payload,
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=10) as r:
+        return r.status
+
+def send_farewell_smtp(to_email: str, full_name: str = None):
+    host = os.environ.get("SMTP_HOST")
+    port = int(os.environ.get("SMTP_PORT") or "465")
+    user = os.environ.get("SMTP_USER")
+    password = os.environ.get("SMTP_PASSWORD")
+    if not (host and user and password):
+        raise RuntimeError("SMTP не настроен")
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = "Ваш аккаунт удалён — Debt-Debt"
+    msg["From"] = f"Debt-Debt <{user}>"
+    msg["To"] = to_email
+    msg.attach(MIMEText(_build_farewell_html(full_name), "html", "utf-8"))
+
+    context = ssl.create_default_context()
+    if port == 465:
+        with smtplib.SMTP_SSL(host, port, timeout=15, context=context) as server:
+            server.login(user, password)
+            server.sendmail(user, [to_email], msg.as_string())
+    else:
+        with smtplib.SMTP(host, port, timeout=15) as server:
+            server.ehlo()
+            server.starttls(context=context)
+            server.ehlo()
+            server.login(user, password)
+            server.sendmail(user, [to_email], msg.as_string())
+    return 200
+
+def send_farewell_email(to_email: str, full_name: str = None):
+    """Прощальное письмо. Resend → SMTP fallback. Тихо проглатывает все ошибки."""
+    try:
+        return send_farewell_resend(to_email, full_name)
+    except Exception:
+        pass
+    try:
+        return send_farewell_smtp(to_email, full_name)
+    except Exception:
+        return None
+
 def make_session(conn, user_id):
     token = secrets.token_hex(32)
     expires_at = datetime.now(timezone.utc) + timedelta(days=30)
@@ -297,13 +391,13 @@ def handler(event: dict, context) -> dict:
         with get_conn() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    f"SELECT u.id, u.email, u.pin_code FROM {SCHEMA}.sessions s JOIN {SCHEMA}.users u ON u.id = s.user_id WHERE s.token = %s AND s.expires_at > %s",
+                    f"SELECT u.id, u.email, u.pin_code, u.full_name FROM {SCHEMA}.sessions s JOIN {SCHEMA}.users u ON u.id = s.user_id WHERE s.token = %s AND s.expires_at > %s",
                     (token, now),
                 )
                 row = cur.fetchone()
                 if not row:
                     return err("Сессия истекла", 401)
-                user_id, user_email, db_pin = row[0], row[1], row[2]
+                user_id, user_email, db_pin, user_name = row[0], row[1], row[2], row[3]
                 if not db_pin or db_pin != pin:
                     return err("Неверный PIN-код")
 
@@ -326,6 +420,15 @@ def handler(event: dict, context) -> dict:
                     cur.execute(f"DELETE FROM {SCHEMA}.verification_codes WHERE email = %s", (user_email,))
                 cur.execute(f"DELETE FROM {SCHEMA}.users WHERE id = %s", (user_id,))
             conn.commit()
+
+        # Прощальное письмо отправляем после успешного удаления.
+        # Любые ошибки тихо игнорируем — аккаунт уже удалён, ответ должен быть успешным.
+        if user_email:
+            try:
+                send_farewell_email(user_email, user_name)
+            except Exception:
+                pass
+
         return resp({"ok": True})
 
     # ── POST login-pin — вход по PIN без письма ──
