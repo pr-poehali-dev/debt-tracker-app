@@ -220,6 +220,13 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
                 resolvedType = String(data.decision) === "accepted" ? "success" : "warning";
               } else if (ntype === "payment_request") {
                 resolvedType = "info";
+              } else if (ntype === "debt_deleted") {
+                resolvedType = "warning";
+                const delDebtId = String(data.debt_id || "");
+                if (delDebtId) {
+                  setBorrowedDebts(prev => prev.filter(dd => dd.debtDbId !== delDebtId));
+                  setLentDebts(prev => prev.filter(dd => dd.debtDbId !== delDebtId));
+                }
               }
               const base: Notification = {
                 id: Number(n.id) + 1000000,
@@ -566,6 +573,24 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
     });
   }
 
+  async function handleDeleteDebt(debtDbId: string) {
+    const { default: urls } = await import("../../backend/func2url.json");
+    const res = await fetch(`${urls["debts"]}?user_id=${user.id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return;
+    const debts: Array<Record<string, unknown>> = await res.json();
+    const found = debts.find(d => String(d.id) === debtDbId);
+    if (!found) return;
+    const delRes = await fetch(`${urls["debts"]}?token=${found.share_token}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!delRes.ok) return;
+    setLentDebts(prev => prev.filter(d => d.debtDbId !== debtDbId));
+    setBorrowedDebts(prev => prev.filter(d => d.debtDbId !== debtDbId));
+  }
+
   function handlePersonalLoanSave(loan: PersonalLoan) {
     const updated = [loan, ...personalLoans];
     setPersonalLoans(updated);
@@ -668,7 +693,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
       <main className="relative z-10 flex-1 px-4 pb-32 overflow-y-auto">
         <div className="max-w-lg mx-auto">
           {section === "dashboard"     && <Dashboard onNav={setSection} contacts={contacts} t={t} lentDebts={lentDebts} borrowedDebts={borrowedDebts} activeRentalCount={activeRentalCount} totalRentalAmount={totalRentalAmount} personalLoans={personalLoans} />}
-          {section === "lent"          && <DebtList debts={lentDebts} dir="lent" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => setActiveChat({ debtId: id, title })} onMarkPaid={handleMarkPaid} onAddNew={() => setShowNewDebt(true)} token={token} />}
+          {section === "lent"          && <DebtList debts={lentDebts} dir="lent" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => setActiveChat({ debtId: id, title })} onMarkPaid={handleMarkPaid} onDeleteDebt={handleDeleteDebt} onAddNew={() => setShowNewDebt(true)} token={token} />}
           {section === "borrowed"      && <DebtList debts={borrowedDebts} dir="borrowed" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => setActiveChat({ debtId: id, title })} onMarkPaid={handleMarkPaid} onAddNew={() => setShowPersonalLoan(true)} personalLoans={personalLoans} onPersonalLoanUpdate={(loans) => { setPersonalLoans(loans); localStorage.setItem("df-personal-loans", JSON.stringify(loans)); }} token={token} />}
           {section === "calendar"      && <CalendarSection contacts={contacts} t={t} debts={[...lentDebts, ...borrowedDebts]} rentals={rentals} userId={user.id} />}
           {section === "notifications" && <NotificationsSection notifs={notifs} onMarkAllRead={handleMarkAllRead} onMarkRead={handleMarkRead} t={t} token={token} onOpenChat={(debtId, rentalId, title) => setActiveChat({ debtId: debtId || undefined, rentalId: rentalId || undefined, title })} onOpenSupport={(ticketId) => { setSupportTicketId(ticketId); setShowSupport(true); }} />}

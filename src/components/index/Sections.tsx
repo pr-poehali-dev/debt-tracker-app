@@ -34,13 +34,15 @@ function playPaymentSound() {
   } catch { /* ignore */ }
 }
 
-export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPaid, onAddNew, personalLoans = [], onPersonalLoanUpdate, token = "" }: { debts: Debt[]; dir: "lent" | "borrowed"; contacts: Contact[]; t: ReturnType<typeof getT>; locale: string; onOpenChat?: (debtId: string, title: string) => void; onMarkPaid?: (debtId: string) => void; onAddNew?: () => void; personalLoans?: PersonalLoan[]; onPersonalLoanUpdate?: (loans: PersonalLoan[]) => void; token?: string }) {
+export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPaid, onDeleteDebt, onAddNew, personalLoans = [], onPersonalLoanUpdate, token = "" }: { debts: Debt[]; dir: "lent" | "borrowed"; contacts: Contact[]; t: ReturnType<typeof getT>; locale: string; onOpenChat?: (debtId: string, title: string) => void; onMarkPaid?: (debtId: string) => void; onDeleteDebt?: (debtId: string) => Promise<void> | void; onAddNew?: () => void; personalLoans?: PersonalLoan[]; onPersonalLoanUpdate?: (loans: PersonalLoan[]) => void; token?: string }) {
   const [selectedDebt, setSelectedDebt] = useState<Debt | null>(null);
   const [expandedLoan, setExpandedLoan] = useState<string | null>(null);
   const [extraLoan, setExtraLoan] = useState<PersonalLoan | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [confirmReturn, setConfirmReturn] = useState<Debt | null>(null);
   const [manualReturn, setManualReturn] = useState<Debt | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<Debt | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -76,6 +78,49 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
           onClose={() => setManualReturn(null)}
           onSent={() => showToast("Запрос на возврат отправлен кредитору")}
         />
+      )}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={deleting ? undefined : () => setConfirmDelete(null)} />
+          <div className="relative w-full sm:max-w-sm glass rounded-t-3xl sm:rounded-3xl overflow-hidden animate-fade-in">
+            <div className="p-5 flex flex-col items-center text-center gap-3">
+              <div className="w-14 h-14 rounded-full bg-red-500/15 flex items-center justify-center">
+                <Icon name="Trash2" size={26} className="text-red-400" />
+              </div>
+              <p className="font-semibold text-foreground text-lg">Удалить займ?</p>
+              <p className="text-sm text-muted-foreground">
+                «{confirmDelete.name}» — {fmt(confirmDelete.amount)}
+              </p>
+              <p className="text-xs text-muted-foreground">Должник получит уведомление об удалении. Действие нельзя отменить.</p>
+            </div>
+            <div className="px-5 pb-5 flex gap-2">
+              <button
+                onClick={() => setConfirmDelete(null)}
+                disabled={deleting}
+                className="flex-1 py-3 rounded-2xl bg-white/5 text-foreground font-medium text-sm border border-white/10 hover:bg-white/10 transition-colors disabled:opacity-50"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={async () => {
+                  if (!confirmDelete.debtDbId || !onDeleteDebt) return;
+                  setDeleting(true);
+                  try {
+                    await onDeleteDebt(confirmDelete.debtDbId);
+                    showToast(`Займ «${confirmDelete.name}» удалён`);
+                    setConfirmDelete(null);
+                  } finally {
+                    setDeleting(false);
+                  }
+                }}
+                disabled={deleting}
+                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-gradient-to-r from-red-500 to-rose-600 text-white font-semibold text-sm shadow-lg shadow-red-500/20 hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                {deleting ? <Icon name="Loader2" size={16} className="animate-spin" /> : <><Icon name="Trash2" size={16} />Удалить</>}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
       {debts.length > 0 && (
         <div className="grid grid-cols-3 gap-3 mb-6">
@@ -196,6 +241,16 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                         style={{ background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.3)" }}
                       >
                         <Icon name="HandCoins" size={14} style={{ color: "#4ade80" }} />
+                      </button>
+                    )}
+                    {dir === "lent" && d.debtDbId && d.status !== "paid" && onDeleteDebt && (
+                      <button
+                        onClick={e => { e.stopPropagation(); setConfirmDelete(d); }}
+                        title="Удалить займ"
+                        className="inline-flex items-center justify-center w-8 h-8 rounded-lg transition-all active:scale-95"
+                        style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)" }}
+                      >
+                        <Icon name="Trash2" size={14} style={{ color: "#f87171" }} />
                       </button>
                     )}
                     {dir === "borrowed" && d.debtDbId && d.status !== "paid" && token && (

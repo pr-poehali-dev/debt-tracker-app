@@ -389,7 +389,7 @@ def handler(event: dict, context) -> dict:
              "created_at": str(r[4]), "from_name": r[5]} for r in rows
         ]})
 
-    # DELETE ?token=XXX — удалить отклонённый долг (только кредитор)
+    # DELETE ?token=XXX — удалить долг (только кредитор)
     if method == "DELETE" and qs.get("token"):
         token = qs["token"].upper().strip()
         with get_conn() as conn:
@@ -398,16 +398,34 @@ def handler(event: dict, context) -> dict:
                 return err("Не авторизован", 401)
             with conn.cursor() as cur:
                 cur.execute(
-                    f"""UPDATE {SCHEMA}.debts SET status = 'archived', updated_at = NOW()
-                        WHERE share_token = %s AND lender_user_id = %s
-                          AND borrower_decision = 'rejected'
-                        RETURNING id""",
+                    f"""SELECT id, title, amount, borrower_user_id, status FROM {SCHEMA}.debts
+                        WHERE share_token = %s AND lender_user_id = %s""",
                     (token, user_id)
                 )
-                row = cur.fetchone()
+                debt_row = cur.fetchone()
+                if not debt_row:
+                    return err("Долг не найден или нет прав", 403)
+                debt_id, title, amount, borrower_id, current_status = debt_row
+                if current_status == "archived":
+                    return err("Долг уже в архиве", 400)
+                cur.execute(
+                    f"""UPDATE {SCHEMA}.debts SET status = 'archived', updated_at = NOW()
+                        WHERE id = %s""",
+                    (debt_id,)
+                )
+                # Уведомление должнику
+                if borrower_id:
+                    cur.execute(f"SELECT full_name FROM {SCHEMA}.users WHERE id = %s", (user_id,))
+                    lender_name = (cur.fetchone() or ["Кредитор"])[0]
+                    cur.execute(
+                        f"""INSERT INTO {SCHEMA}.notifications (user_id, type, title, body, data)
+                            VALUES (%s, 'debt_deleted', %s, %s, %s)""",
+                        (borrower_id,
+                         f"🗑 {lender_name} удалил займ",
+                         f"«{title}» — {float(amount):,.0f} ₽".replace(",", " "),
+                         json.dumps({"debt_id": str(debt_id), "debt_title": title, "amount": float(amount)}))
+                    )
             conn.commit()
-        if not row:
-            return err("Долг не найден или нет прав", 403)
         return json_resp({"ok": True})
 
     return err("Неизвестный маршрут", 404)
