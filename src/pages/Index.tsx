@@ -5,6 +5,7 @@ import ChatWindow from "@/components/ChatWindow";
 import RentalSection, { RentalInviteModal } from "@/components/RentalSection";
 import PersonalLoanModal, { type PersonalLoan } from "@/components/PersonalLoanModal";
 import SupportModal from "@/components/SupportModal";
+import PaymentsHistory from "@/components/PaymentsHistory";
 import { type Lang, getT } from "@/i18n";
 import {
   type Section, type Theme, type Contact, type Debt, type Notification, type ContactColor, type ChatMeta,
@@ -40,6 +41,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
   const [activeChat, setActiveChat] = useState<{ debtId?: string; rentalId?: number; title: string } | null>(null);
   const [showSupport, setShowSupport] = useState(false);
   const [supportTicketId, setSupportTicketId] = useState<number | null>(null);
+  const [showPayments, setShowPayments] = useState(false);
   const [notifs, setNotifs] = useState<Notification[]>([]);
   const audioCtxRef = { current: null as AudioContext | null };
   const [unreadMessages, setUnreadMessages] = useState(0);
@@ -579,6 +581,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
         }} />
       )}
       {showSupport && !isDemo && <SupportModal token={token} initialTicketId={supportTicketId ?? undefined} onClose={() => { setShowSupport(false); setSupportTicketId(null); }} />}
+      {showPayments && !isDemo && <PaymentsHistory token={token} onClose={() => setShowPayments(false)} />}
       {activeChat && !isDemo && (
         <ChatWindow
           debtId={activeChat.debtId}
@@ -653,7 +656,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
           {section === "archive"       && <ArchiveSection contacts={contacts} t={t} locale={locale} archiveDebts={archiveDebts} />}
           {section === "rental"        && <RentalSection userId={user.id} token={token} myName={profile.name} isDemo={isDemo} openNew={showNewRental} onNewClose={() => setShowNewRental(false)} />}
           {section === "contacts"      && <ContactsSection contacts={contacts} onColorChange={handleColorChange} t={t} />}
-          {section === "settings"      && <SettingsSection theme={theme} onThemeChange={setTheme} profile={profile} onProfileChange={handleProfileChange} t={t} lang={lang} onLangChange={handleLangChange} email={user.email} onLogout={onLogout} isDemo={isDemo} onOpenSupport={() => setShowSupport(true)} />}
+          {section === "settings"      && <SettingsSection theme={theme} onThemeChange={setTheme} profile={profile} onProfileChange={handleProfileChange} t={t} lang={lang} onLangChange={handleLangChange} email={user.email} onLogout={onLogout} isDemo={isDemo} onOpenSupport={() => setShowSupport(true)} onOpenPayments={() => setShowPayments(true)} />}
         </div>
       </main>
 

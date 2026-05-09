@@ -979,7 +979,7 @@ export function Dashboard({ onNav, contacts, t, lentDebts, borrowedDebts, active
 }
 
 // ─── Section: Settings ────────────────────────────────────────────────────────
-export function SettingsSection({ theme, onThemeChange, profile, onProfileChange, t, lang, onLangChange, email, onLogout, isDemo, onOpenSupport }: {
+export function SettingsSection({ theme, onThemeChange, profile, onProfileChange, t, lang, onLangChange, email, onLogout, isDemo, onOpenSupport, onOpenPayments }: {
   theme: Theme;
   onThemeChange: (t: Theme) => void;
   profile: { name: string; phone: string };
@@ -991,6 +991,7 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
   onLogout: () => void;
   isDemo?: boolean;
   onOpenSupport?: () => void;
+  onOpenPayments?: () => void;
 }) {
   const [local, setLocal] = useState(profile);
   const [saved, setSaved] = useState(false);
@@ -1214,6 +1215,16 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
         >
           <Icon name="ShieldCheck" size={16} />
           Админ-панель
+        </button>
+      )}
+
+      {!isDemo && onOpenPayments && (
+        <button
+          onClick={onOpenPayments}
+          className="w-full py-3 rounded-2xl glass border border-amber-500/20 text-amber-400 hover:bg-amber-500/10 transition-all font-medium flex items-center justify-center gap-2"
+        >
+          <Icon name="Receipt" size={16} />
+          История платежей
         </button>
       )}
 
