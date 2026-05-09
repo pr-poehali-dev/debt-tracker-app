@@ -21,7 +21,28 @@ function QRCode({ value, size = 200 }: { value: string; size?: number }) {
 }
 
 // ─── Share debt viewer (when opened via QR link) ─────────────────────────────
-type AuthStep = "check_auth" | "email" | "register" | "code" | "decision" | "done" | "rejected";
+type AuthStep = "check_auth" | "phone" | "register" | "code" | "pin_login" | "set_pin" | "decision" | "done" | "rejected";
+
+// ── Маска телефона +7 (XXX) XXX-XX-XX ──
+function formatPhoneInput(raw: string): string {
+  const digits = raw.replace(/\D/g, "");
+  let d = digits;
+  if (d.startsWith("8")) d = "7" + d.slice(1);
+  if (!d.startsWith("7") && d.length > 0) d = "7" + d;
+  d = d.slice(0, 11);
+  if (d.length === 0) return "";
+  let out = "+7";
+  if (d.length > 1) out += " (" + d.slice(1, 4);
+  if (d.length >= 4) out += ") " + d.slice(4, 7);
+  if (d.length >= 7) out += "-" + d.slice(7, 9);
+  if (d.length >= 9) out += "-" + d.slice(9, 11);
+  return out;
+}
+function phoneToE164Local(formatted: string): string {
+  const d = formatted.replace(/\D/g, "");
+  if (d.length !== 11) return "";
+  return "+" + (d.startsWith("8") ? "7" + d.slice(1) : d);
+}
 
 export function SharedDebtView({ token }: { token: string }) {
   const [debt, setDebt] = useState<Record<string, string | number | null> | null>(null);
@@ -33,10 +54,12 @@ export function SharedDebtView({ token }: { token: string }) {
   const [userName, setUserName] = useState("");
 
   // Auth form
-  const [email, setEmail] = useState("");
-  const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
+  const [fullName, setFullName] = useState("");
   const [code, setCode] = useState(["", "", "", ""]);
+  const [pin, setPin] = useState("");
+  const [pinFirst, setPinFirst] = useState("");
+  const [pinStage, setPinStage] = useState<"first" | "confirm">("first");
   const [isNewUser, setIsNewUser] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState("");
@@ -70,45 +93,100 @@ export function SharedDebtView({ token }: { token: string }) {
         if (d.borrower_decision === "accepted") { setStep("done"); return; }
         if (d.borrower_decision === "rejected") { setStep("rejected"); return; }
         if (tok) setStep("decision");
-        else setStep("email");
+        else setStep("phone");
       })
       .catch(() => { setError("Ошибка загрузки"); setLoading(false); });
   }
 
-  async function checkEmail() {
-    const e = email.trim().toLowerCase();
-    if (!e.includes("@")) { setAuthError("Введите корректный email"); return; }
+  async function checkPhoneStep() {
+    const e164 = phoneToE164Local(phone);
+    if (!e164) { setAuthError("Введите номер полностью"); return; }
     setAuthLoading(true); setAuthError("");
-    const res = await fetch(`${AUTH_URL}?action=send-code`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: e }),
-    });
-    setAuthLoading(false);
-    if (res.status === 404) { setIsNewUser(true); setStep("register"); }
-    else if (res.ok || res.status === 409) { setIsNewUser(false); setStep("code"); }
-    else { const d = await res.json(); setAuthError(d.error || "Ошибка"); }
+    try {
+      const res = await fetch(`${AUTH_URL}?action=check-phone`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: e164 }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setAuthError(data.error || "Ошибка"); return; }
+      if (!data.exists) {
+        setIsNewUser(true);
+        setStep("register");
+      } else if (data.has_pin) {
+        setIsNewUser(false);
+        setStep("pin_login");
+      } else {
+        setIsNewUser(false);
+        await sendSmsCode(e164);
+        setStep("code");
+      }
+    } finally { setAuthLoading(false); }
   }
 
-  async function sendCode() {
+  async function sendSmsCode(phoneE164?: string) {
+    const e164 = phoneE164 || phoneToE164Local(phone);
+    const res = await fetch(`${AUTH_URL}?action=send-sms`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone: e164 }),
+    });
+    if (!res.ok) {
+      const d = await res.json();
+      setAuthError(d.error || "Ошибка отправки SMS");
+      throw new Error(d.error);
+    }
+  }
+
+  async function sendCodeForRegister() {
     if (!fullName.trim()) { setAuthError("Введите ФИО"); return; }
-    if (!phone.trim()) { setAuthError("Введите телефон"); return; }
     setAuthLoading(true); setAuthError("");
-    const res = await fetch(`${AUTH_URL}?action=send-code`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: email.trim().toLowerCase(), full_name: fullName.trim(), phone: phone.trim() }),
-    });
-    setAuthLoading(false);
-    if (res.ok) setStep("code");
-    else { const d = await res.json(); setAuthError(d.error || "Ошибка"); }
+    try {
+      await sendSmsCode();
+      setStep("code");
+    } catch { /* error already set */ }
+    finally { setAuthLoading(false); }
   }
 
-  async function verifyCode() {
+  async function verifyCodeStep() {
     const c = code.join("");
     if (c.length < 4) return;
     setAuthLoading(true); setAuthError("");
-    const body: Record<string, string> = { email: email.trim().toLowerCase(), code: c };
-    if (isNewUser) { body.full_name = fullName.trim(); body.phone = phone.trim(); }
-    const res = await fetch(`${AUTH_URL}?action=verify`, {
+    try {
+      const res = await fetch(`${AUTH_URL}?action=check-sms`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: phoneToE164Local(phone), code: c }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setPinStage("first"); setPin(""); setPinFirst("");
+        setStep("set_pin");
+      } else {
+        setAuthError(data.error || "Неверный код");
+        setCode(["", "", "", ""]);
+        codeRefs[0].current?.focus();
+      }
+    } finally { setAuthLoading(false); }
+  }
+
+  async function submitSetPin(value: string) {
+    if (pinStage === "first") {
+      setPinFirst(value);
+      setPin("");
+      setPinStage("confirm");
+      return;
+    }
+    if (value !== pinFirst) {
+      setAuthError("PIN не совпадает, попробуйте ещё раз");
+      setPinStage("first"); setPinFirst(""); setPin("");
+      return;
+    }
+    setAuthLoading(true); setAuthError("");
+    const body: Record<string, string> = {
+      phone: phoneToE164Local(phone),
+      code: code.join(""),
+      pin_code: value,
+    };
+    if (isNewUser && fullName.trim()) body.full_name = fullName.trim();
+    const res = await fetch(`${AUTH_URL}?action=verify-sms`, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
@@ -121,9 +199,29 @@ export function SharedDebtView({ token }: { token: string }) {
       setUserName(data.user.full_name);
       setStep("decision");
     } else {
-      setAuthError(data.error || "Неверный код");
+      setAuthError(data.error || "Ошибка");
+      setStep("code");
       setCode(["", "", "", ""]);
-      codeRefs[0].current?.focus();
+    }
+  }
+
+  async function loginWithPin(value: string) {
+    setAuthLoading(true); setAuthError("");
+    const res = await fetch(`${AUTH_URL}?action=login-pin-phone`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone: phoneToE164Local(phone), pin: value }),
+    });
+    const data = await res.json();
+    setAuthLoading(false);
+    if (res.ok) {
+      localStorage.setItem("df-token", data.token);
+      setAuthToken(data.token);
+      setUserId(data.user.id);
+      setUserName(data.user.full_name);
+      setStep("decision");
+    } else {
+      setAuthError(data.error || "Неверный PIN");
+      setPin("");
     }
   }
 
@@ -131,7 +229,7 @@ export function SharedDebtView({ token }: { token: string }) {
     const digit = val.replace(/\D/g, "").slice(-1);
     const next = [...code]; next[i] = digit; setCode(next);
     if (digit && i < 3) codeRefs[i + 1].current?.focus();
-    if (next.every(d => d !== "")) setTimeout(() => verifyCode(), 100);
+    if (next.every(d => d !== "")) setTimeout(() => verifyCodeStep(), 100);
   }
 
   async function makeDecision(decision: "accepted" | "rejected") {
@@ -256,48 +354,54 @@ export function SharedDebtView({ token }: { token: string }) {
 
         <DebtCard />
 
-        {/* ── Шаг: ввод email ── */}
-        {step === "email" && (
+        {/* ── Шаг: ввод телефона ── */}
+        {step === "phone" && (
           <div className="glass rounded-2xl p-5 space-y-3">
             <div>
               <p className="font-semibold text-foreground mb-1">Войдите или зарегистрируйтесь</p>
               <p className="text-xs text-muted-foreground">Чтобы принять или отклонить долг, нужен аккаунт</p>
             </div>
-            <input value={email} onChange={e => { setEmail(e.target.value); setAuthError(""); }} placeholder="Email" type="email" autoFocus className={inputCls} onKeyDown={e => e.key === "Enter" && checkEmail()} />
+            <input value={phone}
+              onChange={e => { setPhone(formatPhoneInput(e.target.value)); setAuthError(""); }}
+              onFocus={() => { if (!phone) setPhone("+7 ("); }}
+              placeholder="+7 (900) 000-00-00" type="tel" inputMode="numeric" autoFocus
+              className={inputCls} onKeyDown={e => e.key === "Enter" && checkPhoneStep()} />
             {authError && <p className="text-xs text-red-400">{authError}</p>}
-            <button onClick={checkEmail} disabled={authLoading} className={btnCls} style={{ background: "linear-gradient(135deg, #a855f7, #6366f1)" }}>
+            <button onClick={checkPhoneStep} disabled={authLoading} className={btnCls} style={{ background: "linear-gradient(135deg, #a855f7, #6366f1)" }}>
               {authLoading ? "Проверяем..." : "Продолжить"}
             </button>
           </div>
         )}
 
-        {/* ── Шаг: регистрация ── */}
+        {/* ── Шаг: регистрация (только ФИО, телефон уже введён) ── */}
         {step === "register" && (
           <div className="glass rounded-2xl p-5 space-y-3">
             <div className="flex items-center gap-2">
-              <button onClick={() => setStep("email")} className="w-8 h-8 glass rounded-xl flex items-center justify-center">
+              <button onClick={() => setStep("phone")} className="w-8 h-8 glass rounded-xl flex items-center justify-center">
                 <Icon name="ChevronLeft" size={16} />
               </button>
               <div>
                 <p className="font-semibold text-foreground">Регистрация</p>
-                <p className="text-xs text-muted-foreground">{email}</p>
+                <p className="text-xs text-muted-foreground">{phone}</p>
               </div>
             </div>
-            <input value={fullName} onChange={e => { setFullName(e.target.value); setAuthError(""); }} placeholder="ФИО" autoFocus className={inputCls} />
-            <input value={phone} onChange={e => { setPhone(e.target.value); setAuthError(""); }} placeholder="+7 999 000 00 00" type="tel" className={inputCls} onKeyDown={e => e.key === "Enter" && sendCode()} />
+            <input value={fullName}
+              onChange={e => { setFullName(e.target.value); setAuthError(""); }}
+              placeholder="ФИО" autoFocus className={inputCls}
+              onKeyDown={e => e.key === "Enter" && sendCodeForRegister()} />
             {authError && <p className="text-xs text-red-400">{authError}</p>}
-            <button onClick={sendCode} disabled={authLoading} className={btnCls} style={{ background: "linear-gradient(135deg, #a855f7, #6366f1)" }}>
-              {authLoading ? "Отправляем код..." : "Получить код"}
+            <button onClick={sendCodeForRegister} disabled={authLoading} className={btnCls} style={{ background: "linear-gradient(135deg, #a855f7, #6366f1)" }}>
+              {authLoading ? "Отправляем SMS..." : "Получить код в SMS"}
             </button>
           </div>
         )}
 
-        {/* ── Шаг: ввод кода ── */}
+        {/* ── Шаг: ввод кода из SMS ── */}
         {step === "code" && (
           <div className="glass rounded-2xl p-5 space-y-4">
             <div>
-              <p className="font-semibold text-foreground mb-1">Введите код из письма</p>
-              <p className="text-xs text-muted-foreground">Отправили на {email}</p>
+              <p className="font-semibold text-foreground mb-1">Введите код из SMS</p>
+              <p className="text-xs text-muted-foreground">Отправили на {phone}</p>
             </div>
             <div className="flex gap-3 justify-center">
               {[0, 1, 2, 3].map(i => (
@@ -308,10 +412,75 @@ export function SharedDebtView({ token }: { token: string }) {
                   onChange={e => handleCodeInput(i, e.target.value)}
                   onKeyDown={e => { if (e.key === "Backspace" && !code[i] && i > 0) codeRefs[i-1].current?.focus(); }}
                   maxLength={1}
+                  inputMode="numeric"
                   className="w-14 h-14 text-center text-2xl font-bold bg-white/5 border border-white/10 rounded-xl outline-none focus:border-purple-500/50 text-foreground"
                 />
               ))}
             </div>
+            {authError && <p className="text-xs text-red-400 text-center">{authError}</p>}
+            {authLoading && <div className="flex justify-center"><div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" /></div>}
+          </div>
+        )}
+
+        {/* ── Шаг: вход по PIN ── */}
+        {step === "pin_login" && (
+          <div className="glass rounded-2xl p-5 space-y-4">
+            <div className="flex items-center gap-2">
+              <button onClick={() => setStep("phone")} className="w-8 h-8 glass rounded-xl flex items-center justify-center">
+                <Icon name="ChevronLeft" size={16} />
+              </button>
+              <div>
+                <p className="font-semibold text-foreground">Введите PIN</p>
+                <p className="text-xs text-muted-foreground">{phone}</p>
+              </div>
+            </div>
+            <input
+              value={pin}
+              onChange={e => {
+                const v = e.target.value.replace(/\D/g, "").slice(0, 4);
+                setPin(v); setAuthError("");
+                if (v.length === 4) loginWithPin(v);
+              }}
+              type="password" inputMode="numeric" maxLength={4} autoFocus
+              placeholder="••••"
+              className="w-full text-center text-3xl tracking-[12px] bg-white/5 border border-white/10 rounded-xl py-4 outline-none focus:border-purple-500/50 text-foreground"
+            />
+            {authError && <p className="text-xs text-red-400 text-center">{authError}</p>}
+            <button onClick={async () => {
+              setAuthLoading(true); setAuthError("");
+              try { await sendSmsCode(); setStep("code"); setPin(""); } catch { /* */ }
+              finally { setAuthLoading(false); }
+            }} className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors py-1">
+              Забыли PIN? Сбросить через SMS
+            </button>
+          </div>
+        )}
+
+        {/* ── Шаг: установка PIN после регистрации ── */}
+        {step === "set_pin" && (
+          <div className="glass rounded-2xl p-5 space-y-4">
+            <div>
+              <p className="font-semibold text-foreground mb-1">
+                {pinStage === "first" ? "Придумайте PIN" : "Повторите PIN"}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {pinStage === "first" ? "4 цифры — запомните его, нужен будет для входа" : "Введите тот же PIN ещё раз"}
+              </p>
+            </div>
+            <input
+              value={pin}
+              onChange={e => {
+                const v = e.target.value.replace(/\D/g, "").slice(0, 4);
+                setPin(v); setAuthError("");
+                if (v.length === 4) {
+                  submitSetPin(v);
+                  setPin("");
+                }
+              }}
+              type="password" inputMode="numeric" maxLength={4} autoFocus
+              placeholder="••••"
+              className="w-full text-center text-3xl tracking-[12px] bg-white/5 border border-white/10 rounded-xl py-4 outline-none focus:border-purple-500/50 text-foreground"
+            />
             {authError && <p className="text-xs text-red-400 text-center">{authError}</p>}
             {authLoading && <div className="flex justify-center"><div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" /></div>}
           </div>

@@ -5,14 +5,36 @@ import { DEMO_USER } from "../App";
 
 const AUTH_URL = func2url["auth"];
 
-// email → check-email →
-//   новый: register (ФИО+телефон) → email-code → set-pin (2 раза) → вход
+// phone → check-phone →
+//   новый: register (ФИО) → sms-code → set-pin (2 раза) → вход
 //   старый с PIN: pin-login
-//   старый без PIN (старый аккаунт): email-code → set-pin → вход
-type Step = "email" | "register" | "email-code" | "set-pin" | "pin-login";
+//   старый без PIN: sms-code → set-pin → вход
+type Step = "phone" | "register" | "sms-code" | "set-pin" | "pin-login";
 
 interface Props {
   onAuth: (token: string, user: { id: number; full_name: string; phone: string; email: string }) => void;
+}
+
+// ── Маска телефона +7 (XXX) XXX-XX-XX ──
+function formatPhone(raw: string): string {
+  const digits = raw.replace(/\D/g, "");
+  let d = digits;
+  if (d.startsWith("8")) d = "7" + d.slice(1);
+  if (!d.startsWith("7") && d.length > 0) d = "7" + d;
+  d = d.slice(0, 11);
+  if (d.length === 0) return "";
+  let out = "+7";
+  if (d.length > 1) out += " (" + d.slice(1, 4);
+  if (d.length >= 4) out += ") " + d.slice(4, 7);
+  if (d.length >= 7) out += "-" + d.slice(7, 9);
+  if (d.length >= 9) out += "-" + d.slice(9, 11);
+  return out;
+}
+
+function phoneToE164(formatted: string): string {
+  const d = formatted.replace(/\D/g, "");
+  if (d.length !== 11) return "";
+  return "+" + (d.startsWith("8") ? "7" + d.slice(1) : d);
 }
 
 function PinDots({ values }: { values: string[] }) {
@@ -26,29 +48,25 @@ function PinDots({ values }: { values: string[] }) {
   );
 }
 
-function PinInput({ title, subtitle, pin, onChange, onComplete, error, onClear }: {
+function PinInput({ title, subtitle, pin, onChange, onComplete, error }: {
   title: string; subtitle: string; pin: string[]; onChange: (pin: string[]) => void;
-  onComplete?: (pin: string) => void; error: string; onClear: () => void;
+  onComplete?: (pin: string) => void; error: string;
 }) {
-
   function handleDigit(digit: string) {
     if (pin.length >= 4) return;
     const next = [...pin, digit];
     onChange(next);
     if (next.length === 4 && onComplete) onComplete(next.join(""));
   }
-
   function handleBack() {
     if (pin.length === 0) return;
     onChange(pin.slice(0, -1));
   }
-
   const digits = ["1","2","3","4","5","6","7","8","9","","0","⌫"];
-
   return (
     <div className="space-y-4">
       <div className="text-center">
-        <p className="font-semibold text-foreground">{title}</p>
+        {title && <p className="font-semibold text-foreground">{title}</p>}
         <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
       </div>
       <PinDots values={[...pin, ...Array(4 - pin.length).fill("")]} />
@@ -76,11 +94,10 @@ function PinInput({ title, subtitle, pin, onChange, onComplete, error, onClear }
 }
 
 export default function Auth({ onAuth }: Props) {
-  const [step, setStep] = useState<Step>("email");
-  const [email, setEmail] = useState("");
-  const [fullName, setFullName] = useState("");
+  const [step, setStep] = useState<Step>("phone");
   const [phone, setPhone] = useState("");
-  const [emailCode, setEmailCode] = useState(["", "", "", ""]);
+  const [fullName, setFullName] = useState("");
+  const [smsCode, setSmsCode] = useState(["", "", "", ""]);
   const [pin, setPin] = useState<string[]>([]);
   const [pinConfirm, setPinConfirm] = useState<string[]>([]);
   const [pinStep, setPinStep] = useState<"first" | "confirm">("first");
@@ -90,42 +107,40 @@ export default function Auth({ onAuth }: Props) {
   const [countdown, setCountdown] = useState(0);
   const codeRefs = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)];
 
-  // ── Email: проверяем существование ──
-  async function checkEmail() {
-    const e = email.trim().toLowerCase();
-    if (!e || !e.includes("@")) { setError("Введите корректный email"); return; }
+  // ── Шаг 1: Проверка телефона ──
+  async function checkPhone() {
+    const e164 = phoneToE164(phone);
+    if (!e164) { setError("Введите номер полностью"); return; }
     setLoading(true); setError("");
     try {
-      const res = await fetch(`${AUTH_URL}?action=check-email`, {
+      const res = await fetch(`${AUTH_URL}?action=check-phone`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: e }), signal: AbortSignal.timeout(15000),
+        body: JSON.stringify({ phone: e164 }), signal: AbortSignal.timeout(15000),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || "Ошибка"); return; }
       if (!data.exists) {
-        setStep("register"); // новый — заполнить данные
+        setStep("register");
       } else if (data.has_pin) {
-        setStep("pin-login"); // старый с PIN — вводит PIN
+        setStep("pin-login");
       } else {
-        // старый без PIN — отправляем код для установки PIN
-        await sendEmailCode(e);
-        setStep("email-code");
+        await sendSms(e164);
+        setStep("sms-code");
       }
     } catch { setError("Нет ответа от сервера."); }
     finally { setLoading(false); }
   }
 
-  // ── Отправить код на почту ──
-  async function sendEmailCode(emailAddr?: string) {
-    const e = emailAddr || email.trim().toLowerCase();
-    const res = await fetch(`${AUTH_URL}?action=send-code`, {
+  // ── Отправить SMS ──
+  async function sendSms(phoneE164?: string) {
+    const e164 = phoneE164 || phoneToE164(phone);
+    const res = await fetch(`${AUTH_URL}?action=send-sms`, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: e, full_name: fullName.trim() || undefined }),
-      signal: AbortSignal.timeout(15000),
+      body: JSON.stringify({ phone: e164 }), signal: AbortSignal.timeout(15000),
     });
     const data = await res.json();
-    if (res.ok) { setCountdown(60); startCountdown(); }
-    else { setError(data.error || "Ошибка отправки"); }
+    if (res.ok) { startCountdown(); }
+    else { setError(data.error || "Ошибка отправки SMS"); throw new Error(data.error); }
   }
 
   function startCountdown() {
@@ -135,27 +150,26 @@ export default function Auth({ onAuth }: Props) {
     }, 1000);
   }
 
-  // ── Регистрация: переход к отправке кода ──
+  // ── Регистрация: вводим ФИО → отправляем SMS ──
   async function handleRegisterNext() {
     if (!fullName.trim()) { setError("Введите ФИО"); return; }
-    if (!phone.trim()) { setError("Введите телефон"); return; }
     setLoading(true); setError("");
     try {
-      await sendEmailCode();
-      setStep("email-code");
-    } catch { setError("Ошибка"); }
+      await sendSms();
+      setStep("sms-code");
+    } catch { /* ошибка уже в setError */ }
     finally { setLoading(false); }
   }
 
-  // ── Проверка email-кода на сервере ──
-  async function verifyEmailCode(codeStr?: string) {
-    const c = codeStr || emailCode.join("");
+  // ── Проверка SMS-кода ──
+  async function verifySmsCode(codeStr?: string) {
+    const c = codeStr || smsCode.join("");
     if (c.length < 4) { setError("Введите 4-значный код"); return; }
     setLoading(true); setError("");
     try {
-      const res = await fetch(`${AUTH_URL}?action=check-code`, {
+      const res = await fetch(`${AUTH_URL}?action=check-sms`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim().toLowerCase(), code: c }),
+        body: JSON.stringify({ phone: phoneToE164(phone), code: c }),
         signal: AbortSignal.timeout(15000),
       });
       const data = await res.json();
@@ -164,18 +178,18 @@ export default function Auth({ onAuth }: Props) {
         setStep("set-pin");
       } else {
         setError(data.error || "Неверный код");
-        setEmailCode(["","","",""]);
+        setSmsCode(["","","",""]);
         codeRefs[0].current?.focus();
       }
     } catch { setError("Нет ответа от сервера."); }
     finally { setLoading(false); }
   }
 
-  function handleEmailCodeInput(i: number, val: string) {
+  function handleSmsCodeInput(i: number, val: string) {
     const digit = val.replace(/\D/g, "").slice(-1);
-    const next = [...emailCode]; next[i] = digit; setEmailCode(next);
+    const next = [...smsCode]; next[i] = digit; setSmsCode(next);
     if (digit && i < 3) codeRefs[i + 1].current?.focus();
-    if (next.every(d => d !== "")) verifyEmailCode(next.join(""));
+    if (next.every(d => d !== "")) verifySmsCode(next.join(""));
   }
 
   // ── Установка PIN ──
@@ -192,17 +206,15 @@ export default function Auth({ onAuth }: Props) {
       setPinStep("first"); setPin([]); setPinConfirm([]); setFirstPin("");
       return;
     }
-    // Финальный запрос — verify с PIN
     setLoading(true); setError("");
     try {
       const body: Record<string, string> = {
-        email: email.trim().toLowerCase(),
-        code: emailCode.join(""),
+        phone: phoneToE164(phone),
+        code: smsCode.join(""),
         pin_code: p,
       };
       if (fullName.trim()) body.full_name = fullName.trim();
-      if (phone.trim()) body.phone = phone.trim();
-      const res = await fetch(`${AUTH_URL}?action=verify`, {
+      const res = await fetch(`${AUTH_URL}?action=verify-sms`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body), signal: AbortSignal.timeout(15000),
       });
@@ -212,7 +224,7 @@ export default function Auth({ onAuth }: Props) {
         onAuth(data.token, data.user);
       } else {
         setError(data.error || "Ошибка");
-        setStep("email-code"); setEmailCode(["","","",""]);
+        setStep("sms-code"); setSmsCode(["","","",""]);
       }
     } catch { setError("Нет ответа от сервера."); }
     finally { setLoading(false); }
@@ -222,9 +234,9 @@ export default function Auth({ onAuth }: Props) {
   async function handlePinLogin(p: string) {
     setLoading(true); setError("");
     try {
-      const res = await fetch(`${AUTH_URL}?action=login-pin`, {
+      const res = await fetch(`${AUTH_URL}?action=login-pin-phone`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim().toLowerCase(), pin: p }),
+        body: JSON.stringify({ phone: phoneToE164(phone), pin: p }),
         signal: AbortSignal.timeout(15000),
       });
       const data = await res.json();
@@ -236,6 +248,17 @@ export default function Auth({ onAuth }: Props) {
         setPin([]);
       }
     } catch { setError("Нет ответа от сервера."); }
+    finally { setLoading(false); }
+  }
+
+  // ── Забыл PIN: отправить SMS для сброса ──
+  async function handleForgotPin() {
+    setLoading(true); setError("");
+    try {
+      await sendSms();
+      setStep("sms-code");
+      setPin([]);
+    } catch { /* ошибка уже установлена */ }
     finally { setLoading(false); }
   }
 
@@ -339,24 +362,25 @@ export default function Auth({ onAuth }: Props) {
 
         <div className="glass rounded-3xl p-6">
 
-          {/* ── Шаг: Email ── */}
-          {step === "email" && (
+          {/* ── Шаг: Телефон ── */}
+          {step === "phone" && (
             <div className="space-y-4">
               <div>
                 <h2 className="font-heading font-bold text-lg text-foreground">Войти или зарегистрироваться</h2>
-                <p className="text-xs text-muted-foreground mt-1">Введите ваш email</p>
+                <p className="text-xs text-muted-foreground mt-1">Введите ваш номер телефона</p>
               </div>
               <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Email</label>
-                <input type="email" value={email}
-                  onChange={e => { setEmail(e.target.value); setError(""); }}
-                  onKeyDown={e => e.key === "Enter" && checkEmail()}
-                  placeholder="ivan@example.com" autoFocus
+                <label className="text-xs text-muted-foreground mb-1 block">Телефон</label>
+                <input type="tel" inputMode="numeric" value={phone}
+                  onChange={e => { setPhone(formatPhone(e.target.value)); setError(""); }}
+                  onFocus={() => { if (!phone) setPhone("+7 ("); }}
+                  onKeyDown={e => e.key === "Enter" && checkPhone()}
+                  placeholder="+7 (900) 000-00-00" autoFocus
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-purple-500/50 transition-colors"
                 />
               </div>
               {error && <p className="text-xs text-red-400">{error}</p>}
-              <button onClick={checkEmail} disabled={loading} className={btnCls} style={btnStyle}>
+              <button onClick={checkPhone} disabled={loading} className={btnCls} style={btnStyle}>
                 {loading ? "Проверяем..." : "Продолжить"}
               </button>
               <div className="relative flex items-center gap-3">
@@ -371,73 +395,64 @@ export default function Auth({ onAuth }: Props) {
             </div>
           )}
 
-          {/* ── Шаг: Регистрация ── */}
+          {/* ── Шаг: Регистрация (ФИО) ── */}
           {step === "register" && (
             <div className="space-y-4">
               <div className="flex items-center gap-2">
-                <button onClick={() => { setStep("email"); setError(""); }}
+                <button onClick={() => { setStep("phone"); setError(""); }}
                   className="w-8 h-8 glass rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors">
                   <Icon name="ChevronLeft" size={16} />
                 </button>
                 <div>
                   <h2 className="font-heading font-bold text-base text-foreground">Регистрация</h2>
-                  <p className="text-xs text-muted-foreground">{email}</p>
+                  <p className="text-xs text-muted-foreground">{phone}</p>
                 </div>
               </div>
               <div>
                 <label className="text-xs text-muted-foreground mb-1 block">ФИО</label>
                 <input type="text" value={fullName}
                   onChange={e => { setFullName(e.target.value); setError(""); }}
+                  onKeyDown={e => e.key === "Enter" && handleRegisterNext()}
                   placeholder="Иванов Иван Иванович" autoFocus
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-purple-500/50 transition-colors"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Телефон</label>
-                <input type="tel" value={phone}
-                  onChange={e => { setPhone(e.target.value); setError(""); }}
-                  onFocus={() => { if (!phone) setPhone("+"); }}
-                  onBlur={() => { if (phone === "+") setPhone(""); }}
-                  placeholder="+7 900 000 00 00"
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-purple-500/50 transition-colors"
                 />
               </div>
               {error && <p className="text-xs text-red-400">{error}</p>}
               <button onClick={handleRegisterNext} disabled={loading} className={btnCls} style={btnStyle}>
-                {loading ? "Отправляем код..." : "Получить код на почту"}
+                {loading ? "Отправляем SMS..." : "Получить код в SMS"}
               </button>
             </div>
           )}
 
-          {/* ── Шаг: Код из письма ── */}
-          {step === "email-code" && (
+          {/* ── Шаг: Код из SMS ── */}
+          {step === "sms-code" && (
             <div className="space-y-4">
               <div className="flex items-center gap-2">
-                <button onClick={() => { setStep(fullName ? "register" : "email"); setError(""); }}
+                <button onClick={() => { setStep(fullName ? "register" : "phone"); setError(""); }}
                   className="w-8 h-8 glass rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors">
                   <Icon name="ChevronLeft" size={16} />
                 </button>
                 <div>
-                  <h2 className="font-heading font-bold text-base text-foreground">Код из письма</h2>
-                  <p className="text-xs text-muted-foreground">Отправили на {email}</p>
+                  <h2 className="font-heading font-bold text-base text-foreground">Код из SMS</h2>
+                  <p className="text-xs text-muted-foreground">Отправили на {phone}</p>
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground text-center">Введите 4-значный код из письма</p>
+              <p className="text-xs text-muted-foreground text-center">Введите 4-значный код из SMS</p>
               <div className="flex gap-3 justify-center">
-                {emailCode.map((v, i) => (
+                {smsCode.map((v, i) => (
                   <input key={i} ref={codeRefs[i]} type="text" inputMode="numeric" maxLength={1} value={v}
-                    onChange={e => handleEmailCodeInput(i, e.target.value)}
-                    onKeyDown={e => { if (e.key === "Backspace" && !emailCode[i] && i > 0) codeRefs[i-1].current?.focus(); }}
+                    onChange={e => handleSmsCodeInput(i, e.target.value)}
+                    onKeyDown={e => { if (e.key === "Backspace" && !smsCode[i] && i > 0) codeRefs[i-1].current?.focus(); }}
                     className="w-14 h-14 text-center text-2xl font-bold bg-white/5 border border-white/10 rounded-2xl text-foreground outline-none focus:border-purple-500/50 transition-colors"
                     autoFocus={i === 0}
                   />
                 ))}
               </div>
               {error && <p className="text-xs text-red-400 text-center">{error}</p>}
-              <button onClick={verifyEmailCode} disabled={loading || emailCode.some(d => !d)} className={btnCls} style={btnStyle}>
+              <button onClick={() => verifySmsCode()} disabled={loading || smsCode.some(d => !d)} className={btnCls} style={btnStyle}>
                 {loading ? "Проверяем..." : "Продолжить"}
               </button>
-              <button onClick={() => sendEmailCode()} disabled={countdown > 0}
+              <button onClick={() => sendSms().catch(() => {})} disabled={countdown > 0}
                 className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors py-1">
                 {countdown > 0 ? `Отправить снова через ${countdown}с` : "Отправить код ещё раз"}
               </button>
@@ -448,7 +463,7 @@ export default function Auth({ onAuth }: Props) {
           {step === "set-pin" && (
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <button onClick={() => { setStep("email-code"); setError(""); setPinStep("first"); setPin([]); }}
+                <button onClick={() => { setStep("sms-code"); setError(""); setPinStep("first"); setPin([]); }}
                   className="w-8 h-8 glass rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors">
                   <Icon name="ChevronLeft" size={16} />
                 </button>
@@ -462,7 +477,6 @@ export default function Auth({ onAuth }: Props) {
                   onChange={setPin}
                   onComplete={handlePinFirst}
                   error={error}
-                  onClear={() => { setPin([]); setError(""); }}
                 />
               ) : (
                 <PinInput
@@ -472,7 +486,6 @@ export default function Auth({ onAuth }: Props) {
                   onChange={setPinConfirm}
                   onComplete={handlePinConfirm}
                   error={error}
-                  onClear={() => { setPinConfirm([]); setError(""); }}
                 />
               )}
               {loading && <p className="text-xs text-center text-muted-foreground mt-3">Сохраняем...</p>}
@@ -483,13 +496,13 @@ export default function Auth({ onAuth }: Props) {
           {step === "pin-login" && (
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <button onClick={() => { setStep("email"); setError(""); setPin([]); }}
+                <button onClick={() => { setStep("phone"); setError(""); setPin([]); }}
                   className="w-8 h-8 glass rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors">
                   <Icon name="ChevronLeft" size={16} />
                 </button>
                 <div>
                   <h2 className="font-heading font-bold text-base text-foreground">Введите PIN</h2>
-                  <p className="text-xs text-muted-foreground">{email}</p>
+                  <p className="text-xs text-muted-foreground">{phone}</p>
                 </div>
               </div>
               <PinInput
@@ -499,9 +512,12 @@ export default function Auth({ onAuth }: Props) {
                 onChange={setPin}
                 onComplete={handlePinLogin}
                 error={error}
-                onClear={() => { setPin([]); setError(""); }}
               />
               {loading && <p className="text-xs text-center text-muted-foreground mt-3">Входим...</p>}
+              <button onClick={handleForgotPin} disabled={loading}
+                className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors py-2 mt-3">
+                Забыли PIN? Сбросить через SMS
+              </button>
             </div>
           )}
 

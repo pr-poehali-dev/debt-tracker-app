@@ -1,16 +1,19 @@
 """
 Авторизация. Флоу:
-- Регистрация: POST send-code → POST verify (с pin_code + pin_confirm) → аккаунт создан
-- Вход: POST check-email → если есть pin → POST login-pin (email + pin), иначе send-code → verify
+- Основной (SMS):
+    POST check-phone → если новый: send-sms → verify-sms (рег. с PIN); если есть PIN: login-pin-phone
+- Старый (email, для существующих пользователей): send-code → verify / login-pin
 - GET me — получить текущего пользователя
 """
 import json
 import os
 import random
+import re
 import secrets
 import smtplib
 import ssl
 import string
+import urllib.parse
 import urllib.request
 import urllib.error
 from datetime import datetime, timedelta, timezone
@@ -35,6 +38,71 @@ def err(msg, status=400):
 
 def get_conn():
     return psycopg2.connect(os.environ["DATABASE_URL"])
+
+# ── SMS через SMS.ru ──────────────────────────────────────────────────────────
+
+def normalize_phone(raw: str) -> str:
+    """Приводит телефон к формату +7XXXXXXXXXX. Возвращает '' если невалиден."""
+    if not raw:
+        return ""
+    digits = re.sub(r"\D", "", raw)
+    if not digits:
+        return ""
+    # 8XXXXXXXXXX → +7XXXXXXXXXX
+    if len(digits) == 11 and digits[0] == "8":
+        digits = "7" + digits[1:]
+    # 9XXXXXXXXX (без кода страны) → +79XXXXXXXXX
+    if len(digits) == 10 and digits[0] == "9":
+        digits = "7" + digits
+    if len(digits) != 11:
+        return ""
+    if digits[0] not in ("7",):
+        return ""
+    return "+" + digits
+
+def send_sms_smsru(phone: str, code: str) -> int:
+    """Отправка SMS через sms.ru. Возвращает HTTP-статус.
+    phone должен быть в формате +7XXXXXXXXXX. SMS.ru принимает без +."""
+    api_id = os.environ.get("SMSRU_API_ID")
+    if not api_id:
+        raise RuntimeError("SMSRU_API_ID не задан")
+    to = phone.lstrip("+")
+    text = f"Debt-Debt: код {code}. Никому не сообщайте его."
+    params = urllib.parse.urlencode({
+        "api_id": api_id,
+        "to": to,
+        "msg": text,
+        "json": "1",
+    })
+    url = f"https://sms.ru/sms/send?{params}"
+    req = urllib.request.Request(url, method="GET")
+    try:
+        with urllib.request.urlopen(req, timeout=10) as r:
+            raw = r.read().decode("utf-8", errors="ignore")
+            try:
+                data = json.loads(raw)
+            except Exception:
+                raise RuntimeError(f"SMS.ru вернул не JSON: {raw[:200]}")
+            status = data.get("status")
+            if status != "OK":
+                msg = data.get("status_text") or data.get("status_code") or "Unknown"
+                raise RuntimeError(f"SMS.ru: {msg}")
+            sms_block = data.get("sms") or {}
+            phone_block = sms_block.get(to) or {}
+            sms_status = phone_block.get("status")
+            if sms_status != "OK":
+                msg = phone_block.get("status_text") or phone_block.get("status_code") or "Unknown"
+                raise RuntimeError(f"SMS.ru ({to}): {msg}")
+            return r.status
+    except urllib.error.HTTPError as e:
+        body = ""
+        try:
+            body = e.read().decode("utf-8", errors="ignore")
+        except Exception:
+            pass
+        raise RuntimeError(f"SMS.ru HTTP {e.code}: {body[:200]}")
+    except urllib.error.URLError as e:
+        raise RuntimeError(f"Сеть недоступна: {e}")
 
 def _build_email_html(code: str, full_name: str = None) -> str:
     greeting = f"Привет, {full_name}!" if full_name else "Добро пожаловать!"
@@ -470,5 +538,165 @@ def handler(event: dict, context) -> dict:
             token = make_session(conn, row[0])
             conn.commit()
         return resp({"ok": True, "token": token, "user": {"id": row[0], "full_name": row[1], "phone": row[2], "email": row[3]}})
+
+    # ═════════════════════════════════════════════════════════════════════════
+    # ═══ SMS-АВТОРИЗАЦИЯ (новый основной флоу) ═══════════════════════════════
+    # ═════════════════════════════════════════════════════════════════════════
+
+    # ── POST check-phone — есть ли пользователь и есть ли у него PIN ──
+    if method == "POST" and action == "check-phone":
+        body = json.loads(event.get("body") or "{}")
+        phone = normalize_phone(body.get("phone") or "")
+        if not phone:
+            return err("Введите корректный номер телефона")
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(f"SELECT id, pin_code FROM {SCHEMA}.users WHERE phone = %s", (phone,))
+                row = cur.fetchone()
+        if not row:
+            return resp({"exists": False})
+        return resp({"exists": True, "has_pin": bool(row[1])})
+
+    # ── POST send-sms — отправить SMS с кодом (рег. / сброс PIN) ──
+    if method == "POST" and action == "send-sms":
+        body = json.loads(event.get("body") or "{}")
+        phone = normalize_phone(body.get("phone") or "")
+        if not phone:
+            return err("Введите корректный номер телефона")
+
+        now = datetime.now(timezone.utc)
+        # Анти-спам: 1 SMS в минуту на номер
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"SELECT created_at FROM {SCHEMA}.verification_codes WHERE phone = %s ORDER BY created_at DESC LIMIT 1",
+                    (phone,),
+                )
+                last = cur.fetchone()
+                if last and last[0]:
+                    elapsed = (now - last[0]).total_seconds()
+                    if elapsed < 60:
+                        return err(f"Подождите {int(60 - elapsed)} сек перед повторной отправкой", 429)
+                # Лимит 5 SMS в день на номер
+                cur.execute(
+                    f"SELECT COUNT(*) FROM {SCHEMA}.verification_codes WHERE phone = %s AND created_at > %s",
+                    (phone, now - timedelta(hours=24)),
+                )
+                day_count = cur.fetchone()[0]
+                if day_count >= 5:
+                    return err("Слишком много SMS на этот номер. Попробуйте завтра.", 429)
+
+        code = "".join(random.choices(string.digits, k=4))
+        expires_at = now + timedelta(minutes=10)
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"INSERT INTO {SCHEMA}.verification_codes (email, phone, code, expires_at) VALUES (%s, %s, %s, %s)",
+                    ("", phone, code, expires_at),
+                )
+            conn.commit()
+
+        try:
+            send_sms_smsru(phone, code)
+        except Exception as e:
+            msg = str(e)
+            print(f"[send-sms] SMS DELIVERY FAILED to {phone}: {msg}")
+            user_msg = "Не удалось отправить SMS. Попробуйте через минуту."
+            low = msg.lower()
+            if "balance" in low or "баланс" in low or "недостаточно" in low:
+                user_msg = "Сервис временно недоступен. Напишите в поддержку."
+            elif "не задан" in low:
+                user_msg = "Сервис SMS не настроен. Напишите в поддержку."
+            elif "invalid" in low or "неверный" in low or "формат" in low:
+                user_msg = "Неверный формат номера телефона."
+            return err(user_msg, 502)
+
+        return resp({"ok": True})
+
+    # ── POST verify-sms — проверить SMS-код и создать аккаунт с PIN ──
+    if method == "POST" and action == "verify-sms":
+        body = json.loads(event.get("body") or "{}")
+        phone = normalize_phone(body.get("phone") or "")
+        code = (body.get("code") or "").strip()
+        full_name = (body.get("full_name") or "").strip()
+        pin_code = (body.get("pin_code") or "").strip()
+
+        if not phone:
+            return err("Введите корректный номер телефона")
+        if not code:
+            return err("Введите код из SMS")
+        if len(pin_code) != 4 or not pin_code.isdigit():
+            return err("PIN должен быть 4 цифры")
+
+        now = datetime.now(timezone.utc)
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"SELECT id FROM {SCHEMA}.verification_codes WHERE phone = %s AND code = %s AND used = FALSE AND expires_at > %s ORDER BY created_at DESC LIMIT 1",
+                    (phone, code, now),
+                )
+                row = cur.fetchone()
+                if not row:
+                    return err("Неверный или истёкший код")
+                code_id = row[0]
+                cur.execute(f"UPDATE {SCHEMA}.verification_codes SET used = TRUE WHERE id = %s", (code_id,))
+
+                cur.execute(f"SELECT id, full_name, phone, email FROM {SCHEMA}.users WHERE phone = %s", (phone,))
+                user_row = cur.fetchone()
+                if user_row:
+                    user_id = user_row[0]
+                    cur.execute(f"UPDATE {SCHEMA}.users SET pin_code = %s WHERE id = %s", (pin_code, user_id))
+                    db_name, db_phone, db_email = user_row[1], user_row[2], user_row[3]
+                else:
+                    if not full_name:
+                        return err("Введите ФИО для регистрации")
+                    cur.execute(
+                        f"INSERT INTO {SCHEMA}.users (full_name, phone, email, pin_code) VALUES (%s, %s, %s, %s) RETURNING id, full_name, phone, email",
+                        (full_name, phone, "", pin_code),
+                    )
+                    user_id, db_name, db_phone, db_email = cur.fetchone()
+
+                token = make_session(conn, user_id)
+            conn.commit()
+
+        return resp({"ok": True, "token": token, "user": {"id": user_id, "full_name": db_name, "phone": db_phone, "email": db_email or ""}})
+
+    # ── POST login-pin-phone — вход по телефону + PIN (без SMS) ──
+    if method == "POST" and action == "login-pin-phone":
+        body = json.loads(event.get("body") or "{}")
+        phone = normalize_phone(body.get("phone") or "")
+        pin = (body.get("pin") or "").strip()
+        if not phone or not pin:
+            return err("Телефон и PIN обязательны")
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(f"SELECT id, full_name, phone, email, pin_code FROM {SCHEMA}.users WHERE phone = %s", (phone,))
+                row = cur.fetchone()
+            if not row:
+                return err("Пользователь не найден", 404)
+            if row[4] != pin:
+                return err("Неверный PIN-код")
+            token = make_session(conn, row[0])
+            conn.commit()
+        return resp({"ok": True, "token": token, "user": {"id": row[0], "full_name": row[1], "phone": row[2], "email": row[3] or ""}})
+
+    # ── POST check-sms — проверить SMS-код без создания сессии ──
+    if method == "POST" and action == "check-sms":
+        body = json.loads(event.get("body") or "{}")
+        phone = normalize_phone(body.get("phone") or "")
+        code = (body.get("code") or "").strip()
+        if not phone or not code:
+            return err("Телефон и код обязательны")
+        now = datetime.now(timezone.utc)
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"SELECT id FROM {SCHEMA}.verification_codes WHERE phone = %s AND code = %s AND used = FALSE AND expires_at > %s ORDER BY created_at DESC LIMIT 1",
+                    (phone, code, now),
+                )
+                row = cur.fetchone()
+        if not row:
+            return err("Неверный или истёкший код")
+        return resp({"ok": True})
 
     return err("Неизвестный маршрут", 404)
