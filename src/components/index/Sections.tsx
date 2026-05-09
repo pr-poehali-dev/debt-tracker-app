@@ -80,9 +80,12 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
         />
       )}
       {confirmDelete && (
-        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={deleting ? undefined : () => setConfirmDelete(null)} />
-          <div className="relative w-full sm:max-w-sm glass rounded-t-3xl sm:rounded-3xl overflow-hidden animate-fade-in">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/75 backdrop-blur-md" onClick={deleting ? undefined : () => setConfirmDelete(null)} />
+          <div
+            className="relative w-full max-w-sm rounded-3xl overflow-hidden animate-fade-in border border-white/10 shadow-2xl"
+            style={{ background: "#1a1d2e" }}
+          >
             <div className="p-5 flex flex-col items-center text-center gap-3">
               <div className="w-14 h-14 rounded-full bg-red-500/15 flex items-center justify-center">
                 <Icon name="Trash2" size={26} className="text-red-400" />
