@@ -908,13 +908,41 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
 // ─── Section: Archive ─────────────────────────────────────────────────────────
 export function ArchiveSection({ contacts, t, locale, archiveDebts }: { contacts: Contact[]; t: ReturnType<typeof getT>; locale: string; archiveDebts: Debt[] }) {
   const [filter, setFilter] = useState<"returned" | "deleted">("returned");
-  const returnedDebts = archiveDebts.filter(d => d.status !== "deleted");
-  const deletedDebts = archiveDebts.filter(d => d.status === "deleted");
+  const [search, setSearch] = useState("");
+  const q = search.trim().toLowerCase();
+  const matchSearch = (d: Debt) => {
+    if (!q) return true;
+    const contact = contacts.find(c => c.id === d.contactId);
+    return (
+      d.name.toLowerCase().includes(q) ||
+      (d.note?.toLowerCase().includes(q) ?? false) ||
+      (contact?.name.toLowerCase().includes(q) ?? false) ||
+      d.avatar.toLowerCase().includes(q)
+    );
+  };
+  const returnedDebts = archiveDebts.filter(d => d.status !== "deleted" && matchSearch(d));
+  const deletedDebts = archiveDebts.filter(d => d.status === "deleted" && matchSearch(d));
   const visible = filter === "returned" ? returnedDebts : deletedDebts;
   const total = visible.reduce((s, d) => s + d.amount, 0);
 
   return (
     <div className="animate-fade-in">
+      {archiveDebts.length > 0 && (
+        <div className="glass rounded-2xl mb-3 flex items-center gap-2 px-3 py-2.5">
+          <Icon name="Search" size={16} className="text-muted-foreground flex-shrink-0" />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Поиск по имени или названию займа"
+            className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
+          />
+          {search && (
+            <button onClick={() => setSearch("")} className="text-muted-foreground hover:text-foreground transition-colors">
+              <Icon name="X" size={14} />
+            </button>
+          )}
+        </div>
+      )}
       {archiveDebts.length > 0 && (
         <div className="glass rounded-2xl p-1 mb-4 flex gap-1">
           <button
@@ -960,12 +988,12 @@ export function ArchiveSection({ contacts, t, locale, archiveDebts }: { contacts
       )}
       {visible.length === 0 && (
         <div className="glass rounded-2xl p-8 flex flex-col items-center text-center gap-3">
-          <Icon name={filter === "returned" ? "Archive" : "Trash2"} size={32} className="text-purple-400 opacity-50" />
+          <Icon name={q ? "SearchX" : filter === "returned" ? "Archive" : "Trash2"} size={32} className="text-purple-400 opacity-50" />
           <p className="font-semibold text-foreground">
-            {filter === "returned" ? t.archiveEmpty : "Удалённых займов нет"}
+            {q ? "Ничего не найдено" : filter === "returned" ? t.archiveEmpty : "Удалённых займов нет"}
           </p>
           <p className="text-xs text-muted-foreground">
-            {filter === "returned" ? t.archiveEmptyDesc : "Здесь появятся займы, удалённые кредитором"}
+            {q ? `Нет совпадений по запросу «${search}»` : filter === "returned" ? t.archiveEmptyDesc : "Здесь появятся займы, удалённые кредитором"}
           </p>
         </div>
       )}
