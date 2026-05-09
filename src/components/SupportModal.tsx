@@ -110,7 +110,7 @@ export default function SupportModal({ token, onClose, initialTicketId }: { toke
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={e => e.currentTarget === e.target && onClose()}>
+    <div className="fixed inset-0 z-[100] flex items-end justify-center" onClick={e => e.currentTarget === e.target && onClose()}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full max-w-lg flex flex-col animate-slide-up"
         style={{ maxHeight: "90dvh", background: "var(--app-bg)", borderRadius: "20px 20px 0 0" }}

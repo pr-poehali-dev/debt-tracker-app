@@ -72,7 +72,7 @@ export default function BalanceReportModal({ onClose, lentDebts, borrowedDebts, 
   const chartData = slices.length > 0 ? slices : [{ key: "empty", label: "Нет данных", value: 1, color: "rgba(255,255,255,0.08)", icon: "Inbox" }];
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-stretch justify-center sm:items-center sm:p-4">
+    <div className="fixed inset-0 z-[100] flex items-stretch justify-center sm:items-center sm:p-4">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full sm:max-w-md glass overflow-hidden flex flex-col sm:rounded-3xl animate-fade-in" style={{ background: "var(--app-bg)" }}>
         <div className="flex items-center justify-between px-4 py-4 border-b border-white/5">

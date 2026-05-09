@@ -57,9 +57,12 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
   const hasInterest = total && total !== debt.amount;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full sm:max-w-md glass rounded-t-3xl sm:rounded-3xl overflow-hidden animate-fade-in">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/75 backdrop-blur-md" onClick={onClose} />
+      <div
+        className="relative w-full max-w-md rounded-3xl overflow-hidden animate-fade-in border border-white/10 shadow-2xl max-h-[90vh] overflow-y-auto"
+        style={{ background: "#1a1d2e" }}
+      >
 
         {/* Header */}
         <div className={`bg-gradient-to-r ${gradientClass} p-5 pb-8`}>
