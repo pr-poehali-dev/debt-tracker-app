@@ -247,12 +247,95 @@ export default function Auth({ onAuth }: Props) {
       <div className="mesh-bg" />
       <div className="relative z-10 w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 gradient-purple rounded-3xl flex items-center justify-center mx-auto mb-4 glow-purple">
-            <Icon name="Wallet" size={32} className="text-white" />
+          <div className="auth-dd-logo mx-auto mb-4">
+            <div className="auth-dd-glow" />
+            <span className="auth-dd-left">D</span>
+            <span className="auth-dd-right">D</span>
+            <span className="auth-dd-tri" />
+            <span className="auth-dd-ring" />
           </div>
-          <h1 className="font-heading font-black text-2xl text-gradient-purple">Debt-Debt</h1>
-          <p className="text-muted-foreground text-sm mt-1">Управление долгами и займами</p>
+          <h1 className="font-heading font-black text-2xl text-gradient-purple auth-dd-title">Debt-Debt</h1>
+          <p className="text-muted-foreground text-sm mt-1 auth-dd-sub">Управление долгами и займами</p>
         </div>
+
+        <style>{`
+          .auth-dd-logo {
+            position: relative;
+            width: 88px; height: 88px; border-radius: 22px;
+            background: radial-gradient(circle at 50% 50%, #1a1f5c 0%, #0d1240 100%);
+            box-shadow: 0 0 30px rgba(168,85,247,0.35), 0 0 60px rgba(99,102,241,0.18);
+            overflow: hidden;
+            display: flex; align-items: center; justify-content: center;
+            animation: authLogoPop 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
+          }
+          .auth-dd-glow {
+            position: absolute; inset: 0;
+            background: radial-gradient(circle at 30% 30%, rgba(168,85,247,0.25) 0%, transparent 55%);
+            pointer-events: none;
+          }
+          .auth-dd-left, .auth-dd-right {
+            position: absolute; top: 50%;
+            font-size: 58px; line-height: 1; font-weight: 900;
+            font-family: Montserrat, sans-serif;
+          }
+          .auth-dd-left {
+            left: 8px; color: #c026d3;
+            text-shadow: 0 0 12px rgba(217,70,239,0.85), 0 0 22px rgba(168,85,247,0.55);
+            animation: authLeftD 0.7s 0.1s cubic-bezier(0.34,1.56,0.64,1) both;
+          }
+          .auth-dd-right {
+            right: 8px; color: #4f6df5;
+            text-shadow: 0 0 10px rgba(99,102,241,0.6);
+            animation: authRightD 0.7s 0.1s cubic-bezier(0.34,1.56,0.64,1) both;
+          }
+          .auth-dd-tri {
+            position: absolute; left: 50%; top: 50%;
+            width: 0; height: 0;
+            border-top: 6px solid transparent;
+            border-bottom: 6px solid transparent;
+            border-left: 9px solid #ec4899;
+            filter: drop-shadow(0 0 6px rgba(236,72,153,0.95)) drop-shadow(0 0 10px rgba(236,72,153,0.55));
+            animation: authTri 0.5s 0.75s cubic-bezier(0.34,1.56,0.64,1) both;
+          }
+          .auth-dd-ring {
+            position: absolute; left: 50%; top: 50%;
+            width: 10px; height: 10px; border-radius: 50%;
+            border: 2px solid #ec4899;
+            transform: translate(-50%, -50%);
+            opacity: 0;
+            animation: authRing 0.85s 0.85s ease-out both;
+            pointer-events: none;
+          }
+          .auth-dd-title { animation: authFade 0.5s 1.05s ease both; opacity: 0; }
+          .auth-dd-sub   { animation: authFade 0.5s 1.2s ease both; opacity: 0; }
+          @keyframes authLogoPop {
+            from { transform: scale(0.7); opacity: 0; }
+            to   { transform: scale(1);   opacity: 1; }
+          }
+          @keyframes authLeftD {
+            0%   { transform: translate(-90px, -50%) rotate(-12deg); opacity: 0; }
+            70%  { transform: translate(4px, -50%) rotate(2deg); opacity: 1; }
+            100% { transform: translate(0, -50%) rotate(0); opacity: 1; }
+          }
+          @keyframes authRightD {
+            0%   { transform: translate(90px, -50%) rotate(12deg); opacity: 0; }
+            70%  { transform: translate(-4px, -50%) rotate(-2deg); opacity: 1; }
+            100% { transform: translate(0, -50%) rotate(0); opacity: 1; }
+          }
+          @keyframes authTri {
+            0%   { transform: translate(-50%, -50%) scale(0) rotate(-90deg); opacity: 0; }
+            60%  { transform: translate(-50%, -50%) scale(1.4) rotate(0); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1) rotate(0); opacity: 1; }
+          }
+          @keyframes authRing {
+            0%   { width: 10px;  height: 10px; opacity: 0.9; border-width: 2px; }
+            100% { width: 80px;  height: 80px; opacity: 0;   border-width: 1px; }
+          }
+          @keyframes authFade {
+            from { opacity: 0; transform: translateY(6px); }
+            to   { opacity: 1; transform: translateY(0); }
+          }
+        `}</style>
 
         <div className="glass rounded-3xl p-6">
 
