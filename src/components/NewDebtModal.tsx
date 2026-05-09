@@ -64,6 +64,7 @@ export function SharedDebtView({ token }: { token: string }) {
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [devCode, setDevCode] = useState<string | null>(null);
   const codeRefs = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)];
 
   function fmt(n: number) { return n.toLocaleString("ru-RU") + " ₽"; }
@@ -125,10 +126,16 @@ export function SharedDebtView({ token }: { token: string }) {
 
   async function sendSmsCode(phoneE164?: string) {
     const e164 = phoneE164 || phoneToE164Local(phone);
+    setDevCode(null);
     const res = await fetch(`${AUTH_URL}?action=send-sms`, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ phone: e164 }),
     });
+    if (res.ok) {
+      const d = await res.json();
+      if (d.dev_code) setDevCode(d.dev_code);
+      return;
+    }
     if (!res.ok) {
       const d = await res.json();
       setAuthError(d.error || "Ошибка отправки SMS");
@@ -403,6 +410,13 @@ export function SharedDebtView({ token }: { token: string }) {
               <p className="font-semibold text-foreground mb-1">Введите код из SMS</p>
               <p className="text-xs text-muted-foreground">Отправили на {phone}</p>
             </div>
+            {devCode && (
+              <div className="rounded-2xl px-4 py-3 text-center" style={{ background: "rgba(168,85,247,0.12)", border: "1px solid rgba(168,85,247,0.4)" }}>
+                <p className="text-[10px] uppercase tracking-wider text-purple-300 mb-1">Тестовый режим — SMS пока не отправляются</p>
+                <p className="text-xs text-muted-foreground mb-1">Ваш код:</p>
+                <p className="font-black text-3xl tracking-[8px] text-purple-300" style={{ textShadow: "0 0 12px rgba(168,85,247,0.5)" }}>{devCode}</p>
+              </div>
+            )}
             <div className="flex gap-3 justify-center">
               {[0, 1, 2, 3].map(i => (
                 <input

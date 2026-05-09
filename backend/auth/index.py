@@ -600,13 +600,26 @@ def handler(event: dict, context) -> dict:
                 )
             conn.commit()
 
+        # Временный режим обхода: пока имя отправителя на модерации SMS.ru —
+        # если SMS не доставляется по причине отсутствия sender, возвращаем код
+        # прямо в ответе. Фронтенд показывает его на экране пользователю.
+        # TODO: УБРАТЬ после согласования имени отправителя в SMS.ru.
         try:
             send_sms_smsru(phone, code)
         except Exception as e:
             msg = str(e)
             print(f"[send-sms] SMS DELIVERY FAILED to {phone}: {msg}")
-            user_msg = "Не удалось отправить SMS. Попробуйте через минуту."
             low = msg.lower()
+            # Проблема с sender / модерация / тестовый режим — отдаём код в ответе
+            sender_problem = (
+                "буквенного отправителя" in msg
+                or "sender" in low
+                or "модерац" in low
+                or "from" in low
+            )
+            if sender_problem:
+                return resp({"ok": True, "dev_code": code, "dev_notice": "Имя отправителя на модерации. Код временно показывается на экране."})
+            user_msg = "Не удалось отправить SMS. Попробуйте через минуту."
             if "balance" in low or "баланс" in low or "недостаточно" in low:
                 user_msg = "Сервис временно недоступен. Напишите в поддержку."
             elif "не задан" in low:
