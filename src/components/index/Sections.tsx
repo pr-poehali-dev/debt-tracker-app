@@ -1295,7 +1295,7 @@ export function Dashboard({ onNav, contacts, t, lentDebts, borrowedDebts, active
 }
 
 // ─── Section: Settings ────────────────────────────────────────────────────────
-export function SettingsSection({ theme, onThemeChange, profile, onProfileChange, t, lang, onLangChange, email, onLogout, isDemo, onOpenSupport, onOpenPayments, token, authUrl }: {
+export function SettingsSection({ theme, onThemeChange, profile, onProfileChange, t, lang, onLangChange, onLogout, isDemo, onOpenSupport, onOpenPayments, token, authUrl }: {
   theme: Theme;
   onThemeChange: (t: Theme) => void;
   profile: { name: string; phone: string };
@@ -1303,7 +1303,6 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
   t: ReturnType<typeof getT>;
   lang: Lang;
   onLangChange: (l: Lang) => void;
-  email: string;
   onLogout: () => void;
   isDemo?: boolean;
   onOpenSupport?: () => void;
@@ -1549,7 +1548,6 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
             { label: t.appNameLabel, value: "Debt-Debt" },
             { label: t.version, value: "1.0.0" },
             { label: t.platform, value: "PWA (iOS / Android)" },
-            { label: "Email", value: email },
           ].map(row => (
             <div key={row.label} className="flex items-center justify-between py-1.5 border-b border-white/5 last:border-0">
               <span className="text-muted-foreground">{row.label}</span>
