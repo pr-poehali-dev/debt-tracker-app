@@ -29,6 +29,27 @@ export default function ExtraPaymentModal({ loan, onClose, onSave }: Props) {
     return computeSchedule({ ...loan, extraPayments: [...(loan.extraPayments || []), extra] });
   }, [loan, sum, date, mode, before]);
 
+  function playSuccess() {
+    try {
+      const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const ctx = new Ctx();
+      const notes = [880, 1175, 1568];
+      notes.forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.type = "sine";
+        const start = ctx.currentTime + i * 0.09;
+        osc.frequency.setValueAtTime(freq, start);
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(0.25, start + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.25);
+        osc.start(start);
+        osc.stop(start + 0.3);
+      });
+    } catch { /* ignore */ }
+  }
+
   function handleSave() {
     if (sum <= 0) { setError("Введите сумму"); return; }
     if (sum > before.remaining) { setError(`Сумма больше остатка (${fmt(before.remaining)})`); return; }
@@ -38,7 +59,9 @@ export default function ExtraPaymentModal({ loan, onClose, onSave }: Props) {
       amount: sum,
       mode,
     };
-    onSave({ ...loan, extraPayments: [...(loan.extraPayments || []), extra] });
+    const paidMonths = loan.paidMonths.includes(date) ? loan.paidMonths : [...loan.paidMonths, date];
+    onSave({ ...loan, extraPayments: [...(loan.extraPayments || []), extra], paidMonths });
+    playSuccess();
     onClose();
   }
 

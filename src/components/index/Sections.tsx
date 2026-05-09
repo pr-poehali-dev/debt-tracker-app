@@ -11,10 +11,37 @@ import { computeSchedule } from "@/lib/loanSchedule";
 // ─── Section: DebtList ────────────────────────────────────────────────────────
 const MONTHS_RU_SHORT = ["Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"];
 
+function playPaymentSound() {
+  try {
+    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const ctx = new Ctx();
+    const notes = [880, 1175];
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = "sine";
+      const start = ctx.currentTime + i * 0.08;
+      osc.frequency.setValueAtTime(freq, start);
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(0.22, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.22);
+      osc.start(start);
+      osc.stop(start + 0.25);
+    });
+  } catch { /* ignore */ }
+}
+
 export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPaid, onAddNew, personalLoans = [], onPersonalLoanUpdate }: { debts: Debt[]; dir: "lent" | "borrowed"; contacts: Contact[]; t: ReturnType<typeof getT>; locale: string; onOpenChat?: (debtId: string, title: string) => void; onMarkPaid?: (debtId: string) => void; onAddNew?: () => void; personalLoans?: PersonalLoan[]; onPersonalLoanUpdate?: (loans: PersonalLoan[]) => void }) {
   const [selectedDebt, setSelectedDebt] = useState<Debt | null>(null);
   const [expandedLoan, setExpandedLoan] = useState<string | null>(null);
   const [extraLoan, setExtraLoan] = useState<PersonalLoan | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+
+  function showToast(msg: string) {
+    setToast(msg);
+    window.setTimeout(() => setToast(null), 2200);
+  }
   const total = debts.filter(d => d.status !== "paid").reduce((s, d) => s + d.amount, 0);
   const overdue = debts.filter(d => d.status === "overdue").length;
 
@@ -155,6 +182,11 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                 ? loan.paidMonths.filter(m => m !== month)
                 : [...loan.paidMonths, month];
               onPersonalLoanUpdate(personalLoans.map(l => l.id === loan.id ? { ...l, paidMonths: updated } : l));
+              if (!already) {
+                playPaymentSound();
+                const [yy, mm] = month.split("-");
+                showToast(`Платёж за ${MONTHS_RU_SHORT[parseInt(mm) - 1]} ${yy} внесён`);
+              }
             }
 
             function deleteLoan() {
@@ -291,8 +323,23 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
           onClose={() => setExtraLoan(null)}
           onSave={(updated) => {
             onPersonalLoanUpdate(personalLoans.map(l => l.id === updated.id ? updated : l));
+            const last = (updated.extraPayments || [])[updated.extraPayments!.length - 1];
+            if (last) {
+              showToast(`Досрочный платёж ${last.amount.toLocaleString("ru-RU")} ₽ внесён`);
+            }
           }}
         />
+      )}
+
+      {toast && (
+        <div className="fixed left-1/2 -translate-x-1/2 z-[70] pointer-events-none animate-fade-in"
+          style={{ bottom: "100px" }}>
+          <div className="glass rounded-2xl px-4 py-3 flex items-center gap-2 shadow-2xl"
+            style={{ border: "1px solid rgba(34,197,94,0.3)", background: "rgba(34,197,94,0.12)" }}>
+            <Icon name="CheckCircle2" size={18} className="text-green-400" />
+            <span className="text-sm font-medium text-foreground">{toast}</span>
+          </div>
+        </div>
       )}
     </div>
   );
