@@ -794,7 +794,7 @@ export function Dashboard({ onNav, contacts, t, lentDebts, borrowedDebts, active
 }
 
 // ─── Section: Settings ────────────────────────────────────────────────────────
-export function SettingsSection({ theme, onThemeChange, profile, onProfileChange, t, lang, onLangChange, email, onLogout, isDemo }: {
+export function SettingsSection({ theme, onThemeChange, profile, onProfileChange, t, lang, onLangChange, email, onLogout, isDemo, onOpenSupport }: {
   theme: Theme;
   onThemeChange: (t: Theme) => void;
   profile: { name: string; phone: string };
@@ -805,6 +805,7 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
   email: string;
   onLogout: () => void;
   isDemo?: boolean;
+  onOpenSupport?: () => void;
 }) {
   const [local, setLocal] = useState(profile);
   const [saved, setSaved] = useState(false);
@@ -1028,6 +1029,16 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
         >
           <Icon name="ShieldCheck" size={16} />
           Админ-панель
+        </button>
+      )}
+
+      {!isDemo && onOpenSupport && (
+        <button
+          onClick={onOpenSupport}
+          className="w-full py-3 rounded-2xl glass border border-sky-500/20 text-sky-400 hover:bg-sky-500/10 transition-all font-medium flex items-center justify-center gap-2"
+        >
+          <Icon name="LifeBuoy" size={16} />
+          Поддержка
         </button>
       )}
 

@@ -4,6 +4,7 @@ import NewDebtModal, { SharedDebtView } from "@/components/NewDebtModal";
 import ChatWindow from "@/components/ChatWindow";
 import RentalSection, { RentalInviteModal } from "@/components/RentalSection";
 import PersonalLoanModal, { type PersonalLoan } from "@/components/PersonalLoanModal";
+import SupportModal from "@/components/SupportModal";
 import { type Lang, getT } from "@/i18n";
 import {
   type Section, type Theme, type Contact, type Debt, type Notification, type ContactColor, type ChatMeta,
@@ -37,6 +38,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
   const [rentals, setRentals] = useState<Array<{ id: string; title: string; amount: number; payment_day: number; landlord_user_id?: number; tenant_user_id?: number; status: string }>>([]);
   const [rentalInvite, setRentalInvite] = useState<string | null>(() => new URLSearchParams(window.location.search).get("rental"));
   const [activeChat, setActiveChat] = useState<{ debtId?: string; rentalId?: number; title: string } | null>(null);
+  const [showSupport, setShowSupport] = useState(false);
   const [notifs, setNotifs] = useState<Notification[]>([]);
   const audioCtxRef = { current: null as AudioContext | null };
   const [unreadMessages, setUnreadMessages] = useState(0);
@@ -416,7 +418,6 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
     { id: "borrowed" as Section,      icon: "TrendingDown",     label: t.navBorrowed },
     { id: "rental" as Section,        icon: "Home",             label: "Аренда" },
     { id: "calendar" as Section,      icon: "CalendarDays",     label: t.navCalendar },
-    { id: "notifications" as Section, icon: "Bell",             label: t.navNotifications },
     { id: "archive" as Section,       icon: "Archive",          label: t.navArchive },
   ];
 
@@ -502,6 +503,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
           setSection("rental");
         }} />
       )}
+      {showSupport && !isDemo && <SupportModal token={token} onClose={() => setShowSupport(false)} />}
       {activeChat && !isDemo && (
         <ChatWindow
           debtId={activeChat.debtId}
@@ -576,7 +578,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
           {section === "archive"       && <ArchiveSection contacts={contacts} t={t} locale={locale} archiveDebts={archiveDebts} />}
           {section === "rental"        && <RentalSection userId={user.id} token={token} myName={profile.name} isDemo={isDemo} openNew={showNewRental} onNewClose={() => setShowNewRental(false)} />}
           {section === "contacts"      && <ContactsSection contacts={contacts} onColorChange={handleColorChange} t={t} />}
-          {section === "settings"      && <SettingsSection theme={theme} onThemeChange={setTheme} profile={profile} onProfileChange={handleProfileChange} t={t} lang={lang} onLangChange={handleLangChange} email={user.email} onLogout={onLogout} isDemo={isDemo} />}
+          {section === "settings"      && <SettingsSection theme={theme} onThemeChange={setTheme} profile={profile} onProfileChange={handleProfileChange} t={t} lang={lang} onLangChange={handleLangChange} email={user.email} onLogout={onLogout} isDemo={isDemo} onOpenSupport={() => setShowSupport(true)} />}
         </div>
       </main>
 
@@ -585,7 +587,6 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
           <div className="glass rounded-2xl px-1 py-1.5 flex items-center justify-around" style={{ borderTop: "1px solid rgba(255,255,255,0.06)", backdropFilter: "blur(24px)" }}>
             {navItems.map(item => {
               const active = section === item.id;
-              const isNotif = item.id === "notifications";
               return (
                 <button
                   key={item.id}
@@ -594,11 +595,6 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
                 >
                   <div className="relative">
                     <Icon name={item.icon} size={18} className={active ? "text-white" : "text-muted-foreground"} />
-                    {isNotif && unreadCount > 0 && !active && (
-                      <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full flex items-center justify-center text-[8px] font-bold text-white leading-none">
-                        {unreadCount > 9 ? "9" : unreadCount}
-                      </span>
-                    )}
                   </div>
                   <span className={`text-[8px] font-medium leading-none truncate w-full text-center ${active ? "text-white" : "text-muted-foreground"}`}>{item.label}</span>
                 </button>
