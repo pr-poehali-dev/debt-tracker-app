@@ -407,13 +407,14 @@ export function CalendarSection({ contacts, t, debts, rentals = [], userId = 0 }
 }
 
 // ─── Section: Notifications ───────────────────────────────────────────────────
-export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, token = "", onOpenChat }: {
+export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, token = "", onOpenChat, onOpenSupport }: {
   notifs: Notification[];
   onMarkAllRead: () => void;
   onMarkRead: (id: number) => void;
   t: ReturnType<typeof getT>;
   token?: string;
   onOpenChat?: (debtId: string | undefined, rentalId: number | undefined, title: string) => void;
+  onOpenSupport?: (ticketId: number) => void;
 }) {
   const [replyText, setReplyText] = useState<Record<number, string>>({});
   const [sending, setSending] = useState<number | null>(null);
@@ -421,21 +422,38 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
 
   async function sendReply(n: Notification) {
     const text = (replyText[n.id] || "").trim();
-    if (!text || !n.chatMeta) return;
+    if (!text) return;
     setSending(n.id);
     try {
       const urls = (await import("../../../backend/func2url.json")).default;
-      const body: Record<string, unknown> = { text };
-      if (n.chatMeta.debtId) body.debt_id = n.chatMeta.debtId;
-      if (n.chatMeta.rentalId) body.rental_id = n.chatMeta.rentalId;
-      const res = await fetch(urls["chat"], {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(body),
-      });
-      if (res.ok) {
-        setReplyText(prev => ({ ...prev, [n.id]: "" }));
-        onMarkRead(n.id);
+      if (n.supportMeta) {
+        const res = await fetch(urls["support"], {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ ticket_id: n.supportMeta.ticketId, text }),
+        });
+        if (res.ok) {
+          setReplyText(prev => ({ ...prev, [n.id]: "" }));
+          await fetch(urls["support"], {
+            method: "PUT",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ ticket_id: n.supportMeta.ticketId }),
+          });
+          onMarkRead(n.id);
+        }
+      } else if (n.chatMeta) {
+        const body: Record<string, unknown> = { text };
+        if (n.chatMeta.debtId) body.debt_id = n.chatMeta.debtId;
+        if (n.chatMeta.rentalId) body.rental_id = n.chatMeta.rentalId;
+        const res = await fetch(urls["chat"], {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify(body),
+        });
+        if (res.ok) {
+          setReplyText(prev => ({ ...prev, [n.id]: "" }));
+          onMarkRead(n.id);
+        }
       }
     } finally { setSending(null); }
   }
@@ -468,6 +486,8 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
       <div className="space-y-3">
         {notifs.map((n, i) => {
           const isChat = !!n.chatMeta;
+          const isSupport = !!n.supportMeta;
+          const isReplyable = isChat || isSupport;
           return (
             <div
               key={n.id}
@@ -476,8 +496,8 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
             >
               {/* Шапка уведомления */}
               <div
-                className={`p-4 flex items-start gap-3 ${!isChat ? "cursor-pointer hover:bg-white/[0.06]" : ""}`}
-                onClick={() => !isChat && onMarkRead(n.id)}
+                className={`p-4 flex items-start gap-3 ${!isReplyable ? "cursor-pointer hover:bg-white/[0.06]" : ""}`}
+                onClick={() => !isReplyable && onMarkRead(n.id)}
               >
                 <NotifIcon type={n.type} />
                 <div className="flex-1 min-w-0">
@@ -487,6 +507,9 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
                   </div>
                   {isChat && n.chatMeta && (
                     <p className="text-xs text-muted-foreground mb-0.5">{n.chatMeta.chatTitle}</p>
+                  )}
+                  {isSupport && n.supportMeta && (
+                    <p className="text-xs text-muted-foreground mb-0.5">Тикет #{n.supportMeta.ticketId}</p>
                   )}
                   <p className="text-xs text-muted-foreground leading-relaxed">{n.message}</p>
                   <p className="text-[11px] text-muted-foreground/60 mt-1">{n.date}</p>
@@ -500,10 +523,19 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
                     Открыть
                   </button>
                 )}
+                {isSupport && onOpenSupport && n.supportMeta && (
+                  <button
+                    onClick={() => { onOpenSupport(n.supportMeta!.ticketId); onMarkRead(n.id); }}
+                    className="flex-shrink-0 px-2.5 py-1.5 rounded-xl text-[11px] font-medium transition-all"
+                    style={{ background: "rgba(56,189,248,0.15)", border: "1px solid rgba(56,189,248,0.3)", color: "#7dd3fc" }}
+                  >
+                    Открыть
+                  </button>
+                )}
               </div>
 
-              {/* Быстрый ответ для чат-уведомлений */}
-              {isChat && !n.read && (
+              {/* Быстрый ответ для чат- и support-уведомлений */}
+              {isReplyable && !n.read && (
                 <div className="px-4 pb-3 border-t border-white/5">
                   <div className="flex gap-2 mt-3 items-center">
                     <input
@@ -517,7 +549,7 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
                       onClick={() => sendReply(n)}
                       disabled={!replyText[n.id]?.trim() || sending === n.id}
                       className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 disabled:opacity-40 transition-all"
-                      style={{ background: "linear-gradient(135deg, #a855f7, #6366f1)" }}
+                      style={{ background: isSupport ? "linear-gradient(135deg, #38bdf8, #6366f1)" : "linear-gradient(135deg, #a855f7, #6366f1)" }}
                     >
                       {sending === n.id
                         ? <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />

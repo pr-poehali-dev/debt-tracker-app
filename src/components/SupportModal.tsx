@@ -19,9 +19,9 @@ interface Message {
   author: string;
 }
 
-export default function SupportModal({ token, onClose }: { token: string; onClose: () => void }) {
+export default function SupportModal({ token, onClose, initialTicketId }: { token: string; onClose: () => void; initialTicketId?: number }) {
   const [tickets, setTickets] = useState<Ticket[]>([]);
-  const [activeTicket, setActiveTicket] = useState<number | null>(null);
+  const [activeTicket, setActiveTicket] = useState<number | null>(initialTicketId ?? null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [showNew, setShowNew] = useState(false);

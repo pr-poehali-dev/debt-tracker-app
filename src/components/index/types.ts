@@ -36,6 +36,12 @@ export interface ChatMeta {
   lastText: string;
 }
 
+export interface SupportMeta {
+  ticketId: number;
+  subject: string;
+  lastText: string;
+}
+
 export interface Notification {
   id: number;
   type: "warning" | "danger" | "info" | "success";
@@ -44,6 +50,7 @@ export interface Notification {
   date: string;
   read: boolean;
   chatMeta?: ChatMeta;
+  supportMeta?: SupportMeta;
 }
 
 export const COLOR_OPTIONS: { id: ContactColor; label: string; hex: string; bg: string; border: string; text: string }[] = [

@@ -39,6 +39,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
   const [rentalInvite, setRentalInvite] = useState<string | null>(() => new URLSearchParams(window.location.search).get("rental"));
   const [activeChat, setActiveChat] = useState<{ debtId?: string; rentalId?: number; title: string } | null>(null);
   const [showSupport, setShowSupport] = useState(false);
+  const [supportTicketId, setSupportTicketId] = useState<number | null>(null);
   const [notifs, setNotifs] = useState<Notification[]>([]);
   const audioCtxRef = { current: null as AudioContext | null };
   const [unreadMessages, setUnreadMessages] = useState(0);
@@ -323,6 +324,51 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
     return () => clearInterval(iv);
   }, [isDemo, token]);
 
+  // Polling сообщений из поддержки → колокольчик
+  useEffect(() => {
+    if (isDemo) return;
+
+    async function pollSupport() {
+      try {
+        const urls = (await import("../../backend/func2url.json")).default;
+        const res = await fetch(urls["support"], { headers: { Authorization: `Bearer ${token}` } });
+        if (!res.ok) return;
+        const d = await res.json();
+        const tickets: Array<{ id: number; subject: string; unread: number; updated_at: string }> = d.tickets || [];
+        const unreadTickets = tickets.filter(t => (t.unread || 0) > 0);
+        const total = unreadTickets.reduce((s, t) => s + (t.unread || 0), 0);
+
+        setNotifs(prev => {
+          let updated = prev.filter(n => !n.supportMeta || n.read);
+          unreadTickets.forEach(tk => {
+            const meta = { ticketId: tk.id, subject: tk.subject, lastText: "Новый ответ от поддержки" };
+            const existing = updated.find(n => n.supportMeta?.ticketId === tk.id && !n.read);
+            if (existing) {
+              updated = updated.map(n => n === existing ? { ...n, supportMeta: meta } : n);
+            } else {
+              updated = [{
+                id: Date.now() + Math.random(),
+                type: "info" as const,
+                title: `🛟 Поддержка: ${tk.subject}`,
+                message: `Новых сообщений: ${tk.unread}`,
+                date: new Date().toLocaleDateString("ru-RU"),
+                read: false,
+                supportMeta: meta,
+              }, ...updated];
+            }
+          });
+          return updated;
+        });
+
+        void total;
+      } catch { /* ignore */ }
+    }
+
+    pollSupport();
+    const iv = setInterval(pollSupport, 30000);
+    return () => clearInterval(iv);
+  }, [isDemo, token]);
+
   // Web Push подписка — запрашиваем разрешение и подписываемся
   useEffect(() => {
     if (isDemo) return;
@@ -503,7 +549,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
           setSection("rental");
         }} />
       )}
-      {showSupport && !isDemo && <SupportModal token={token} onClose={() => setShowSupport(false)} />}
+      {showSupport && !isDemo && <SupportModal token={token} initialTicketId={supportTicketId ?? undefined} onClose={() => { setShowSupport(false); setSupportTicketId(null); }} />}
       {activeChat && !isDemo && (
         <ChatWindow
           debtId={activeChat.debtId}
@@ -574,7 +620,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
           {section === "lent"          && <DebtList debts={lentDebts} dir="lent" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => setActiveChat({ debtId: id, title })} onMarkPaid={handleMarkPaid} onAddNew={() => setShowNewDebt(true)} />}
           {section === "borrowed"      && <DebtList debts={borrowedDebts} dir="borrowed" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => setActiveChat({ debtId: id, title })} onMarkPaid={handleMarkPaid} onAddNew={() => setShowPersonalLoan(true)} personalLoans={personalLoans} onPersonalLoanUpdate={(loans) => { setPersonalLoans(loans); localStorage.setItem("df-personal-loans", JSON.stringify(loans)); }} />}
           {section === "calendar"      && <CalendarSection contacts={contacts} t={t} debts={[...lentDebts, ...borrowedDebts]} rentals={rentals} userId={user.id} />}
-          {section === "notifications" && <NotificationsSection notifs={notifs} onMarkAllRead={handleMarkAllRead} onMarkRead={handleMarkRead} t={t} token={token} onOpenChat={(debtId, rentalId, title) => setActiveChat({ debtId: debtId || undefined, rentalId: rentalId || undefined, title })} />}
+          {section === "notifications" && <NotificationsSection notifs={notifs} onMarkAllRead={handleMarkAllRead} onMarkRead={handleMarkRead} t={t} token={token} onOpenChat={(debtId, rentalId, title) => setActiveChat({ debtId: debtId || undefined, rentalId: rentalId || undefined, title })} onOpenSupport={(ticketId) => { setSupportTicketId(ticketId); setShowSupport(true); }} />}
           {section === "archive"       && <ArchiveSection contacts={contacts} t={t} locale={locale} archiveDebts={archiveDebts} />}
           {section === "rental"        && <RentalSection userId={user.id} token={token} myName={profile.name} isDemo={isDemo} openNew={showNewRental} onNewClose={() => setShowNewRental(false)} />}
           {section === "contacts"      && <ContactsSection contacts={contacts} onColorChange={handleColorChange} t={t} />}
