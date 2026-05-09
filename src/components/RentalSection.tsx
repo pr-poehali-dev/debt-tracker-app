@@ -4,6 +4,7 @@ import QRCode from "qrcode";
 import Icon from "@/components/ui/icon";
 import { fmt } from "@/components/index/types";
 import ChatWindow from "@/components/ChatWindow";
+import PayButton from "@/components/PayButton";
 import func2url from "../../backend/func2url.json";
 
 const CHAT_URL = func2url["chat"];
@@ -272,13 +273,24 @@ function RentalCard({ rental, userId, token, onUpdate, onDelete }: { rental: Ren
               </span>
             </button>
           </div>
+          {!isLandlord && rental.tenant_decision === "accepted" && token && (
+            <PayButton
+              token={token}
+              amount={rental.amount}
+              description={`Аренда: ${rental.title}`}
+              targetType="rental"
+              targetId={rental.id}
+              targetMonth={new Date().toISOString().slice(0, 7)}
+              label={`Оплатить картой ${fmt(rental.amount)}`}
+            />
+          )}
           <button
             onClick={() => onUpdate(rental.share_token, { payment_status: "paid", role: isLandlord ? "landlord" : "tenant" })}
             className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all flex items-center justify-center gap-2"
             style={{ background: "linear-gradient(135deg, #14b8a6, #0d9488)" }}
           >
             <Icon name="CheckCircle2" size={16} />
-            Отметить оплачено
+            {isLandlord ? "Отметить оплачено" : "Отметить вручную"}
           </button>
         </div>
       )}
