@@ -52,9 +52,12 @@ export default function ManualReturnModal({ debtId, debtTitle, defaultAmount, to
   }
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={loading ? undefined : onClose} />
-      <div className="relative w-full sm:max-w-md glass rounded-t-3xl sm:rounded-3xl overflow-hidden animate-fade-in">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/75 backdrop-blur-md" onClick={loading ? undefined : onClose} />
+      <div
+        className="relative w-full max-w-md rounded-3xl overflow-hidden animate-fade-in border border-white/10 shadow-2xl max-h-[90vh] flex flex-col"
+        style={{ background: "#1a1d2e" }}
+      >
         <div className="bg-gradient-to-r from-emerald-500 to-green-600 p-5">
           <div className="flex items-center justify-between">
             <button onClick={onClose} disabled={loading} className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center hover:bg-white/30 transition-colors disabled:opacity-50">
@@ -66,7 +69,7 @@ export default function ManualReturnModal({ debtId, debtTitle, defaultAmount, to
           <p className="text-xl font-bold text-white font-heading mt-1 truncate">{debtTitle}</p>
         </div>
 
-        <div className="px-5 py-5 space-y-4">
+        <div className="px-5 py-5 space-y-4 overflow-y-auto">
           {success ? (
             <div className="flex flex-col items-center text-center py-6 gap-3">
               <div className="w-14 h-14 rounded-full bg-green-500/15 flex items-center justify-center">
