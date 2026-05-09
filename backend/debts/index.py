@@ -416,6 +416,18 @@ def handler(event: dict, context) -> dict:
                             WHERE id = %s""",
                         (debt_id,)
                     )
+                    # Уведомление кредитору
+                    if lender_id:
+                        cur.execute(f"SELECT full_name FROM {SCHEMA}.users WHERE id = %s", (user_id,))
+                        borrower_name = (cur.fetchone() or ["Должник"])[0]
+                        cur.execute(
+                            f"""INSERT INTO {SCHEMA}.notifications (user_id, type, title, body, data)
+                                VALUES (%s, 'debt_dismissed_by_borrower', %s, %s, %s)""",
+                            (lender_id,
+                             f"🗑 {borrower_name} удалил долг у себя",
+                             f"«{title}» — {float(amount):,.0f} ₽".replace(",", " "),
+                             json.dumps({"debt_id": str(debt_id), "debt_title": title, "amount": float(amount), "borrower_name": borrower_name}))
+                        )
                     conn.commit()
                     return json_resp({"ok": True, "dismissed": True})
 
