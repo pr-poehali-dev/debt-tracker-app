@@ -18,6 +18,40 @@ def get_conn():
     return psycopg2.connect(os.environ["DATABASE_URL"])
 
 
+def send_push(conn, recipient_user_id, title, body_text):
+    try:
+        from pywebpush import webpush, WebPushException
+        vapid_private = os.environ.get("VAPID_PRIVATE_KEY", "")
+        vapid_public = os.environ.get("VAPID_PUBLIC_KEY", "")
+        if not vapid_private or not vapid_public:
+            return
+        with conn.cursor() as cur:
+            cur.execute(
+                f"SELECT endpoint, p256dh, auth_key FROM {SCHEMA}.push_subscriptions WHERE user_id = %s",
+                (recipient_user_id,)
+            )
+            subs = cur.fetchall()
+        for endpoint, p256dh, auth_key in subs:
+            try:
+                webpush(
+                    subscription_info={"endpoint": endpoint, "keys": {"p256dh": p256dh, "auth": auth_key}},
+                    data=json.dumps({"title": title, "body": body_text}),
+                    vapid_private_key=vapid_private,
+                    vapid_claims={"sub": "mailto:noreply@debt-debt.ru"}
+                )
+            except WebPushException:
+                pass
+    except Exception:
+        pass
+
+
+def get_admin_user_id(conn):
+    with conn.cursor() as cur:
+        cur.execute(f"SELECT id FROM {SCHEMA}.users WHERE LOWER(email) = %s LIMIT 1", (ADMIN_EMAIL,))
+        row = cur.fetchone()
+    return row[0] if row else None
+
+
 def cors():
     return {
         "Access-Control-Allow-Origin": "*",
@@ -151,6 +185,13 @@ def handler(event: dict, context) -> dict:
                     else:
                         cur.execute(f"UPDATE {SCHEMA}.support_tickets SET updated_at = NOW(), unread_for_admin = unread_for_admin + 1 WHERE id = %s", (ticket_id,))
                     conn.commit()
+                    preview = text[:120]
+                    if user["is_admin"]:
+                        send_push(conn, row[0], "Поддержка ответила", preview)
+                    else:
+                        admin_id = get_admin_user_id(conn)
+                        if admin_id:
+                            send_push(conn, admin_id, f"Поддержка: {user['name']}", preview)
                     return json_resp({"ok": True, "id": mid, "created_at": created})
                 else:
                     subject = (body.get("subject") or "").strip() or "Без темы"
@@ -164,6 +205,9 @@ def handler(event: dict, context) -> dict:
                         (ticket_id, user["id"], text)
                     )
                     conn.commit()
+                    admin_id = get_admin_user_id(conn)
+                    if admin_id:
+                        send_push(conn, admin_id, f"Новое обращение: {user['name']}", f"{subject}: {text[:100]}")
                     return json_resp({"ok": True, "ticket_id": ticket_id})
 
         if method == "PUT":
