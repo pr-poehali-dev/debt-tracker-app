@@ -79,52 +79,61 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
           onSent={() => showToast("Запрос на возврат отправлен кредитору")}
         />
       )}
-      {confirmDelete && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/75 backdrop-blur-md" onClick={deleting ? undefined : () => setConfirmDelete(null)} />
-          <div
-            className="relative w-full max-w-sm rounded-3xl overflow-hidden animate-fade-in border border-white/10 shadow-2xl"
-            style={{ background: "#1a1d2e" }}
-          >
-            <div className="p-5 flex flex-col items-center text-center gap-3">
-              <div className="w-14 h-14 rounded-full bg-red-500/15 flex items-center justify-center">
-                <Icon name="Trash2" size={26} className="text-red-400" />
+      {confirmDelete && (() => {
+        const isBorrowerDismiss = dir === "borrowed";
+        const titleText = isBorrowerDismiss ? "Скрыть долг?" : "Удалить займ?";
+        const descText = isBorrowerDismiss
+          ? "Долг исчезнет из вашего списка. На стороне кредитора он останется."
+          : "Должник получит уведомление об удалении. Действие нельзя отменить.";
+        const btnText = isBorrowerDismiss ? "Скрыть" : "Удалить";
+        const toastMsg = isBorrowerDismiss ? `Долг «${confirmDelete.name}» скрыт` : `Займ «${confirmDelete.name}» удалён`;
+        return (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/75 backdrop-blur-md" onClick={deleting ? undefined : () => setConfirmDelete(null)} />
+            <div
+              className="relative w-full max-w-sm rounded-3xl overflow-hidden animate-fade-in border border-white/10 shadow-2xl"
+              style={{ background: "#1a1d2e" }}
+            >
+              <div className="p-5 flex flex-col items-center text-center gap-3">
+                <div className="w-14 h-14 rounded-full bg-red-500/15 flex items-center justify-center">
+                  <Icon name={isBorrowerDismiss ? "EyeOff" : "Trash2"} size={26} className="text-red-400" />
+                </div>
+                <p className="font-semibold text-foreground text-lg">{titleText}</p>
+                <p className="text-sm text-muted-foreground">
+                  «{confirmDelete.name}» — {fmt(confirmDelete.amount)}
+                </p>
+                <p className="text-xs text-muted-foreground">{descText}</p>
               </div>
-              <p className="font-semibold text-foreground text-lg">Удалить займ?</p>
-              <p className="text-sm text-muted-foreground">
-                «{confirmDelete.name}» — {fmt(confirmDelete.amount)}
-              </p>
-              <p className="text-xs text-muted-foreground">Должник получит уведомление об удалении. Действие нельзя отменить.</p>
-            </div>
-            <div className="px-5 pb-5 flex gap-2">
-              <button
-                onClick={() => setConfirmDelete(null)}
-                disabled={deleting}
-                className="flex-1 py-3 rounded-2xl bg-white/5 text-foreground font-medium text-sm border border-white/10 hover:bg-white/10 transition-colors disabled:opacity-50"
-              >
-                Отмена
-              </button>
-              <button
-                onClick={async () => {
-                  if (!confirmDelete.debtDbId || !onDeleteDebt) return;
-                  setDeleting(true);
-                  try {
-                    await onDeleteDebt(confirmDelete.debtDbId);
-                    showToast(`Займ «${confirmDelete.name}» удалён`);
-                    setConfirmDelete(null);
-                  } finally {
-                    setDeleting(false);
-                  }
-                }}
-                disabled={deleting}
-                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-gradient-to-r from-red-500 to-rose-600 text-white font-semibold text-sm shadow-lg shadow-red-500/20 hover:opacity-90 transition-opacity disabled:opacity-50"
-              >
-                {deleting ? <Icon name="Loader2" size={16} className="animate-spin" /> : <><Icon name="Trash2" size={16} />Удалить</>}
-              </button>
+              <div className="px-5 pb-5 flex gap-2">
+                <button
+                  onClick={() => setConfirmDelete(null)}
+                  disabled={deleting}
+                  className="flex-1 py-3 rounded-2xl bg-white/5 text-foreground font-medium text-sm border border-white/10 hover:bg-white/10 transition-colors disabled:opacity-50"
+                >
+                  Отмена
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!confirmDelete.debtDbId || !onDeleteDebt) return;
+                    setDeleting(true);
+                    try {
+                      await onDeleteDebt(confirmDelete.debtDbId);
+                      showToast(toastMsg);
+                      setConfirmDelete(null);
+                    } finally {
+                      setDeleting(false);
+                    }
+                  }}
+                  disabled={deleting}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-gradient-to-r from-red-500 to-rose-600 text-white font-semibold text-sm shadow-lg shadow-red-500/20 hover:opacity-90 transition-opacity disabled:opacity-50"
+                >
+                  {deleting ? <Icon name="Loader2" size={16} className="animate-spin" /> : <><Icon name={isBorrowerDismiss ? "EyeOff" : "Trash2"} size={16} />{btnText}</>}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
       {debts.length > 0 && (
         <div className="grid grid-cols-3 gap-3 mb-6">
           <div className={`glass rounded-2xl p-4 col-span-3 sm:col-span-1 ${dir === "lent" ? "glow-purple" : "glow-blue"}`}>
@@ -171,6 +180,12 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                     <StatusBadge status={d.status} t={t} />
                   </div>
                   {d.note && <p className="text-xs text-muted-foreground truncate">{d.note}</p>}
+                  {d.deletedByLender && (
+                    <p className="text-[11px] mt-1 flex items-center gap-1" style={{ color: "#f87171" }}>
+                      <Icon name="Trash2" size={11} />
+                      <span className="truncate">{d.deletedByLenderName} удалил долг</span>
+                    </p>
+                  )}
                   <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                     <p className="text-xs text-muted-foreground flex items-center gap-1">
                       <Icon name="Calendar" size={11} />
@@ -250,6 +265,16 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                       <button
                         onClick={e => { e.stopPropagation(); setConfirmDelete(d); }}
                         title="Удалить займ"
+                        className="inline-flex items-center justify-center w-8 h-8 rounded-lg transition-all active:scale-95"
+                        style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)" }}
+                      >
+                        <Icon name="Trash2" size={14} style={{ color: "#f87171" }} />
+                      </button>
+                    )}
+                    {dir === "borrowed" && d.deletedByLender && d.debtDbId && onDeleteDebt && (
+                      <button
+                        onClick={e => { e.stopPropagation(); setConfirmDelete(d); }}
+                        title="Скрыть долг"
                         className="inline-flex items-center justify-center w-8 h-8 rounded-lg transition-all active:scale-95"
                         style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)" }}
                       >

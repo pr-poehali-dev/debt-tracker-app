@@ -26,6 +26,8 @@ export interface Debt {
   borrowerDecision?: string;
   interestRate?: number;
   interestType?: "simple" | "compound";
+  deletedByLender?: boolean;
+  deletedByLenderName?: string;
 }
 
 export interface ChatMeta {

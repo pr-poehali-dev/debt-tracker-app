@@ -1,0 +1,1 @@
+ALTER TABLE t_p29977622_debt_tracker_app.debts ADD COLUMN IF NOT EXISTS borrower_dismissed BOOLEAN NOT NULL DEFAULT FALSE;

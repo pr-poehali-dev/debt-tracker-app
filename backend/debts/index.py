@@ -129,6 +129,7 @@ def row_to_debt(row):
         "borrower_decision": row[15],
         "interest_rate": float(row[16]) if row[16] is not None else None,
         "interest_type": row[17],
+        "borrower_dismissed": bool(row[18]) if len(row) > 18 else False,
     }
 
 def handler(event: dict, context) -> dict:
@@ -165,7 +166,7 @@ def handler(event: dict, context) -> dict:
                         RETURNING id, share_token, title, amount, note, due_date,
                                   lender_name, lender_phone, borrower_name, borrower_phone,
                                   status, created_at, updated_at, lender_user_id, borrower_user_id, borrower_decision,
-                                  interest_rate, interest_type""",
+                                  interest_rate, interest_type, borrower_dismissed""",
                     (token, body["title"], float(body["amount"]), body.get("note"),
                      body.get("due_date"), body["lender_name"], body.get("lender_phone"),
                      body.get("borrower_name"), body.get("borrower_phone"), lender_user_id,
@@ -184,7 +185,7 @@ def handler(event: dict, context) -> dict:
                     f"""SELECT id, share_token, title, amount, note, due_date,
                                lender_name, lender_phone, borrower_name, borrower_phone,
                                status, created_at, updated_at, lender_user_id, borrower_user_id, borrower_decision,
-                               interest_rate, interest_type
+                               interest_rate, interest_type, borrower_dismissed
                         FROM {SCHEMA}.debts WHERE share_token = %s""",
                     (token,)
                 )
@@ -207,12 +208,13 @@ def handler(event: dict, context) -> dict:
                     f"""SELECT id, share_token, title, amount, note, due_date,
                                lender_name, lender_phone, borrower_name, borrower_phone,
                                status, created_at, updated_at, lender_user_id, borrower_user_id, borrower_decision,
-                               interest_rate, interest_type
+                               interest_rate, interest_type, borrower_dismissed
                         FROM {SCHEMA}.debts
                         WHERE (lender_user_id = %s OR borrower_user_id = %s)
                           AND status != 'archived'
+                          AND NOT (borrower_user_id = %s AND borrower_dismissed = TRUE)
                         ORDER BY created_at DESC LIMIT 100""",
-                    (uid, uid)
+                    (uid, uid, uid)
                 )
                 rows = cur.fetchall()
         return json_resp([row_to_debt(r) for r in rows])
@@ -248,7 +250,7 @@ def handler(event: dict, context) -> dict:
                         RETURNING id, share_token, title, amount, note, due_date,
                                   lender_name, lender_phone, borrower_name, borrower_phone,
                                   status, created_at, updated_at, lender_user_id, borrower_user_id, borrower_decision,
-                                  interest_rate, interest_type""",
+                                  interest_rate, interest_type, borrower_dismissed""",
                     vals
                 )
                 row = cur.fetchone()
@@ -389,7 +391,7 @@ def handler(event: dict, context) -> dict:
              "created_at": str(r[4]), "from_name": r[5]} for r in rows
         ]})
 
-    # DELETE ?token=XXX — удалить долг (только кредитор)
+    # DELETE ?token=XXX — удалить долг (кредитор удаляет полностью, должник скрывает у себя)
     if method == "DELETE" and qs.get("token"):
         token = qs["token"].upper().strip()
         with get_conn() as conn:
@@ -398,14 +400,28 @@ def handler(event: dict, context) -> dict:
                 return err("Не авторизован", 401)
             with conn.cursor() as cur:
                 cur.execute(
-                    f"""SELECT id, title, amount, borrower_user_id, status FROM {SCHEMA}.debts
-                        WHERE share_token = %s AND lender_user_id = %s""",
-                    (token, user_id)
+                    f"""SELECT id, title, amount, lender_user_id, borrower_user_id, status FROM {SCHEMA}.debts
+                        WHERE share_token = %s""",
+                    (token,)
                 )
                 debt_row = cur.fetchone()
                 if not debt_row:
-                    return err("Долг не найден или нет прав", 403)
-                debt_id, title, amount, borrower_id, current_status = debt_row
+                    return err("Долг не найден", 404)
+                debt_id, title, amount, lender_id, borrower_id, current_status = debt_row
+
+                # Должник скрывает у себя
+                if user_id == borrower_id and user_id != lender_id:
+                    cur.execute(
+                        f"""UPDATE {SCHEMA}.debts SET borrower_dismissed = TRUE, updated_at = NOW()
+                            WHERE id = %s""",
+                        (debt_id,)
+                    )
+                    conn.commit()
+                    return json_resp({"ok": True, "dismissed": True})
+
+                # Кредитор удаляет полностью
+                if user_id != lender_id:
+                    return err("Нет прав", 403)
                 if current_status in ("archived", "deleted"):
                     return err("Долг уже в архиве", 400)
                 cur.execute(
@@ -423,7 +439,7 @@ def handler(event: dict, context) -> dict:
                         (borrower_id,
                          f"🗑 {lender_name} удалил займ",
                          f"«{title}» — {float(amount):,.0f} ₽".replace(",", " "),
-                         json.dumps({"debt_id": str(debt_id), "debt_title": title, "amount": float(amount)}))
+                         json.dumps({"debt_id": str(debt_id), "debt_title": title, "amount": float(amount), "lender_name": lender_name}))
                     )
             conn.commit()
         return json_resp({"ok": True})

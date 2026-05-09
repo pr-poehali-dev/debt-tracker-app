@@ -69,22 +69,27 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
             const decision = d.borrower_decision as string | null;
             const status = d.status as string;
 
+            const isDeleted = status === "deleted";
             const debt: Debt = {
               id: Number(d.id),
               contactId: 0,
               name: String(d.title),
               amount: Number(d.amount),
               dueDate: String(d.due_date || new Date().toISOString().slice(0, 10)),
-              status: status === "archived" ? "paid" : status === "deleted" ? "deleted" : (new Date(String(d.due_date)) < new Date() && decision !== "accepted" ? "overdue" : "active"),
+              status: status === "archived" ? "paid" : (isDeleted && isLender) ? "deleted" : (new Date(String(d.due_date)) < new Date() && decision !== "accepted" ? "overdue" : "active"),
               avatar: String(isLender ? (d.borrower_name || "?") : d.lender_name).slice(0, 2).toUpperCase(),
               note: d.note ? String(d.note) : undefined,
               debtDbId: String(d.id),
               borrowerDecision: decision || undefined,
               interestRate: d.interest_rate != null ? Number(d.interest_rate) : undefined,
               interestType: d.interest_type as "simple" | "compound" | undefined,
+              deletedByLender: isDeleted && !isLender ? true : undefined,
+              deletedByLenderName: isDeleted && !isLender ? String(d.lender_name || "Кредитор") : undefined,
             };
 
-            if (status === "archived" || status === "deleted") {
+            if (status === "archived") {
+              archive.push(debt);
+            } else if (isDeleted && isLender) {
               archive.push(debt);
             } else if (isLender) {
               lent.push(debt);
@@ -225,12 +230,9 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
               } else if (ntype === "debt_deleted") {
                 resolvedType = "warning";
                 const delDebtId = String(data.debt_id || "");
+                const lenderName = String(data.lender_name || "Кредитор");
                 if (delDebtId) {
-                  setBorrowedDebts(prev => {
-                    const found = prev.find(dd => dd.debtDbId === delDebtId);
-                    if (found) setArchiveDebts(a => [{ ...found, status: "deleted" as const }, ...a.filter(x => x.debtDbId !== delDebtId)]);
-                    return prev.filter(dd => dd.debtDbId !== delDebtId);
-                  });
+                  setBorrowedDebts(prev => prev.map(dd => dd.debtDbId === delDebtId ? { ...dd, deletedByLender: true, deletedByLenderName: lenderName } : dd));
                   setLentDebts(prev => prev.filter(dd => dd.debtDbId !== delDebtId));
                 }
               }
@@ -582,6 +584,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
   async function handleDeleteDebt(debtDbId: string) {
     const { default: urls } = await import("../../backend/func2url.json");
     const debt = [...lentDebts, ...borrowedDebts].find(d => d.debtDbId === debtDbId);
+    const isLender = !!lentDebts.find(d => d.debtDbId === debtDbId);
     const res = await fetch(`${urls["debts"]}?user_id=${user.id}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -596,7 +599,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
     if (!delRes.ok) return;
     setLentDebts(prev => prev.filter(d => d.debtDbId !== debtDbId));
     setBorrowedDebts(prev => prev.filter(d => d.debtDbId !== debtDbId));
-    if (debt) {
+    if (debt && isLender) {
       setArchiveDebts(prev => [{ ...debt, status: "deleted" as const }, ...prev]);
     }
   }
@@ -715,7 +718,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
         <div className="max-w-lg mx-auto">
           {section === "dashboard"     && <Dashboard onNav={setSection} contacts={contacts} t={t} lentDebts={lentDebts} borrowedDebts={borrowedDebts} activeRentalCount={activeRentalCount} totalRentalAmount={totalRentalAmount} personalLoans={personalLoans} onOpenReport={() => setShowReport(true)} />}
           {section === "lent"          && <DebtList debts={lentDebts} dir="lent" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => setActiveChat({ debtId: id, title })} onMarkPaid={handleMarkPaid} onDeleteDebt={handleDeleteDebt} onAddNew={() => setShowNewDebt(true)} token={token} />}
-          {section === "borrowed"      && <DebtList debts={borrowedDebts} dir="borrowed" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => setActiveChat({ debtId: id, title })} onMarkPaid={handleMarkPaid} onAddNew={() => setShowPersonalLoan(true)} personalLoans={personalLoans} onPersonalLoanUpdate={(loans) => { setPersonalLoans(loans); localStorage.setItem("df-personal-loans", JSON.stringify(loans)); }} token={token} />}
+          {section === "borrowed"      && <DebtList debts={borrowedDebts} dir="borrowed" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => setActiveChat({ debtId: id, title })} onMarkPaid={handleMarkPaid} onDeleteDebt={handleDeleteDebt} onAddNew={() => setShowPersonalLoan(true)} personalLoans={personalLoans} onPersonalLoanUpdate={(loans) => { setPersonalLoans(loans); localStorage.setItem("df-personal-loans", JSON.stringify(loans)); }} token={token} />}
           {section === "calendar"      && <CalendarSection contacts={contacts} t={t} debts={[...lentDebts, ...borrowedDebts]} rentals={rentals} userId={user.id} />}
           {section === "notifications" && <NotificationsSection notifs={notifs} onMarkAllRead={handleMarkAllRead} onMarkRead={handleMarkRead} t={t} token={token} onOpenChat={(debtId, rentalId, title) => setActiveChat({ debtId: debtId || undefined, rentalId: rentalId || undefined, title })} onOpenSupport={(ticketId) => { setSupportTicketId(ticketId); setShowSupport(true); }} />}
           {section === "archive"       && <ArchiveSection contacts={contacts} t={t} locale={locale} archiveDebts={archiveDebts} />}
