@@ -10,6 +10,7 @@ import random
 import secrets
 import string
 import urllib.request
+import urllib.error
 from datetime import datetime, timedelta, timezone
 import psycopg2
 
@@ -57,8 +58,19 @@ def send_email(to_email: str, code: str, full_name: str = None):
         headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
         method="POST",
     )
-    with urllib.request.urlopen(req) as r:
-        return r.status
+    try:
+        with urllib.request.urlopen(req, timeout=10) as r:
+            return r.status
+    except urllib.error.HTTPError as e:
+        # Читаем тело ответа Resend для понятного сообщения
+        body = ""
+        try:
+            body = e.read().decode("utf-8", errors="ignore")
+        except Exception:
+            pass
+        raise RuntimeError(f"Resend HTTP {e.code}: {body[:300]}")
+    except urllib.error.URLError as e:
+        raise RuntimeError(f"Сеть недоступна: {e}")
 
 def make_session(conn, user_id):
     token = secrets.token_hex(32)
@@ -137,14 +149,13 @@ def handler(event: dict, context) -> dict:
         body = json.loads(event.get("body") or "{}")
         email = (body.get("email") or "").strip().lower()
         full_name = (body.get("full_name") or "").strip()
-        if not email:
-            return err("Email обязателен")
+        if not email or "@" not in email:
+            return err("Введите корректный email")
         code = "".join(random.choices(string.digits, k=4))
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
-        try:
-            send_email(email, code, full_name if full_name else None)
-        except Exception as e:
-            return err(f"Не удалось отправить письмо: {e}", 502)
+
+        # Сохраняем код в БД ВСЕГДА (даже если письмо не отправится — пользователь
+        # сможет повторить попытку, и старый код тоже будет валидным)
         with get_conn() as conn:
             with conn.cursor() as cur:
                 cur.execute(
@@ -152,6 +163,23 @@ def handler(event: dict, context) -> dict:
                     (email, code, expires_at),
                 )
             conn.commit()
+
+        # Пытаемся отправить письмо. Если не вышло — возвращаем понятную ошибку,
+        # но код остался в БД на случай ретрая
+        try:
+            send_email(email, code, full_name if full_name else None)
+        except Exception as e:
+            msg = str(e)
+            # Распознаём типовые ошибки Resend
+            user_msg = "Не удалось отправить письмо. Попробуйте ещё раз или используйте другой email."
+            if "validation_error" in msg or "verify a domain" in msg or "testing emails" in msg:
+                user_msg = "Этот email не принимается почтовым сервисом. Попробуйте другой email или напишите в поддержку."
+            elif "rate" in msg.lower() or "429" in msg:
+                user_msg = "Слишком много попыток. Подождите минуту и попробуйте снова."
+            elif "Resend HTTP 403" in msg:
+                user_msg = "Сервис отправки писем временно недоступен. Попробуйте позже или напишите в поддержку."
+            return err(user_msg, 502)
+
         return resp({"ok": True})
 
     # ── POST verify — проверить email-код и создать аккаунт с PIN ──
