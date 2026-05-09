@@ -150,66 +150,46 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                   {d.debtDbId && d.status !== "paid" && (() => {
                     const dec = d.borrowerDecision;
                     if (dec === "accepted") return (
-                      <span className="flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-md"
-                        style={{ background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.3)", color: "#4ade80" }}>
-                        <Icon name="CheckCircle2" size={11} />
-                        Подтверждён
+                      <span title="Подтверждён заёмщиком" className="inline-flex items-center justify-center w-5 h-5 rounded-full" style={{ background: "rgba(34,197,94,0.15)", color: "#4ade80" }}>
+                        <Icon name="Check" size={12} />
                       </span>
                     );
                     if (dec === "rejected") return (
-                      <span className="flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-md"
-                        style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", color: "#f87171" }}>
-                        <Icon name="XCircle" size={11} />
-                        Отклонён
+                      <span title="Отклонён заёмщиком" className="inline-flex items-center justify-center w-5 h-5 rounded-full" style={{ background: "rgba(239,68,68,0.15)", color: "#f87171" }}>
+                        <Icon name="X" size={12} />
                       </span>
                     );
                     return (
-                      <span className="flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-md"
-                        style={{ background: "rgba(251,146,60,0.12)", border: "1px solid rgba(251,146,60,0.3)", color: "#fb923c" }}>
+                      <span title="Ожидает подтверждения" className="inline-flex items-center justify-center w-5 h-5 rounded-full" style={{ background: "rgba(251,146,60,0.15)", color: "#fb923c" }}>
                         <Icon name="Clock" size={11} />
-                        Не подтверждён заёмщиком
                       </span>
                     );
                   })()}
-                  {d.debtDbId && onOpenChat && d.borrowerDecision === "accepted" && (
-                    <button
-                      onClick={e => { e.stopPropagation(); onOpenChat(d.debtDbId!, d.name); }}
-                      className="relative flex items-center gap-1 px-2 py-1 rounded-lg transition-all active:scale-95"
-                      style={{ background: "rgba(168,85,247,0.15)", border: "1px solid rgba(168,85,247,0.3)" }}
-                    >
-                      <Icon name="MessageCircle" size={13} style={{ color: "#a855f7" }} />
-                      <span className="text-[11px] font-medium" style={{ color: "#a855f7" }}>Чат</span>
-                    </button>
-                  )}
-                  {d.debtDbId && d.status !== "paid" && onMarkPaid && (() => {
-                    const accepted = d.borrowerDecision === "accepted";
-                    return (
+                  <div className="flex items-center gap-1.5">
+                    {d.debtDbId && onOpenChat && d.borrowerDecision === "accepted" && (
                       <button
-                        onClick={e => { e.stopPropagation(); setConfirmReturn(d); }}
-                        className="flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-lg transition-all active:scale-95"
-                        style={accepted
-                          ? { background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.35)", color: "#4ade80" }
-                          : { background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(180,180,200,0.75)" }
-                        }
+                        onClick={e => { e.stopPropagation(); onOpenChat(d.debtDbId!, d.name); }}
+                        title="Чат"
+                        className="inline-flex items-center justify-center w-8 h-8 rounded-lg transition-all active:scale-95"
+                        style={{ background: "rgba(168,85,247,0.15)", border: "1px solid rgba(168,85,247,0.3)" }}
                       >
-                        <Icon name="CheckCircle2" size={12} />
-                        Отметить возврат
+                        <Icon name="MessageCircle" size={14} style={{ color: "#a855f7" }} />
                       </button>
-                    );
-                  })()}
-                  {dir === "borrowed" && d.debtDbId && d.status !== "paid" && token && (
-                    <div onClick={e => e.stopPropagation()}>
-                      <PayButton
-                        token={token}
-                        amount={d.interestRate ? calcTotalWithInterest(d.amount, d.interestRate, d.interestType || "simple", d.dueDate) : d.amount}
-                        description={`Возврат долга: ${d.name}`}
-                        targetType="debt"
-                        targetId={d.debtDbId}
-                        size="sm"
-                        label="Оплатить"
-                      />
-                    </div>
-                  )}
+                    )}
+                    {dir === "borrowed" && d.debtDbId && d.status !== "paid" && token && (
+                      <div onClick={e => e.stopPropagation()}>
+                        <PayButton
+                          token={token}
+                          amount={d.interestRate ? calcTotalWithInterest(d.amount, d.interestRate, d.interestType || "simple", d.dueDate) : d.amount}
+                          description={`Возврат долга: ${d.name}`}
+                          targetType="debt"
+                          targetId={d.debtDbId}
+                          size="sm"
+                          label="Оплатить"
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             );
