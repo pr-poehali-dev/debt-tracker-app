@@ -183,6 +183,12 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                       <span className="truncate">{d.deletedByLenderName} удалил долг</span>
                     </p>
                   )}
+                  {dir === "lent" && d.borrowerDismissed && (
+                    <p className="text-[11px] mt-1 flex items-center gap-1" style={{ color: "#fb923c" }}>
+                      <Icon name="EyeOff" size={11} />
+                      <span className="truncate">Должник удалил долг у себя</span>
+                    </p>
+                  )}
                   <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                     <p className="text-xs text-muted-foreground flex items-center gap-1">
                       <Icon name="Calendar" size={11} />

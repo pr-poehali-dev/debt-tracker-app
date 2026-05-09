@@ -85,6 +85,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
               interestType: d.interest_type as "simple" | "compound" | undefined,
               deletedByLender: isDeleted && !isLender ? true : undefined,
               deletedByLenderName: isDeleted && !isLender ? String(d.lender_name || "Кредитор") : undefined,
+              borrowerDismissed: isLender && d.borrower_dismissed ? true : undefined,
             };
 
             if (status === "archived") {
@@ -234,6 +235,12 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
                 if (delDebtId) {
                   setBorrowedDebts(prev => prev.map(dd => dd.debtDbId === delDebtId ? { ...dd, deletedByLender: true, deletedByLenderName: lenderName } : dd));
                   setLentDebts(prev => prev.filter(dd => dd.debtDbId !== delDebtId));
+                }
+              } else if (ntype === "debt_dismissed_by_borrower") {
+                resolvedType = "warning";
+                const dDebtId = String(data.debt_id || "");
+                if (dDebtId) {
+                  setLentDebts(prev => prev.map(dd => dd.debtDbId === dDebtId ? { ...dd, borrowerDismissed: true } : dd));
                 }
               }
               const base: Notification = {
