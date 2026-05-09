@@ -242,15 +242,46 @@ function RentalCard({ rental, userId, token, onUpdate, onDelete }: { rental: Ren
         </div>
       )}
 
-      <div className="flex items-center justify-between">
-        <button className="flex items-center gap-1.5 hover:opacity-70 transition-opacity" onClick={() => setShowCalendar(true)}>
-          <Icon name="CalendarDays" size={13} style={{ color: "#5eead4" }} />
-          <span className={`text-xs ${isNear ? "text-amber-400 font-medium" : "text-muted-foreground"}`}>
-            {daysUntil === 0 ? "Сегодня платёж" : `Платёж ${rental.payment_day}-го (через ${daysUntil} дн.)`}
-          </span>
-        </button>
-        <PayBadge status={myPayStatus} />
-      </div>
+      {/* Статус оплаты текущего месяца — главный визуальный индикатор */}
+      {myPayStatus === "paid" ? (
+        <div className="rounded-xl p-3 flex items-center justify-between"
+          style={{ background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.3)" }}>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "rgba(34,197,94,0.2)" }}>
+              <Icon name="Check" size={16} style={{ color: "#4ade80" }} />
+            </div>
+            <div>
+              <p className="text-sm font-semibold" style={{ color: "#4ade80" }}>Оплачено в этом месяце</p>
+              <button onClick={() => onUpdate(rental.share_token, { payment_status: "unpaid", role: isLandlord ? "landlord" : "tenant" })}
+                className="text-[10px] text-muted-foreground hover:text-foreground underline underline-offset-2">
+                Отменить оплату
+              </button>
+            </div>
+          </div>
+          <button onClick={() => setShowCalendar(true)} className="text-[11px] text-teal-400 hover:opacity-70">
+            История
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-xs">
+            <button className="flex items-center gap-1.5 hover:opacity-70" onClick={() => setShowCalendar(true)}>
+              <Icon name="CalendarDays" size={13} style={{ color: "#5eead4" }} />
+              <span className={isNear ? "text-amber-400 font-medium" : "text-muted-foreground"}>
+                {daysUntil === 0 ? "Сегодня платёж" : `Платёж ${rental.payment_day}-го (через ${daysUntil} дн.)`}
+              </span>
+            </button>
+          </div>
+          <button
+            onClick={() => onUpdate(rental.share_token, { payment_status: "paid", role: isLandlord ? "landlord" : "tenant" })}
+            className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all flex items-center justify-center gap-2"
+            style={{ background: "linear-gradient(135deg, #14b8a6, #0d9488)" }}
+          >
+            <Icon name="CheckCircle2" size={16} />
+            Отметить оплачено
+          </button>
+        </div>
+      )}
 
       {showCalendar && (
         <PaymentCalendar rental={rental} token={token} userId={userId}
@@ -258,38 +289,45 @@ function RentalCard({ rental, userId, token, onUpdate, onDelete }: { rental: Ren
         />
       )}
 
-      <div className="flex gap-2">
-        {myPayStatus !== "paid" ? (
-          <button
-            onClick={() => onUpdate(rental.share_token, { payment_status: "paid", role: isLandlord ? "landlord" : "tenant" })}
-            className="flex-1 py-2 rounded-xl text-xs font-medium text-white transition-all"
-            style={{ background: "rgba(20,184,166,0.3)", border: "1px solid rgba(20,184,166,0.5)" }}
-          >
-            Отметить оплачено
-          </button>
-        ) : (
-          <button
-            onClick={() => onUpdate(rental.share_token, { payment_status: "unpaid", role: isLandlord ? "landlord" : "tenant" })}
-            className="flex-1 py-2 rounded-xl text-xs font-medium text-muted-foreground transition-all"
-            style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}
-          >
-            Отменить оплату
-          </button>
-        )}
-        {isLandlord && <QRButton shareToken={rental.share_token} />}
-        {canChat && (
-          <button
-            onClick={() => { setShowChat(true); setUnread(0); }}
-            className="relative w-10 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-all"
-            style={{ background: "rgba(168,85,247,0.15)", border: "1px solid rgba(168,85,247,0.3)" }}
-          >
-            <Icon name="MessageCircle" size={16} style={{ color: "#a855f7" }} />
-            {unread > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center text-white"
-                style={{ background: "#a855f7" }}>{unread > 9 ? "9+" : unread}</span>
-            )}
-          </button>
-        )}
+      {/* Дополнительные действия: QR, чат, удалить — компактная панель иконок */}
+      <div className="flex items-center justify-between gap-2 pt-2 border-t" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+        <div className="flex items-center gap-2">
+          {isLandlord && <QRButton shareToken={rental.share_token} />}
+          {canChat && (
+            <button
+              onClick={() => { setShowChat(true); setUnread(0); }}
+              className="relative w-9 h-9 rounded-xl flex items-center justify-center transition-all"
+              style={{ background: "rgba(168,85,247,0.15)", border: "1px solid rgba(168,85,247,0.3)" }}
+            >
+              <Icon name="MessageCircle" size={15} style={{ color: "#a855f7" }} />
+              {unread > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center text-white"
+                  style={{ background: "#a855f7" }}>{unread > 9 ? "9+" : unread}</span>
+              )}
+            </button>
+          )}
+          {/* Статус арендатора — только если не подтверждено (важная информация) */}
+          {isLandlord && rental.tenant_decision !== "accepted" && (
+            <>
+              {rental.tenant_decision === "rejected" && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium" style={{ background: "rgba(244,63,94,0.15)", color: "#fb7185" }}>
+                  <Icon name="XCircle" size={10} /> Арендатор отклонил
+                </span>
+              )}
+              {(!rental.tenant_decision || rental.tenant_decision === "pending") && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium" style={{ background: "rgba(245,158,11,0.15)", color: "#fbbf24" }}>
+                  <Icon name="Clock" size={10} /> Ждём арендатора
+                </span>
+              )}
+            </>
+          )}
+        </div>
+        <button onClick={() => setConfirmDelete(true)}
+          className="w-9 h-9 rounded-xl flex items-center justify-center transition-all hover:opacity-70"
+          style={{ background: "rgba(244,63,94,0.1)", border: "1px solid rgba(244,63,94,0.2)" }}
+          title={isLandlord ? "Удалить аренду" : "Покинуть"}>
+          <Icon name={isLandlord ? "Trash2" : "LogOut"} size={14} style={{ color: "#fb7185" }} />
+        </button>
       </div>
 
       {showChat && (
@@ -301,33 +339,8 @@ function RentalCard({ rental, userId, token, onUpdate, onDelete }: { rental: Ren
         />
       )}
 
-      {isLandlord && (
-        <div className="flex items-center justify-between pt-1 border-t" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
-          <span className="text-xs text-muted-foreground">Статус арендатора:</span>
-          <div className="flex items-center gap-2">
-            {rental.tenant_decision === "accepted" && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium" style={{ background: "rgba(34,197,94,0.15)", color: "#4ade80" }}>
-                <Icon name="CheckCircle" size={10} /> Подтверждено
-              </span>
-            )}
-            {rental.tenant_decision === "rejected" && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium" style={{ background: "rgba(244,63,94,0.15)", color: "#fb7185" }}>
-                <Icon name="XCircle" size={10} /> Отклонено
-              </span>
-            )}
-            {(!rental.tenant_decision || rental.tenant_decision === "pending") && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium" style={{ background: "rgba(245,158,11,0.15)", color: "#fbbf24" }}>
-                <Icon name="Clock" size={10} /> Ожидает
-              </span>
-            )}
-            <PayBadge status={rental.current_month_status_tenant} />
-          </div>
-        </div>
-      )}
-
-      {/* Удалить (арендодатель) или Покинуть (арендатор) */}
       {confirmDelete ? (
-        <div className="rounded-xl p-3 space-y-2 pt-2 border-t" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+        <div className="rounded-xl p-3 space-y-2" style={{ background: "rgba(244,63,94,0.08)", border: "1px solid rgba(244,63,94,0.2)" }}>
           <p className="text-xs text-center text-muted-foreground">
             {isLandlord ? "Удалить аренду безвозвратно?" : "Покинуть эту аренду?"}
           </p>
@@ -344,15 +357,7 @@ function RentalCard({ rental, userId, token, onUpdate, onDelete }: { rental: Ren
             </button>
           </div>
         </div>
-      ) : (
-        <div className="flex justify-end pt-1 border-t" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
-          <button onClick={() => setConfirmDelete(true)}
-            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-red-400 transition-colors">
-            <Icon name={isLandlord ? "Trash2" : "LogOut"} size={11} />
-            {isLandlord ? "Удалить аренду" : "Покинуть"}
-          </button>
-        </div>
-      )}
+      ) : null}
     </div>
   );
 }
