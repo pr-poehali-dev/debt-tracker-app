@@ -20,8 +20,8 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
   const [hiding, setHiding] = useState(false);
 
   useEffect(() => {
-    const t1 = setTimeout(() => setHiding(true), 1600);
-    const t2 = setTimeout(() => onDone(), 2100);
+    const t1 = setTimeout(() => setHiding(true), 2200);
+    const t2 = setTimeout(() => onDone(), 2700);
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [onDone]);
 
@@ -47,18 +47,74 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
         `,
       }} />
 
-      {/* Icon */}
+      {/* Animated DD icon */}
       <div style={{
-        width: 112, height: 112, borderRadius: 28,
+        position: "relative",
+        width: 140, height: 140, borderRadius: 32,
+        background: "radial-gradient(circle at 50% 50%, #1a1f5c 0%, #0d1240 100%)",
+        boxShadow: "0 0 50px rgba(168,85,247,0.35), 0 0 90px rgba(99,102,241,0.18)",
         overflow: "hidden",
-        boxShadow: "0 0 40px rgba(168,85,247,0.35), 0 0 80px rgba(168,85,247,0.15)",
-        animation: "splashPop 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards",
+        animation: "splashIconPop 0.6s cubic-bezier(0.34,1.56,0.64,1) forwards",
+        display: "flex", alignItems: "center", justifyContent: "center",
       }}>
-        <img src={ICON} alt="Debt-Debt" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        {/* Soft inner glow */}
+        <div style={{
+          position: "absolute", inset: 0,
+          background: "radial-gradient(circle at 30% 30%, rgba(168,85,247,0.25) 0%, transparent 55%)",
+          pointerEvents: "none",
+        }} />
+
+        {/* Left D — magenta with glow */}
+        <div style={{
+          position: "absolute",
+          left: 14, top: "50%", transform: "translateY(-50%)",
+          fontSize: 92, lineHeight: 1, fontWeight: 900,
+          fontFamily: "Montserrat, sans-serif",
+          color: "#c026d3",
+          textShadow: "0 0 18px rgba(217,70,239,0.85), 0 0 35px rgba(168,85,247,0.6)",
+          animation: "splashLeftD 0.8s 0.1s cubic-bezier(0.34,1.56,0.64,1) both",
+        }}>D</div>
+
+        {/* Right D — solid blue */}
+        <div style={{
+          position: "absolute",
+          right: 14, top: "50%", transform: "translateY(-50%)",
+          fontSize: 92, lineHeight: 1, fontWeight: 900,
+          fontFamily: "Montserrat, sans-serif",
+          color: "#4f6df5",
+          textShadow: "0 0 14px rgba(99,102,241,0.6)",
+          animation: "splashRightD 0.8s 0.1s cubic-bezier(0.34,1.56,0.64,1) both",
+        }}>D</div>
+
+        {/* Triangle between */}
+        <div style={{
+          position: "absolute",
+          left: "50%", top: "50%",
+          width: 0, height: 0,
+          borderTop: "9px solid transparent",
+          borderBottom: "9px solid transparent",
+          borderLeft: "13px solid #ec4899",
+          transform: "translate(-50%, -50%)",
+          filter: "drop-shadow(0 0 8px rgba(236,72,153,0.95)) drop-shadow(0 0 14px rgba(236,72,153,0.6))",
+          animation: "splashTriangle 0.5s 0.85s cubic-bezier(0.34,1.56,0.64,1) both",
+        }} />
+
+        {/* Pulse ring on impact */}
+        <div style={{
+          position: "absolute",
+          left: "50%", top: "50%",
+          width: 14, height: 14,
+          borderRadius: "50%",
+          border: "2px solid #ec4899",
+          transform: "translate(-50%, -50%)",
+          animation: "splashRing 0.9s 0.95s ease-out both",
+          opacity: 0,
+          pointerEvents: "none",
+        }} />
       </div>
 
       {/* Name */}
-      <div style={{ textAlign: "center", animation: "splashFade 0.6s 0.3s ease forwards", opacity: 0 }}>
+      <div style={{ textAlign: "center", animation: "splashFade 0.6s 1.2s ease forwards", opacity: 0 }}>
         <div style={{
           fontSize: 28, fontWeight: 900, fontFamily: "Montserrat, sans-serif",
           background: "linear-gradient(135deg, #a855f7, #6366f1)",
@@ -74,7 +130,7 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
       </div>
 
       {/* Loader dots */}
-      <div style={{ display: "flex", gap: 8, animation: "splashFade 0.6s 0.6s ease forwards", opacity: 0 }}>
+      <div style={{ display: "flex", gap: 8, animation: "splashFade 0.6s 1.5s ease forwards", opacity: 0 }}>
         {[0, 1, 2].map(i => (
           <div key={i} style={{
             width: 7, height: 7, borderRadius: "50%",
@@ -85,9 +141,28 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
       </div>
 
       <style>{`
-        @keyframes splashPop {
-          from { transform: scale(0.6); opacity: 0; }
+        @keyframes splashIconPop {
+          from { transform: scale(0.7); opacity: 0; }
           to   { transform: scale(1);   opacity: 1; }
+        }
+        @keyframes splashLeftD {
+          0%   { transform: translate(-120px, -50%) rotate(-12deg); opacity: 0; }
+          70%  { transform: translate(6px, -50%) rotate(2deg); opacity: 1; }
+          100% { transform: translate(0, -50%) rotate(0); opacity: 1; }
+        }
+        @keyframes splashRightD {
+          0%   { transform: translate(120px, -50%) rotate(12deg); opacity: 0; }
+          70%  { transform: translate(-6px, -50%) rotate(-2deg); opacity: 1; }
+          100% { transform: translate(0, -50%) rotate(0); opacity: 1; }
+        }
+        @keyframes splashTriangle {
+          0%   { transform: translate(-50%, -50%) scale(0) rotate(-90deg); opacity: 0; }
+          60%  { transform: translate(-50%, -50%) scale(1.4) rotate(0deg); opacity: 1; }
+          100% { transform: translate(-50%, -50%) scale(1) rotate(0deg); opacity: 1; }
+        }
+        @keyframes splashRing {
+          0%   { width: 14px;  height: 14px; opacity: 0.9; border-width: 2px; }
+          100% { width: 120px; height: 120px; opacity: 0;  border-width: 1px; }
         }
         @keyframes splashFade {
           from { opacity: 0; transform: translateY(8px); }
