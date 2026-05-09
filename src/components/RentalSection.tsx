@@ -141,6 +141,7 @@ function PaymentCalendar({ rental, token, userId }: { rental: Rental; token: str
 
 function RentalCard({ rental, userId, token, onUpdate, onDelete }: { rental: Rental; userId: number; token: string; onUpdate: (token: string, body: Record<string, unknown>) => void; onDelete: (token: string) => void }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmPay, setConfirmPay] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [unread, setUnread] = useState(0);
@@ -253,15 +254,32 @@ function RentalCard({ rental, userId, token, onUpdate, onDelete }: { rental: Ren
             </div>
             <div>
               <p className="text-sm font-semibold" style={{ color: "#4ade80" }}>Оплачено в этом месяце</p>
-              <button onClick={() => onUpdate(rental.share_token, { payment_status: "unpaid", role: isLandlord ? "landlord" : "tenant" })}
-                className="text-[10px] text-muted-foreground hover:text-foreground underline underline-offset-2">
-                Отменить оплату
-              </button>
             </div>
           </div>
           <button onClick={() => setShowCalendar(true)} className="text-[11px] text-teal-400 hover:opacity-70">
             История
           </button>
+        </div>
+      ) : confirmPay ? (
+        <div className="rounded-xl p-3 space-y-2" style={{ background: "rgba(20,184,166,0.08)", border: "1px solid rgba(20,184,166,0.3)" }}>
+          <p className="text-xs text-center text-foreground">
+            {isLandlord
+              ? `Подтвердить получение оплаты ${fmt(rental.amount)} за этот месяц?`
+              : `Отметить оплату ${fmt(rental.amount)} за этот месяц?`}
+          </p>
+          <p className="text-[10px] text-center text-muted-foreground">Отменить это действие будет нельзя</p>
+          <div className="flex gap-2">
+            <button onClick={() => setConfirmPay(false)}
+              className="flex-1 py-1.5 rounded-lg text-xs font-medium text-muted-foreground"
+              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
+              Отмена
+            </button>
+            <button onClick={() => { onUpdate(rental.share_token, { payment_status: "paid", role: isLandlord ? "landlord" : "tenant" }); setConfirmPay(false); }}
+              className="flex-1 py-1.5 rounded-lg text-xs font-semibold text-white"
+              style={{ background: "linear-gradient(135deg, #14b8a6, #0d9488)" }}>
+              Подтвердить
+            </button>
+          </div>
         </div>
       ) : (
         <div className="space-y-2">
@@ -285,7 +303,7 @@ function RentalCard({ rental, userId, token, onUpdate, onDelete }: { rental: Ren
             />
           )}
           <button
-            onClick={() => onUpdate(rental.share_token, { payment_status: "paid", role: isLandlord ? "landlord" : "tenant" })}
+            onClick={() => setConfirmPay(true)}
             className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all flex items-center justify-center gap-2"
             style={{ background: "linear-gradient(135deg, #14b8a6, #0d9488)" }}
           >
