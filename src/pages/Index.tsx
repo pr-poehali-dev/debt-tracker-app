@@ -329,9 +329,9 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
     async function subscribePush() {
       if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
       // Запрашиваем разрешение если ещё не дано
-      let permission = Notification.permission;
+      let permission = window.Notification.permission;
       if (permission === "default") {
-        permission = await Notification.requestPermission();
+        permission = await window.Notification.requestPermission();
       }
       if (permission !== "granted") return;
       const urls = (await import("../../backend/func2url.json")).default;

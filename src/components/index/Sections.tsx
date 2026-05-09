@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Icon from "@/components/ui/icon";
 import DebtDetailModal from "@/components/DebtDetailModal";
 import { type Lang, LANGUAGES, getT } from "@/i18n";
 import { type Section, type Theme, type Contact, type Debt, type Notification, type ContactColor, getColor, fmt, calcTotalWithInterest } from "./types";
-import { Avatar, ColorPicker, StatusBadge, NotifIcon } from "./SharedComponents";
+import { Avatar, ColorPicker, StatusBadge } from "./SharedComponents";
 import { type PersonalLoan } from "@/components/PersonalLoanModal";
 
 // ─── Section: DebtList ────────────────────────────────────────────────────────
