@@ -693,13 +693,24 @@ export function ContactsSection({ contacts, onColorChange, t }: { contacts: Cont
 }
 
 // ─── Section: Dashboard ───────────────────────────────────────────────────────
-export function Dashboard({ onNav, contacts, t, lentDebts, borrowedDebts, activeRentalCount = 0, totalRentalAmount = 0 }: { onNav: (s: Section) => void; contacts: Contact[]; t: ReturnType<typeof getT>; lentDebts: Debt[]; borrowedDebts: Debt[]; activeRentalCount?: number; totalRentalAmount?: number }) {
+export function Dashboard({ onNav, contacts, t, lentDebts, borrowedDebts, activeRentalCount = 0, totalRentalAmount = 0, personalLoans = [] }: { onNav: (s: Section) => void; contacts: Contact[]; t: ReturnType<typeof getT>; lentDebts: Debt[]; borrowedDebts: Debt[]; activeRentalCount?: number; totalRentalAmount?: number; personalLoans?: PersonalLoan[] }) {
   const totalLent = lentDebts.filter(d => d.status !== "paid").reduce((s, d) => s + d.amount, 0);
-  const totalBorrowed = borrowedDebts.filter(d => d.status !== "paid").reduce((s, d) => s + d.amount, 0);
+  const personalRemaining = personalLoans.reduce((s, l) => {
+    const monthsTotal = Math.max(1, Math.round((new Date(l.dueDate + "-01").getTime() - new Date(l.startDate + "-01").getTime()) / (30 * 86400000)) + 1);
+    const paid = (l.paidMonths?.length || 0) * l.monthlyPayment;
+    const fullTotal = l.monthlyPayment * monthsTotal;
+    return s + Math.max(0, fullTotal - paid);
+  }, 0);
+  const activePersonalLoans = personalLoans.filter(l => {
+    const monthsTotal = Math.max(1, Math.round((new Date(l.dueDate + "-01").getTime() - new Date(l.startDate + "-01").getTime()) / (30 * 86400000)) + 1);
+    return (l.paidMonths?.length || 0) < monthsTotal;
+  }).length;
+  const totalBorrowed = borrowedDebts.filter(d => d.status !== "paid").reduce((s, d) => s + d.amount, 0) + personalRemaining;
+  const borrowedActiveCount = borrowedDebts.filter(d => d.status !== "paid").length + activePersonalLoans;
   const balance = totalLent - totalBorrowed;
   const overdueCount = [...lentDebts, ...borrowedDebts].filter(d => d.status === "overdue").length;
   const allDebts = [...lentDebts, ...borrowedDebts];
-  const isEmpty = allDebts.length === 0;
+  const isEmpty = allDebts.length === 0 && personalLoans.length === 0;
 
   return (
     <div className="animate-fade-in space-y-5">
@@ -750,7 +761,7 @@ export function Dashboard({ onNav, contacts, t, lentDebts, borrowedDebts, active
             <span className="text-xs text-muted-foreground">{t.navBorrowed}</span>
           </div>
           <p className="text-2xl font-black font-heading text-gradient-blue">{fmt(totalBorrowed)}</p>
-          <p className="text-xs text-muted-foreground mt-1">{borrowedDebts.filter(d => d.status !== "paid").length} {t.activeDebts.toLowerCase()}</p>
+          <p className="text-xs text-muted-foreground mt-1">{borrowedActiveCount} {t.activeDebts.toLowerCase()}</p>
         </button>
 
         <button onClick={() => onNav("notifications")} className="glass rounded-2xl p-4 text-left hover:bg-white/[0.07] transition-all duration-200">
