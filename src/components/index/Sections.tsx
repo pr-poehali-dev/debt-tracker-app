@@ -268,7 +268,7 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                         <Icon name="Trash2" size={14} style={{ color: "#f87171" }} />
                       </button>
                     )}
-                    {dir === "borrowed" && d.deletedByLender && d.debtDbId && onDeleteDebt && (
+                    {dir === "borrowed" && d.debtDbId && d.status !== "paid" && onDeleteDebt && (
                       <button
                         onClick={e => { e.stopPropagation(); setConfirmDelete(d); }}
                         title="Удалить долг"
