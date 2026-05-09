@@ -109,18 +109,27 @@ def send_email_smtp(to_email: str, code: str, full_name: str = None):
     return 200
 
 def send_email(to_email: str, code: str, full_name: str = None):
-    """Пытается отправить через Resend. Если не удалось — пробует SMTP-fallback."""
+    """Пытается отправить через Resend. Если не удалось — пробует SMTP-fallback.
+    Логирует обе попытки для диагностики."""
     errors = []
     try:
-        return send_email_resend(to_email, code, full_name)
+        result = send_email_resend(to_email, code, full_name)
+        print(f"[send_email] OK via Resend → {to_email}")
+        return result
     except Exception as e:
-        errors.append(f"Resend: {e}")
+        err_text = str(e)
+        print(f"[send_email] Resend FAIL → {to_email}: {err_text}")
+        errors.append(f"Resend: {err_text}")
 
     # Fallback на SMTP
     try:
-        return send_email_smtp(to_email, code, full_name)
+        result = send_email_smtp(to_email, code, full_name)
+        print(f"[send_email] OK via SMTP fallback → {to_email}")
+        return result
     except Exception as e:
-        errors.append(f"SMTP: {e}")
+        err_text = str(e)
+        print(f"[send_email] SMTP FAIL → {to_email}: {err_text}")
+        errors.append(f"SMTP: {err_text}")
         raise RuntimeError(" | ".join(errors))
 
 def _build_farewell_html(full_name: str = None) -> str:
@@ -315,14 +324,26 @@ def handler(event: dict, context) -> dict:
             send_email(email, code, full_name if full_name else None)
         except Exception as e:
             msg = str(e)
-            # Распознаём типовые ошибки Resend
-            user_msg = "Не удалось отправить письмо. Попробуйте ещё раз или используйте другой email."
-            if "validation_error" in msg or "verify a domain" in msg or "testing emails" in msg:
-                user_msg = "Этот email не принимается почтовым сервисом. Попробуйте другой email или напишите в поддержку."
-            elif "rate" in msg.lower() or "429" in msg:
+            print(f"[send-code] Email DELIVERY FAILED to {email}: {msg}")
+
+            # Извлекаем именно SMTP-часть (последний канал в цепочке fallback).
+            # Если SMTP упал — значит реальная проблема в нашей инфраструктуре,
+            # а не в email пользователя.
+            smtp_part = ""
+            if "SMTP:" in msg:
+                smtp_part = msg.split("SMTP:", 1)[1].lower()
+
+            user_msg = "Не удалось отправить письмо. Попробуйте ещё раз через минуту."
+
+            # Проблема с email пользователя — только если SMTP явно отверг адрес
+            if smtp_part and ("recipient" in smtp_part or "no such user" in smtp_part or "550" in smtp_part or "user unknown" in smtp_part or "address rejected" in smtp_part):
+                user_msg = "Этот email не существует или не принимает письма. Проверьте адрес."
+            # Лимиты
+            elif "rate" in msg.lower() or "429" in msg or "too many" in msg.lower():
                 user_msg = "Слишком много попыток. Подождите минуту и попробуйте снова."
-            elif "Resend HTTP 403" in msg:
-                user_msg = "Сервис отправки писем временно недоступен. Попробуйте позже или напишите в поддержку."
+            # SMTP не настроен / нет соединения / auth fail — это наша инфраструктура
+            elif "SMTP не настроен" in msg or "authentication" in msg.lower() or "сеть" in msg.lower() or "connection" in msg.lower():
+                user_msg = "Сервис отправки писем временно недоступен. Попробуйте через 1-2 минуты или напишите в поддержку."
             return err(user_msg, 502)
 
         return resp({"ok": True})
