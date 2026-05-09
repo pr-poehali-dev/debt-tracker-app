@@ -73,7 +73,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
               name: String(d.title),
               amount: Number(d.amount),
               dueDate: String(d.due_date || new Date().toISOString().slice(0, 10)),
-              status: status === "archived" ? "paid" : (new Date(String(d.due_date)) < new Date() && decision !== "accepted" ? "overdue" : "active"),
+              status: status === "archived" ? "paid" : status === "deleted" ? "deleted" : (new Date(String(d.due_date)) < new Date() && decision !== "accepted" ? "overdue" : "active"),
               avatar: String(isLender ? (d.borrower_name || "?") : d.lender_name).slice(0, 2).toUpperCase(),
               note: d.note ? String(d.note) : undefined,
               debtDbId: String(d.id),
@@ -82,7 +82,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
               interestType: d.interest_type as "simple" | "compound" | undefined,
             };
 
-            if (status === "archived") {
+            if (status === "archived" || status === "deleted") {
               archive.push(debt);
             } else if (isLender) {
               lent.push(debt);
@@ -224,7 +224,11 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
                 resolvedType = "warning";
                 const delDebtId = String(data.debt_id || "");
                 if (delDebtId) {
-                  setBorrowedDebts(prev => prev.filter(dd => dd.debtDbId !== delDebtId));
+                  setBorrowedDebts(prev => {
+                    const found = prev.find(dd => dd.debtDbId === delDebtId);
+                    if (found) setArchiveDebts(a => [{ ...found, status: "deleted" as const }, ...a.filter(x => x.debtDbId !== delDebtId)]);
+                    return prev.filter(dd => dd.debtDbId !== delDebtId);
+                  });
                   setLentDebts(prev => prev.filter(dd => dd.debtDbId !== delDebtId));
                 }
               }
@@ -575,6 +579,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
 
   async function handleDeleteDebt(debtDbId: string) {
     const { default: urls } = await import("../../backend/func2url.json");
+    const debt = [...lentDebts, ...borrowedDebts].find(d => d.debtDbId === debtDbId);
     const res = await fetch(`${urls["debts"]}?user_id=${user.id}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -589,6 +594,9 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
     if (!delRes.ok) return;
     setLentDebts(prev => prev.filter(d => d.debtDbId !== debtDbId));
     setBorrowedDebts(prev => prev.filter(d => d.debtDbId !== debtDbId));
+    if (debt) {
+      setArchiveDebts(prev => [{ ...debt, status: "deleted" as const }, ...prev]);
+    }
   }
 
   function handlePersonalLoanSave(loan: PersonalLoan) {

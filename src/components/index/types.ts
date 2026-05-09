@@ -19,7 +19,7 @@ export interface Debt {
   name: string;
   amount: number;
   dueDate: string;
-  status: "active" | "overdue" | "paid";
+  status: "active" | "overdue" | "paid" | "deleted";
   avatar: string;
   note?: string;
   debtDbId?: string;

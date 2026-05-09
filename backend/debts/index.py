@@ -406,10 +406,10 @@ def handler(event: dict, context) -> dict:
                 if not debt_row:
                     return err("Долг не найден или нет прав", 403)
                 debt_id, title, amount, borrower_id, current_status = debt_row
-                if current_status == "archived":
+                if current_status in ("archived", "deleted"):
                     return err("Долг уже в архиве", 400)
                 cur.execute(
-                    f"""UPDATE {SCHEMA}.debts SET status = 'archived', updated_at = NOW()
+                    f"""UPDATE {SCHEMA}.debts SET status = 'deleted', updated_at = NOW()
                         WHERE id = %s""",
                     (debt_id,)
                 )

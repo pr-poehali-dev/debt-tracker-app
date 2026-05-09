@@ -933,19 +933,33 @@ export function ArchiveSection({ contacts, t, locale, archiveDebts }: { contacts
       <div className="space-y-3">
         {archiveDebts.map((d, i) => {
           const contact = contacts.find(c => c.id === d.contactId);
+          const isDeleted = d.status === "deleted";
           return (
-            <div key={d.id} className="glass rounded-2xl p-4 flex items-center gap-4 opacity-80 hover:opacity-100 transition-opacity" style={{ animationDelay: `${i * 0.05}s` }}>
+            <div
+              key={d.id}
+              className="glass rounded-2xl p-4 flex items-center gap-4 opacity-80 hover:opacity-100 transition-opacity"
+              style={{ animationDelay: `${i * 0.05}s`, borderLeft: isDeleted ? "3px solid #f87171" : undefined }}
+            >
               <Avatar initials={d.avatar} color={contact?.color} />
-              <div className="flex-1">
-                <p className="font-semibold text-foreground">{d.name}</p>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className={`font-semibold truncate ${isDeleted ? "text-muted-foreground line-through" : "text-foreground"}`}>{d.name}</p>
+                </div>
                 {d.note && <p className="text-xs text-muted-foreground">{d.note}</p>}
                 <p className="text-xs text-muted-foreground mt-0.5">
                   {new Date(d.dueDate).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" })}
                 </p>
               </div>
               <div className="text-right flex-shrink-0">
-                <p className="text-lg font-bold font-heading text-green-400">{fmt(d.amount)}</p>
-                <StatusBadge status="paid" t={t} />
+                <p className={`text-lg font-bold font-heading ${isDeleted ? "text-muted-foreground line-through" : "text-green-400"}`}>{fmt(d.amount)}</p>
+                {isDeleted ? (
+                  <span className="inline-flex items-center gap-1 mt-1 text-[11px] font-medium px-2 py-0.5 rounded-md" style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", color: "#f87171" }}>
+                    <Icon name="Trash2" size={10} />
+                    Удалён
+                  </span>
+                ) : (
+                  <StatusBadge status="paid" t={t} />
+                )}
               </div>
             </div>
           );
