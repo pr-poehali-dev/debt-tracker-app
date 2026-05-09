@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 import DebtDetailModal from "@/components/DebtDetailModal";
 import { type Lang, LANGUAGES, getT } from "@/i18n";
