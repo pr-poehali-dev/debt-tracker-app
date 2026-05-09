@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 
-const ICON_URL = "https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/files/8dd5b9f5-b2e2-4d3b-87d7-9f8888d3339b.jpg";
+const ICON_URL = "https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/files/9c378928-32cd-4a54-b04b-39afc16c42a6.jpg";
 const SIZES = [72, 96, 128, 144, 152, 192, 384, 512];
-const STORAGE_KEY = "pwa-icons-generated";
+const STORAGE_KEY = "pwa-icons-generated-v2";
 
 function generateIcon(src: string, size: number): Promise<Blob> {
   return new Promise((resolve, reject) => {
@@ -46,8 +46,7 @@ export default function PwaIconGenerator() {
         const cache = await caches.open("debtflow-v1");
         for (const size of SIZES) {
           const key = `/icons/icon-${size}.png`;
-          const existing = await cache.match(key);
-          if (existing) continue;
+          // Перегенерируем иконки под новый логотип
           const blob = await generateIcon(ICON_URL, size);
           const response = new Response(blob, { headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=31536000" } });
           await cache.put(key, response);
