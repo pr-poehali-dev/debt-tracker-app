@@ -424,7 +424,7 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
     if (!text || !n.chatMeta) return;
     setSending(n.id);
     try {
-      const urls = (await import("../../backend/func2url.json")).default;
+      const urls = (await import("../../../backend/func2url.json")).default;
       const body: Record<string, unknown> = { text };
       if (n.chatMeta.debtId) body.debt_id = n.chatMeta.debtId;
       if (n.chatMeta.rentalId) body.rental_id = n.chatMeta.rentalId;
