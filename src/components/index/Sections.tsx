@@ -1295,7 +1295,7 @@ export function Dashboard({ onNav, contacts, t, lentDebts, borrowedDebts, active
 }
 
 // ─── Section: Settings ────────────────────────────────────────────────────────
-export function SettingsSection({ theme, onThemeChange, profile, onProfileChange, t, lang, onLangChange, email, onLogout, isDemo, onOpenSupport, onOpenPayments }: {
+export function SettingsSection({ theme, onThemeChange, profile, onProfileChange, t, lang, onLangChange, email, onLogout, isDemo, onOpenSupport, onOpenPayments, token, authUrl }: {
   theme: Theme;
   onThemeChange: (t: Theme) => void;
   profile: { name: string; phone: string };
@@ -1308,10 +1308,45 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
   isDemo?: boolean;
   onOpenSupport?: () => void;
   onOpenPayments?: () => void;
+  token?: string;
+  authUrl?: string;
 }) {
   const [local, setLocal] = useState(profile);
   const [saved, setSaved] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(() => localStorage.getItem("df-sound-notif") !== "off");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletePin, setDeletePin] = useState("");
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  async function handleDeleteAccount() {
+    if (!token || !authUrl) return;
+    if (deletePin.length !== 4) {
+      setDeleteError("Введите 4 цифры PIN");
+      return;
+    }
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const r = await fetch(`${authUrl}?action=delete-account`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Authorization": `Bearer ${token}` },
+        body: JSON.stringify({ pin: deletePin }),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        setDeleteError(data.error || "Не удалось удалить аккаунт");
+        setDeleting(false);
+        return;
+      }
+      // Очищаем локальное хранилище и выходим
+      localStorage.clear();
+      onLogout();
+    } catch {
+      setDeleteError("Сеть недоступна. Попробуйте ещё раз");
+      setDeleting(false);
+    }
+  }
 
   function toggleSound() {
     const next = !soundEnabled;
@@ -1564,13 +1599,86 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
           Зарегистрироваться
         </button>
       ) : (
-        <button
-          onClick={onLogout}
-          className="w-full py-3 rounded-2xl glass border border-red-500/20 text-red-400 hover:bg-red-500/10 transition-all font-medium flex items-center justify-center gap-2"
-        >
-          <Icon name="LogOut" size={16} />
-          Выйти из аккаунта
-        </button>
+        <>
+          <button
+            onClick={onLogout}
+            className="w-full py-3 rounded-2xl glass border border-red-500/20 text-red-400 hover:bg-red-500/10 transition-all font-medium flex items-center justify-center gap-2"
+          >
+            <Icon name="LogOut" size={16} />
+            Выйти из аккаунта
+          </button>
+
+          {token && authUrl && (
+            <button
+              onClick={() => { setShowDeleteConfirm(true); setDeletePin(""); setDeleteError(null); }}
+              className="w-full py-3 rounded-2xl glass border border-red-500/30 text-red-500 hover:bg-red-500/10 transition-all font-medium flex items-center justify-center gap-2"
+            >
+              <Icon name="UserX" size={16} />
+              Удалить аккаунт
+            </button>
+          )}
+        </>
+      )}
+
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/75 backdrop-blur-md"
+            onClick={deleting ? undefined : () => setShowDeleteConfirm(false)}
+          />
+          <div
+            className="relative w-full max-w-sm rounded-3xl overflow-hidden animate-fade-in border border-red-500/30 shadow-2xl"
+            style={{ background: "#1a1d2e" }}
+          >
+            <div className="p-5 flex flex-col items-center text-center gap-3">
+              <div className="w-14 h-14 rounded-full bg-red-500/15 flex items-center justify-center">
+                <Icon name="TriangleAlert" size={26} className="text-red-400" />
+              </div>
+              <p className="font-semibold text-foreground text-lg">Удалить аккаунт?</p>
+              <p className="text-sm text-muted-foreground">
+                Все ваши долги, аренды, чаты, уведомления и платежи будут безвозвратно удалены.
+              </p>
+              <p className="text-xs text-red-400 font-medium">
+                Это действие нельзя отменить.
+              </p>
+              <div className="w-full pt-2">
+                <label className="text-xs text-muted-foreground mb-2 block text-left">
+                  Введите PIN-код для подтверждения
+                </label>
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={4}
+                  value={deletePin}
+                  onChange={e => { setDeletePin(e.target.value.replace(/\D/g, "").slice(0, 4)); setDeleteError(null); }}
+                  placeholder="••••"
+                  autoFocus
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-center text-2xl tracking-[0.5em] text-foreground outline-none focus:border-red-500/50 transition-colors"
+                />
+                {deleteError && (
+                  <p className="text-xs text-red-400 mt-2 text-center">{deleteError}</p>
+                )}
+              </div>
+            </div>
+            <div className="px-5 pb-5 flex gap-2">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={deleting}
+                className="flex-1 py-3 rounded-2xl bg-white/5 text-foreground font-medium text-sm border border-white/10 hover:bg-white/10 transition-colors disabled:opacity-50"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deleting || deletePin.length !== 4}
+                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-gradient-to-r from-red-500 to-rose-600 text-white font-semibold text-sm shadow-lg shadow-red-500/20 hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                {deleting ? <Icon name="Loader2" size={16} className="animate-spin" /> : <><Icon name="Trash2" size={16} />Удалить</>}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

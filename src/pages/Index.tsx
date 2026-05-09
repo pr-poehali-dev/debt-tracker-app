@@ -16,6 +16,7 @@ import {
   Dashboard, DebtList, CalendarSection, NotificationsSection,
   ArchiveSection, ContactsSection, SettingsSection, InstallBanner,
 } from "@/components/index/Sections";
+import func2url from "../../backend/func2url.json";
 
 // ─── Root ─────────────────────────────────────────────────────────────────────
 interface AuthUser { id: number; full_name: string; phone: string; email: string; }
@@ -731,7 +732,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
           {section === "archive"       && <ArchiveSection contacts={contacts} t={t} locale={locale} archiveDebts={archiveDebts} />}
           {section === "rental"        && <RentalSection userId={user.id} token={token} myName={profile.name} isDemo={isDemo} openNew={showNewRental} onNewClose={() => setShowNewRental(false)} />}
           {section === "contacts"      && <ContactsSection contacts={contacts} onColorChange={handleColorChange} t={t} />}
-          {section === "settings"      && <SettingsSection theme={theme} onThemeChange={setTheme} profile={profile} onProfileChange={handleProfileChange} t={t} lang={lang} onLangChange={handleLangChange} email={user.email} onLogout={onLogout} isDemo={isDemo} onOpenSupport={() => setShowSupport(true)} onOpenPayments={() => setShowPayments(true)} />}
+          {section === "settings"      && <SettingsSection theme={theme} onThemeChange={setTheme} profile={profile} onProfileChange={handleProfileChange} t={t} lang={lang} onLangChange={handleLangChange} email={user.email} onLogout={onLogout} isDemo={isDemo} onOpenSupport={() => setShowSupport(true)} onOpenPayments={() => setShowPayments(true)} token={token} authUrl={func2url.auth} />}
         </div>
       </main>
 

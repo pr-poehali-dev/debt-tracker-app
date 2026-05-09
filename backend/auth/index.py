@@ -281,6 +281,53 @@ def handler(event: dict, context) -> dict:
 
         return resp({"ok": True, "token": token, "user": {"id": user_id, "full_name": db_name, "phone": db_phone, "email": db_email}})
 
+    # ── POST delete-account — полное удаление аккаунта пользователя ──
+    if method == "POST" and action == "delete-account":
+        headers = event.get("headers") or {}
+        auth = headers.get("X-Authorization") or headers.get("Authorization") or ""
+        token = auth.replace("Bearer ", "").strip()
+        if not token:
+            return err("Не авторизован", 401)
+        body = json.loads(event.get("body") or "{}")
+        pin = (body.get("pin") or "").strip()
+        if len(pin) != 4 or not pin.isdigit():
+            return err("Введите 4-значный PIN-код")
+
+        now = datetime.now(timezone.utc)
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"SELECT u.id, u.email, u.pin_code FROM {SCHEMA}.sessions s JOIN {SCHEMA}.users u ON u.id = s.user_id WHERE s.token = %s AND s.expires_at > %s",
+                    (token, now),
+                )
+                row = cur.fetchone()
+                if not row:
+                    return err("Сессия истекла", 401)
+                user_id, user_email, db_pin = row[0], row[1], row[2]
+                if not db_pin or db_pin != pin:
+                    return err("Неверный PIN-код")
+
+                # Удаляем все связанные данные
+                cur.execute(f"DELETE FROM {SCHEMA}.support_messages WHERE sender_user_id = %s", (user_id,))
+                cur.execute(f"DELETE FROM {SCHEMA}.support_messages WHERE ticket_id IN (SELECT id FROM {SCHEMA}.support_tickets WHERE user_id = %s)", (user_id,))
+                cur.execute(f"DELETE FROM {SCHEMA}.support_tickets WHERE user_id = %s", (user_id,))
+                cur.execute(f"DELETE FROM {SCHEMA}.payment_requests WHERE from_user_id = %s OR to_user_id = %s", (user_id, user_id))
+                cur.execute(f"DELETE FROM {SCHEMA}.push_subscriptions WHERE user_id = %s", (user_id,))
+                cur.execute(f"DELETE FROM {SCHEMA}.notifications WHERE user_id = %s", (user_id,))
+                cur.execute(f"DELETE FROM {SCHEMA}.messages WHERE sender_user_id = %s", (user_id,))
+                cur.execute(f"DELETE FROM {SCHEMA}.rental_payments WHERE rental_id IN (SELECT id FROM {SCHEMA}.rentals WHERE landlord_user_id = %s OR tenant_user_id = %s)", (user_id, user_id))
+                cur.execute(f"DELETE FROM {SCHEMA}.rentals WHERE landlord_user_id = %s OR tenant_user_id = %s", (user_id, user_id))
+                cur.execute(f"DELETE FROM {SCHEMA}.debts WHERE lender_user_id = %s OR borrower_user_id = %s", (user_id, user_id))
+                cur.execute(f"DELETE FROM {SCHEMA}.subscriptions WHERE user_id = %s", (user_id,))
+                cur.execute(f"DELETE FROM {SCHEMA}.order_items WHERE order_id IN (SELECT id FROM {SCHEMA}.orders WHERE user_id = %s)", (user_id,))
+                cur.execute(f"DELETE FROM {SCHEMA}.orders WHERE user_id = %s", (user_id,))
+                cur.execute(f"DELETE FROM {SCHEMA}.sessions WHERE user_id = %s", (user_id,))
+                if user_email:
+                    cur.execute(f"DELETE FROM {SCHEMA}.verification_codes WHERE email = %s", (user_email,))
+                cur.execute(f"DELETE FROM {SCHEMA}.users WHERE id = %s", (user_id,))
+            conn.commit()
+        return resp({"ok": True})
+
     # ── POST login-pin — вход по PIN без письма ──
     if method == "POST" and action == "login-pin":
         body = json.loads(event.get("body") or "{}")
