@@ -355,6 +355,13 @@ def handler(event: dict, context) -> dict:
                      f"«{title}» — {float(amount):,.0f} ₽".replace(",", " "),
                      json.dumps({"debt_id": str(debt_id), "decision": decision, "amount": float(amount)}))
                 )
+                # Если кредитор подтвердил возврат — архивируем долг
+                if decision == "accepted":
+                    cur.execute(
+                        f"""UPDATE {SCHEMA}.debts SET status = 'archived', updated_at = NOW()
+                            WHERE id = %s AND lender_user_id = %s""",
+                        (debt_id, user_id)
+                    )
             conn.commit()
         return json_resp({"ok": True})
 

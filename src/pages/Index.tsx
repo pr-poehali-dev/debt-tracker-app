@@ -212,16 +212,35 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
           const existingIds = new Set(prev.map(n => n.id));
           const fresh: Notification[] = newNotifs
             .filter((n) => !existingIds.has(Number(n.id) + 1000000))
-            .map((n) => ({
-              id: Number(n.id) + 1000000,
-              type: (n.type === "rental_decision"
-                ? (String((n.data as Record<string, unknown>)?.decision) === "accepted" ? "success" : "warning")
-                : "info") as Notification["type"],
-              title: String(n.title),
-              message: String(n.body || ""),
-              date: new Date(String(n.created_at)).toLocaleDateString("ru-RU"),
-              read: false,
-            }));
+            .map((n) => {
+              const data = (n.data || {}) as Record<string, unknown>;
+              const ntype = String(n.type || "");
+              let resolvedType: Notification["type"] = "info";
+              if (ntype === "rental_decision" || ntype === "payment_response") {
+                resolvedType = String(data.decision) === "accepted" ? "success" : "warning";
+              } else if (ntype === "payment_request") {
+                resolvedType = "info";
+              }
+              const base: Notification = {
+                id: Number(n.id) + 1000000,
+                type: resolvedType,
+                title: String(n.title),
+                message: String(n.body || ""),
+                date: new Date(String(n.created_at)).toLocaleDateString("ru-RU"),
+                read: false,
+              };
+              if (ntype === "payment_request" && data.payment_request_id) {
+                base.paymentRequestMeta = {
+                  paymentRequestId: Number(data.payment_request_id),
+                  debtId: String(data.debt_id || ""),
+                  amount: Number(data.amount || 0),
+                  fromName: String(data.from_name || ""),
+                  debtTitle: String(data.debt_title || ""),
+                  status: "pending",
+                };
+              }
+              return base;
+            });
           return fresh.length > 0 ? [...fresh, ...prev] : prev;
         });
       }

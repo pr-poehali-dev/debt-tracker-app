@@ -8,6 +8,7 @@ import { type PersonalLoan } from "@/components/PersonalLoanModal";
 import ExtraPaymentModal from "@/components/ExtraPaymentModal";
 import { computeSchedule } from "@/lib/loanSchedule";
 import PayButton from "@/components/PayButton";
+import ManualReturnModal from "@/components/ManualReturnModal";
 
 // ─── Section: DebtList ────────────────────────────────────────────────────────
 const MONTHS_RU_SHORT = ["Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"];
@@ -39,6 +40,7 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
   const [extraLoan, setExtraLoan] = useState<PersonalLoan | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [confirmReturn, setConfirmReturn] = useState<Debt | null>(null);
+  const [manualReturn, setManualReturn] = useState<Debt | null>(null);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -65,6 +67,16 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
         onOpenChat={onOpenChat}
         onMarkPaid={onMarkPaid ? markPaidWithFeedback : undefined}
       />
+      {manualReturn && manualReturn.debtDbId && (
+        <ManualReturnModal
+          debtId={manualReturn.debtDbId}
+          debtTitle={manualReturn.name}
+          defaultAmount={manualReturn.interestRate ? calcTotalWithInterest(manualReturn.amount, manualReturn.interestRate, manualReturn.interestType || "simple", manualReturn.dueDate) : manualReturn.amount}
+          token={token}
+          onClose={() => setManualReturn(null)}
+          onSent={() => showToast("Запрос на возврат отправлен кредитору")}
+        />
+      )}
       {debts.length > 0 && (
         <div className="grid grid-cols-3 gap-3 mb-6">
           <div className={`glass rounded-2xl p-4 col-span-3 sm:col-span-1 ${dir === "lent" ? "glow-purple" : "glow-blue"}`}>
@@ -174,6 +186,16 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                         style={{ background: "rgba(168,85,247,0.15)", border: "1px solid rgba(168,85,247,0.3)" }}
                       >
                         <Icon name="MessageCircle" size={14} style={{ color: "#a855f7" }} />
+                      </button>
+                    )}
+                    {dir === "borrowed" && d.debtDbId && d.status !== "paid" && d.borrowerDecision === "accepted" && (
+                      <button
+                        onClick={e => { e.stopPropagation(); setManualReturn(d); }}
+                        title="Вернул лично (наличкой / переводом)"
+                        className="inline-flex items-center justify-center w-8 h-8 rounded-lg transition-all active:scale-95"
+                        style={{ background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.3)" }}
+                      >
+                        <Icon name="HandCoins" size={14} style={{ color: "#4ade80" }} />
                       </button>
                     )}
                     {dir === "borrowed" && d.debtDbId && d.status !== "paid" && token && (
@@ -608,7 +630,26 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
 }) {
   const [replyText, setReplyText] = useState<Record<number, string>>({});
   const [sending, setSending] = useState<number | null>(null);
+  const [decidingPay, setDecidingPay] = useState<number | null>(null);
+  const [decidedPay, setDecidedPay] = useState<Record<number, "accepted" | "rejected">>({});
   const unread = notifs.filter(n => !n.read).length;
+
+  async function decidePayment(n: Notification, decision: "accepted" | "rejected") {
+    if (!n.paymentRequestMeta) return;
+    setDecidingPay(n.id);
+    try {
+      const urls = (await import("../../../backend/func2url.json")).default;
+      const res = await fetch(`${urls["debts"]}?action=pay`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ payment_request_id: n.paymentRequestMeta.paymentRequestId, decision }),
+      });
+      if (res.ok) {
+        setDecidedPay(prev => ({ ...prev, [n.id]: decision }));
+        onMarkRead(n.id);
+      }
+    } finally { setDecidingPay(null); }
+  }
 
   async function sendReply(n: Notification) {
     const text = (replyText[n.id] || "").trim();
@@ -677,6 +718,7 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
         {notifs.map((n, i) => {
           const isChat = !!n.chatMeta;
           const isSupport = !!n.supportMeta;
+          const isPayReq = !!n.paymentRequestMeta;
           const isReplyable = isChat || isSupport;
           return (
             <div
@@ -723,6 +765,57 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
                   </button>
                 )}
               </div>
+
+              {/* Запрос подтверждения возврата */}
+              {isPayReq && n.paymentRequestMeta && (() => {
+                const decided = decidedPay[n.id] || (n.paymentRequestMeta.status !== "pending" ? n.paymentRequestMeta.status : null);
+                const isLoading = decidingPay === n.id;
+                if (decided) {
+                  return (
+                    <div className="px-4 pb-3 border-t border-white/5">
+                      <div className="mt-3 flex items-center gap-2 text-xs">
+                        <Icon name={decided === "accepted" ? "CheckCircle2" : "XCircle"} size={14} className={decided === "accepted" ? "text-green-400" : "text-red-400"} />
+                        <span className={decided === "accepted" ? "text-green-400" : "text-red-400"}>
+                          {decided === "accepted" ? "Возврат подтверждён" : "Возврат отклонён"}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="px-4 pb-3 border-t border-white/5">
+                    <p className="text-[11px] text-muted-foreground mt-3 mb-2">
+                      Сумма к подтверждению: <span className="text-foreground font-semibold">{n.paymentRequestMeta.amount.toLocaleString("ru-RU")} ₽</span>
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => decidePayment(n, "rejected")}
+                        disabled={isLoading}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium transition-all active:scale-95 disabled:opacity-50"
+                        style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", color: "#f87171" }}
+                      >
+                        <Icon name="X" size={13} />
+                        Отклонить
+                      </button>
+                      <button
+                        onClick={() => decidePayment(n, "accepted")}
+                        disabled={isLoading}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95 disabled:opacity-50"
+                        style={{ background: "linear-gradient(135deg, #10b981, #059669)", color: "#fff" }}
+                      >
+                        {isLoading ? (
+                          <Icon name="Loader2" size={13} className="animate-spin" />
+                        ) : (
+                          <>
+                            <Icon name="Check" size={13} />
+                            Подтвердить
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Быстрый ответ для чат- и support-уведомлений */}
               {isReplyable && !n.read && (

@@ -42,6 +42,15 @@ export interface SupportMeta {
   lastText: string;
 }
 
+export interface PaymentRequestMeta {
+  paymentRequestId: number;
+  debtId: string;
+  amount: number;
+  fromName: string;
+  debtTitle: string;
+  status: "pending" | "accepted" | "rejected";
+}
+
 export interface Notification {
   id: number;
   type: "warning" | "danger" | "info" | "success";
@@ -51,6 +60,7 @@ export interface Notification {
   read: boolean;
   chatMeta?: ChatMeta;
   supportMeta?: SupportMeta;
+  paymentRequestMeta?: PaymentRequestMeta;
 }
 
 export const COLOR_OPTIONS: { id: ContactColor; label: string; hex: string; bg: string; border: string; text: string }[] = [
