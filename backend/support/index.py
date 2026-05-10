@@ -62,7 +62,7 @@ def get_admin_user_id(conn):
 def cors():
     return {
         "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Authorization",
         "Content-Type": "application/json",
     }
@@ -140,14 +140,26 @@ def handler(event: dict, context) -> dict:
                     ]
                 return json_resp({"ticket": {"id": t[0], "user_id": t[1], "subject": t[2], "status": t[3], "created_at": t[4]}, "messages": msgs})
 
+            status_filter = (qs.get("status") or "").strip().lower()
+            allowed_statuses = {"open", "closed"}
             with conn.cursor() as cur:
                 if user["is_admin"]:
-                    cur.execute(
-                        f"""SELECT t.id, t.user_id, t.subject, t.status, t.created_at, t.updated_at, t.unread_for_admin, u.full_name, u.email
-                            FROM {SCHEMA}.support_tickets t
-                            JOIN {SCHEMA}.users u ON u.id = t.user_id
-                            ORDER BY t.updated_at DESC"""
-                    )
+                    if status_filter in allowed_statuses:
+                        cur.execute(
+                            f"""SELECT t.id, t.user_id, t.subject, t.status, t.created_at, t.updated_at, t.unread_for_admin, u.full_name, u.email
+                                FROM {SCHEMA}.support_tickets t
+                                JOIN {SCHEMA}.users u ON u.id = t.user_id
+                                WHERE t.status = %s
+                                ORDER BY t.updated_at DESC""",
+                            (status_filter,)
+                        )
+                    else:
+                        cur.execute(
+                            f"""SELECT t.id, t.user_id, t.subject, t.status, t.created_at, t.updated_at, t.unread_for_admin, u.full_name, u.email
+                                FROM {SCHEMA}.support_tickets t
+                                JOIN {SCHEMA}.users u ON u.id = t.user_id
+                                ORDER BY t.updated_at DESC"""
+                        )
                     rows = cur.fetchall()
                     tickets = [
                         {"id": r[0], "user_id": r[1], "subject": r[2], "status": r[3], "created_at": r[4], "updated_at": r[5], "unread": r[6], "user_name": r[7], "user_email": r[8]}
@@ -235,6 +247,27 @@ def handler(event: dict, context) -> dict:
                     cur.execute(f"UPDATE {SCHEMA}.support_tickets SET unread_for_user = 0 WHERE id = %s", (ticket_id,))
                 conn.commit()
             return json_resp({"ok": True})
+
+        if method == "PATCH":
+            if not user["is_admin"]:
+                return err("forbidden", 403)
+            body = json.loads(event.get("body") or "{}")
+            ticket_id = int(body.get("ticket_id") or 0)
+            new_status = (body.get("status") or "").strip().lower()
+            if not ticket_id:
+                return err("ticket_id_required")
+            if new_status not in {"open", "closed"}:
+                return err("invalid_status")
+            with conn.cursor() as cur:
+                cur.execute(f"SELECT id FROM {SCHEMA}.support_tickets WHERE id = %s", (ticket_id,))
+                if not cur.fetchone():
+                    return err("not_found", 404)
+                cur.execute(
+                    f"UPDATE {SCHEMA}.support_tickets SET status = %s, updated_at = NOW() WHERE id = %s",
+                    (new_status, ticket_id)
+                )
+                conn.commit()
+            return json_resp({"ok": True, "status": new_status})
 
         return err("method_not_allowed", 405)
     finally:

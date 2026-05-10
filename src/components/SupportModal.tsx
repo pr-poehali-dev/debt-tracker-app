@@ -31,13 +31,17 @@ export default function SupportModal({ token, onClose, initialTicketId, isAdmin 
   const [text, setText] = useState("");
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
+  const [adminFilter, setAdminFilter] = useState<"open" | "closed" | "all">("open");
+  const [activeStatus, setActiveStatus] = useState<string>("open");
+  const [updatingStatus, setUpdatingStatus] = useState(false);
   const messagesRef = useRef<HTMLDivElement>(null);
 
   async function loadTickets() {
     setLoading(true);
     try {
       const urls = (await import("../../backend/func2url.json")).default;
-      const r = await fetch(urls["support"], { headers: { Authorization: `Bearer ${token}` } });
+      const url = isAdmin && adminFilter !== "all" ? `${urls["support"]}?status=${adminFilter}` : urls["support"];
+      const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       if (r.ok) {
         const data = await r.json();
         setTickets(data.tickets || []);
@@ -53,6 +57,7 @@ export default function SupportModal({ token, onClose, initialTicketId, isAdmin 
     if (r.ok) {
       const data = await r.json();
       setMessages(data.messages || []);
+      if (data.ticket?.status) setActiveStatus(data.ticket.status);
       await fetch(urls["support"], {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -61,7 +66,25 @@ export default function SupportModal({ token, onClose, initialTicketId, isAdmin 
     }
   }
 
-  useEffect(() => { loadTickets(); }, []);
+  async function changeStatus(newStatus: "open" | "closed") {
+    if (!activeTicket || updatingStatus) return;
+    setUpdatingStatus(true);
+    try {
+      const urls = (await import("../../backend/func2url.json")).default;
+      const r = await fetch(urls["support"], {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ ticket_id: activeTicket, status: newStatus }),
+      });
+      if (r.ok) {
+        setActiveStatus(newStatus);
+      }
+    } finally {
+      setUpdatingStatus(false);
+    }
+  }
+
+  useEffect(() => { loadTickets(); }, [adminFilter]);
 
   useEffect(() => {
     if (activeTicket) loadMessages(activeTicket);
@@ -129,13 +152,28 @@ export default function SupportModal({ token, onClose, initialTicketId, isAdmin 
               </button>
             )}
             <div>
-              <h2 className="font-heading font-bold text-lg">{activeTicket ? "Обращение" : (isAdmin ? "Обращения пользователей" : "Поддержка")}</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="font-heading font-bold text-lg">{activeTicket ? "Обращение" : (isAdmin ? "Обращения пользователей" : "Поддержка")}</h2>
+                {activeTicket && (
+                  <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${activeStatus === "closed" ? "bg-white/10 text-muted-foreground" : "bg-emerald-500/20 text-emerald-300"}`}>
+                    {activeStatus === "closed" ? "закрыт" : "открыт"}
+                  </span>
+                )}
+              </div>
               {!activeTicket && <p className="text-xs text-muted-foreground">{isAdmin ? "Отвечайте на сообщения пользователей" : "Напишите нам — ответим как можно скорее"}</p>}
             </div>
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-white/10">
-            <Icon name="X" size={18} />
-          </button>
+          <div className="flex items-center gap-2">
+            {activeTicket && isAdmin && (
+              <button onClick={() => changeStatus(activeStatus === "closed" ? "open" : "closed")} disabled={updatingStatus}
+                className={`text-xs font-semibold px-3 py-1.5 rounded-xl disabled:opacity-50 ${activeStatus === "closed" ? "bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30" : "bg-white/10 text-foreground hover:bg-white/15"}`}>
+                {activeStatus === "closed" ? "Открыть" : "Закрыть"}
+              </button>
+            )}
+            <button onClick={onClose} className="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-white/10">
+              <Icon name="X" size={18} />
+            </button>
+          </div>
         </div>
 
         {!activeTicket && !showNew && (
@@ -147,6 +185,22 @@ export default function SupportModal({ token, onClose, initialTicketId, isAdmin 
                 <Icon name="Plus" size={16} />
                 Написать в поддержку
               </button>
+            )}
+
+            {isAdmin && (
+              <div className="glass rounded-2xl p-1 flex gap-1">
+                {([
+                  { id: "open", label: "Открытые" },
+                  { id: "closed", label: "Закрытые" },
+                  { id: "all", label: "Все" },
+                ] as const).map(tab => (
+                  <button key={tab.id} onClick={() => setAdminFilter(tab.id)}
+                    className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${adminFilter === tab.id ? "text-white" : "text-muted-foreground hover:bg-white/5"}`}
+                    style={adminFilter === tab.id ? { background: "linear-gradient(135deg, #a855f7, #6366f1)" } : {}}>
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
             )}
 
             {loading && <p className="text-center text-xs text-muted-foreground py-4">Загрузка...</p>}
@@ -161,11 +215,18 @@ export default function SupportModal({ token, onClose, initialTicketId, isAdmin 
                 className="w-full glass rounded-2xl p-4 text-left hover:bg-white/5 transition-colors">
                 <div className="flex items-start justify-between gap-3 mb-1">
                   <p className="font-semibold text-sm text-foreground truncate flex-1">{t.subject}</p>
-                  {t.unread > 0 && (
-                    <span className="bg-red-500 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0">
-                      {t.unread > 9 ? "9+" : t.unread}
-                    </span>
-                  )}
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    {isAdmin && (
+                      <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${t.status === "closed" ? "bg-white/10 text-muted-foreground" : "bg-emerald-500/20 text-emerald-300"}`}>
+                        {t.status === "closed" ? "закрыт" : "открыт"}
+                      </span>
+                    )}
+                    {t.unread > 0 && (
+                      <span className="bg-red-500 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                        {t.unread > 9 ? "9+" : t.unread}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 {isAdmin && t.user_name && (
                   <p className="text-xs text-purple-300/80 truncate mb-0.5">
