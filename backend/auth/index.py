@@ -580,18 +580,8 @@ def handler(event: dict, context) -> dict:
                     (phone,),
                 )
                 last = cur.fetchone()
-                if last and last[0]:
-                    elapsed = (now - last[0]).total_seconds()
-                    if elapsed < 20:
-                        return err(f"Подождите {int(20 - elapsed)} сек перед повторной отправкой", 429)
-                # Лимит 30 SMS в день на номер (защита от злоупотреблений)
-                cur.execute(
-                    f"SELECT COUNT(*) FROM {SCHEMA}.verification_codes WHERE phone = %s AND created_at > %s",
-                    (phone, now - timedelta(hours=24)),
-                )
-                day_count = cur.fetchone()[0]
-                if day_count >= 30:
-                    return err("Слишком много SMS на этот номер. Попробуйте завтра.", 429)
+                # Лимиты отключены — SMS не отправляются, код возвращается в ответе (dev_code)
+                _ = last
 
         code = "".join(random.choices(string.digits, k=4))
         expires_at = now + timedelta(minutes=10)
@@ -603,35 +593,15 @@ def handler(event: dict, context) -> dict:
                 )
             conn.commit()
 
-        # Временный режим обхода: пока имя отправителя на модерации SMS.ru —
-        # если SMS не доставляется по причине отсутствия sender, возвращаем код
-        # прямо в ответе. Фронтенд показывает его на экране пользователю.
-        # TODO: УБРАТЬ после согласования имени отправителя в SMS.ru.
+        # Временный режим: SMS не отправляются — код возвращается прямо в ответе
+        # и показывается пользователю на экране. Попытка отправить остаётся в коде,
+        # но любая ошибка не блокирует показ кода.
         try:
             send_sms_smsru(phone, code)
         except Exception as e:
-            msg = str(e)
-            print(f"[send-sms] SMS DELIVERY FAILED to {phone}: {msg}")
-            low = msg.lower()
-            # Проблема с sender / модерация / тестовый режим — отдаём код в ответе
-            sender_problem = (
-                "буквенного отправителя" in msg
-                or "sender" in low
-                or "модерац" in low
-                or "from" in low
-            )
-            if sender_problem:
-                return resp({"ok": True, "dev_code": code, "dev_notice": "Имя отправителя на модерации. Код временно показывается на экране."})
-            user_msg = "Не удалось отправить SMS. Попробуйте через минуту."
-            if "balance" in low or "баланс" in low or "недостаточно" in low:
-                user_msg = "Сервис временно недоступен. Напишите в поддержку."
-            elif "не задан" in low:
-                user_msg = "Сервис SMS не настроен. Напишите в поддержку."
-            elif "invalid" in low or "неверный" in low or "формат" in low:
-                user_msg = "Неверный формат номера телефона."
-            return err(user_msg, 502)
+            print(f"[send-sms] SMS skipped to {phone}: {e}")
 
-        return resp({"ok": True})
+        return resp({"ok": True, "dev_code": code, "dev_notice": "Код временно показывается на экране."})
 
     # ── POST verify-sms — проверить SMS-код и создать аккаунт с PIN ──
     if method == "POST" and action == "verify-sms":
