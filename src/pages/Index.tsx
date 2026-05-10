@@ -514,9 +514,10 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
     return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
   });
 
-  const [profile, setProfile] = useState<{ name: string; phone: string }>({
+  const [profile, setProfile] = useState<{ name: string; phone: string; email: string }>({
     name: user.full_name,
     phone: user.phone,
+    email: (user as { email?: string }).email || "",
   });
 
   const [lang, setLang] = useState<Lang>(() => {
@@ -547,7 +548,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
     archive: t.titleArchive, contacts: t.titleContacts, settings: t.navSettings,
   };
 
-  function handleProfileChange(p: { name: string; phone: string }) {
+  function handleProfileChange(p: { name: string; phone: string; email: string }) {
     setProfile(p);
     localStorage.setItem("df-profile", JSON.stringify(p));
   }

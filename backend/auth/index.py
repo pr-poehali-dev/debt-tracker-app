@@ -334,7 +334,10 @@ def handler(event: dict, context) -> dict:
                 row = cur.fetchone()
         if not row:
             return err("Сессия истекла", 401)
-        return resp({"id": row[0], "full_name": row[1], "phone": row[2], "email": row[3]})
+        email_val = row[3] or ""
+        if email_val.startswith("no-email-"):
+            email_val = ""
+        return resp({"id": row[0], "full_name": row[1], "phone": row[2], "email": email_val})
 
     # ── POST check-email — проверить есть ли пользователь и есть ли у него PIN ──
     if method == "POST" and action == "check-email":
@@ -718,5 +721,65 @@ def handler(event: dict, context) -> dict:
         if not row:
             return err("Неверный или истёкший код")
         return resp({"ok": True})
+
+    # ── POST update-profile — обновить ФИО и email авторизованного пользователя ──
+    if method == "POST" and action == "update-profile":
+        headers = event.get("headers") or {}
+        auth = headers.get("X-Authorization") or headers.get("Authorization") or ""
+        token = auth.replace("Bearer ", "").strip()
+        if not token:
+            return err("Не авторизован", 401)
+        body = json.loads(event.get("body") or "{}")
+        new_email_raw = body.get("email")
+        new_name_raw = body.get("full_name")
+        new_email = new_email_raw.strip().lower() if isinstance(new_email_raw, str) else None
+        new_name = new_name_raw.strip() if isinstance(new_name_raw, str) else None
+
+        if new_email is not None and new_email != "":
+            if "@" not in new_email or "." not in new_email or len(new_email) > 200:
+                return err("Некорректный email")
+        if new_name is not None and new_name != "" and len(new_name) > 200:
+            return err("Слишком длинное ФИО")
+
+        now = datetime.now(timezone.utc)
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"SELECT u.id, u.full_name, u.phone, u.email FROM {SCHEMA}.sessions s JOIN {SCHEMA}.users u ON u.id = s.user_id WHERE s.token = %s AND s.expires_at > %s",
+                    (token, now),
+                )
+                row = cur.fetchone()
+                if not row:
+                    return err("Сессия истекла", 401)
+                user_id, cur_name, cur_phone, cur_email = row
+
+                if new_email is not None:
+                    target_email = new_email if new_email != "" else f"no-email-{cur_phone}@local"
+                    if target_email != cur_email:
+                        cur.execute(
+                            f"SELECT id FROM {SCHEMA}.users WHERE email = %s AND id <> %s",
+                            (target_email, user_id),
+                        )
+                        if cur.fetchone():
+                            return err("Этот email уже используется")
+                        cur.execute(
+                            f"UPDATE {SCHEMA}.users SET email = %s WHERE id = %s",
+                            (target_email, user_id),
+                        )
+                        cur_email = target_email
+
+                if new_name is not None and new_name != "" and new_name != cur_name:
+                    cur.execute(
+                        f"UPDATE {SCHEMA}.users SET full_name = %s WHERE id = %s",
+                        (new_name, user_id),
+                    )
+                    cur_name = new_name
+
+                conn.commit()
+
+        out_email = cur_email or ""
+        if out_email.startswith("no-email-"):
+            out_email = ""
+        return resp({"ok": True, "user": {"id": user_id, "full_name": cur_name, "phone": cur_phone, "email": out_email}})
 
     return err("Неизвестный маршрут", 404)

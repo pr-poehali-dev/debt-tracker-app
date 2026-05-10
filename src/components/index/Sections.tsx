@@ -1298,8 +1298,8 @@ export function Dashboard({ onNav, contacts, t, lentDebts, borrowedDebts, active
 export function SettingsSection({ theme, onThemeChange, profile, onProfileChange, t, lang, onLangChange, onLogout, isDemo, onOpenSupport, onOpenPayments, token, authUrl }: {
   theme: Theme;
   onThemeChange: (t: Theme) => void;
-  profile: { name: string; phone: string };
-  onProfileChange: (p: { name: string; phone: string }) => void;
+  profile: { name: string; phone: string; email: string };
+  onProfileChange: (p: { name: string; phone: string; email: string }) => void;
   t: ReturnType<typeof getT>;
   lang: Lang;
   onLangChange: (l: Lang) => void;
@@ -1375,7 +1375,36 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
     }
   }
 
-  function save() {
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
+
+  async function save() {
+    setProfileError(null);
+    if (local.email && (!local.email.includes("@") || !local.email.includes("."))) {
+      setProfileError("Некорректный email");
+      return;
+    }
+    if (token && authUrl) {
+      setSavingProfile(true);
+      try {
+        const r = await fetch(`${authUrl}?action=update-profile`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Authorization": `Bearer ${token}` },
+          body: JSON.stringify({ full_name: local.name, email: local.email }),
+        });
+        const data = await r.json();
+        if (!r.ok) {
+          setProfileError(data.error || "Не удалось сохранить");
+          setSavingProfile(false);
+          return;
+        }
+      } catch {
+        setProfileError("Сеть недоступна. Попробуйте ещё раз");
+        setSavingProfile(false);
+        return;
+      }
+      setSavingProfile(false);
+    }
     onProfileChange(local);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -1437,17 +1466,32 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
             <label className="text-xs text-muted-foreground mb-1 block">{t.phone}</label>
             <input
               value={local.phone}
-              onChange={e => setLocal(l => ({ ...l, phone: e.target.value }))}
-              placeholder="+7 999 000 00 00"
+              readOnly
+              disabled
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-muted-foreground outline-none cursor-not-allowed"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">Email</label>
+            <input
+              value={local.email}
+              onChange={e => setLocal(l => ({ ...l, email: e.target.value }))}
+              placeholder="example@mail.com"
+              type="email"
+              autoComplete="email"
               className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-purple-500/50 transition-colors"
             />
           </div>
+          {profileError && (
+            <p className="text-xs text-red-400">{profileError}</p>
+          )}
           <button
             onClick={save}
-            className="w-full py-2.5 rounded-xl font-semibold text-white text-sm transition-all"
+            disabled={savingProfile}
+            className="w-full py-2.5 rounded-xl font-semibold text-white text-sm transition-all disabled:opacity-50"
             style={{ background: "linear-gradient(135deg, #a855f7, #6366f1)" }}
           >
-            {saved ? t.saved : t.save}
+            {savingProfile ? "..." : saved ? t.saved : t.save}
           </button>
         </div>
       </div>
