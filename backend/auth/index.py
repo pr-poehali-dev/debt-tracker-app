@@ -667,11 +667,14 @@ def handler(event: dict, context) -> dict:
                 else:
                     if not full_name:
                         return err("Введите ФИО для регистрации")
+                    placeholder_email = f"no-email-{phone}@local"
                     cur.execute(
                         f"INSERT INTO {SCHEMA}.users (full_name, phone, email, pin_code) VALUES (%s, %s, %s, %s) RETURNING id, full_name, phone, email",
-                        (full_name, phone, "", pin_code),
+                        (full_name, phone, placeholder_email, pin_code),
                     )
                     user_id, db_name, db_phone, db_email = cur.fetchone()
+                    if db_email and db_email.startswith("no-email-"):
+                        db_email = ""
 
                 token = make_session(conn, user_id)
             conn.commit()
