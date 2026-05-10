@@ -259,14 +259,30 @@ def handler(event: dict, context) -> dict:
             if new_status not in {"open", "closed"}:
                 return err("invalid_status")
             with conn.cursor() as cur:
-                cur.execute(f"SELECT id FROM {SCHEMA}.support_tickets WHERE id = %s", (ticket_id,))
-                if not cur.fetchone():
+                cur.execute(f"SELECT user_id, status, subject FROM {SCHEMA}.support_tickets WHERE id = %s", (ticket_id,))
+                row = cur.fetchone()
+                if not row:
                     return err("not_found", 404)
+                ticket_user_id, old_status, ticket_subject = row
+                if old_status == new_status:
+                    return json_resp({"ok": True, "status": new_status})
                 cur.execute(
                     f"UPDATE {SCHEMA}.support_tickets SET status = %s, updated_at = NOW() WHERE id = %s",
                     (new_status, ticket_id)
                 )
+                sys_text = "Обращение закрыто администратором." if new_status == "closed" else "Обращение снова открыто администратором."
+                cur.execute(
+                    f"INSERT INTO {SCHEMA}.support_messages (ticket_id, sender_role, sender_user_id, text) VALUES (%s, 'admin', %s, %s)",
+                    (ticket_id, user["id"], sys_text)
+                )
+                cur.execute(
+                    f"UPDATE {SCHEMA}.support_tickets SET unread_for_user = unread_for_user + 1 WHERE id = %s",
+                    (ticket_id,)
+                )
                 conn.commit()
+            push_title = "Обращение закрыто" if new_status == "closed" else "Обращение открыто"
+            push_body = f"{ticket_subject}: {sys_text}"
+            send_push(conn, ticket_user_id, push_title, push_body)
             return json_resp({"ok": True, "status": new_status})
 
         return err("method_not_allowed", 405)
