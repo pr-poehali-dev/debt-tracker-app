@@ -11,7 +11,11 @@ import os
 import psycopg2
 
 SCHEMA = "t_p29977622_debt_tracker_app"
-ADMIN_EMAIL = "elovyh@list.ru"
+ADMIN_PHONE_DIGITS = "79680066666"
+
+
+def _digits(s):
+    return "".join(ch for ch in (s or "") if ch.isdigit())
 
 
 def get_conn():
@@ -47,9 +51,12 @@ def send_push(conn, recipient_user_id, title, body_text):
 
 def get_admin_user_id(conn):
     with conn.cursor() as cur:
-        cur.execute(f"SELECT id FROM {SCHEMA}.users WHERE LOWER(email) = %s LIMIT 1", (ADMIN_EMAIL,))
-        row = cur.fetchone()
-    return row[0] if row else None
+        cur.execute(f"SELECT id, phone FROM {SCHEMA}.users")
+        rows = cur.fetchall()
+    for uid, phone in rows:
+        if _digits(phone) == ADMIN_PHONE_DIGITS:
+            return uid
+    return None
 
 
 def cors():
@@ -75,7 +82,7 @@ def get_user(token_str, conn):
     bearer = token_str.replace("Bearer ", "").strip()
     with conn.cursor() as cur:
         cur.execute(
-            f"""SELECT u.id, u.full_name, u.email FROM {SCHEMA}.sessions s
+            f"""SELECT u.id, u.full_name, u.email, u.phone FROM {SCHEMA}.sessions s
                 JOIN {SCHEMA}.users u ON u.id = s.user_id
                 WHERE s.token = %s AND s.expires_at > NOW()""",
             (bearer,)
@@ -83,7 +90,7 @@ def get_user(token_str, conn):
         row = cur.fetchone()
     if not row:
         return None
-    return {"id": row[0], "name": row[1], "email": row[2], "is_admin": (row[2] or "").strip().lower() == ADMIN_EMAIL}
+    return {"id": row[0], "name": row[1], "email": row[2], "phone": row[3], "is_admin": _digits(row[3]) == ADMIN_PHONE_DIGITS}
 
 
 def handler(event: dict, context) -> dict:

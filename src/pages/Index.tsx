@@ -645,7 +645,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
           setSection("rental");
         }} />
       )}
-      {showSupport && !isDemo && <SupportModal token={token} initialTicketId={supportTicketId ?? undefined} onClose={() => { setShowSupport(false); setSupportTicketId(null); }} />}
+      {showSupport && !isDemo && <SupportModal token={token} isAdmin={user.phone.replace(/\D/g, "") === "79680066666"} initialTicketId={supportTicketId ?? undefined} onClose={() => { setShowSupport(false); setSupportTicketId(null); }} />}
       {showPayments && !isDemo && <PaymentsHistory token={token} onClose={() => setShowPayments(false)} />}
       {showReport && (
         <BalanceReportModal

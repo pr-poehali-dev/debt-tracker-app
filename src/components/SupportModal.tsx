@@ -9,6 +9,8 @@ interface Ticket {
   created_at: string;
   updated_at: string;
   unread: number;
+  user_name?: string;
+  user_email?: string;
 }
 
 interface Message {
@@ -19,7 +21,7 @@ interface Message {
   author: string;
 }
 
-export default function SupportModal({ token, onClose, initialTicketId }: { token: string; onClose: () => void; initialTicketId?: number }) {
+export default function SupportModal({ token, onClose, initialTicketId, isAdmin = false }: { token: string; onClose: () => void; initialTicketId?: number; isAdmin?: boolean }) {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [activeTicket, setActiveTicket] = useState<number | null>(initialTicketId ?? null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -127,8 +129,8 @@ export default function SupportModal({ token, onClose, initialTicketId }: { toke
               </button>
             )}
             <div>
-              <h2 className="font-heading font-bold text-lg">{activeTicket ? "Обращение" : "Поддержка"}</h2>
-              {!activeTicket && <p className="text-xs text-muted-foreground">Напишите нам — ответим как можно скорее</p>}
+              <h2 className="font-heading font-bold text-lg">{activeTicket ? "Обращение" : (isAdmin ? "Обращения пользователей" : "Поддержка")}</h2>
+              {!activeTicket && <p className="text-xs text-muted-foreground">{isAdmin ? "Отвечайте на сообщения пользователей" : "Напишите нам — ответим как можно скорее"}</p>}
             </div>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-white/10">
@@ -138,18 +140,20 @@ export default function SupportModal({ token, onClose, initialTicketId }: { toke
 
         {!activeTicket && !showNew && (
           <div className="flex-1 overflow-y-auto px-5 py-3 space-y-2">
-            <button onClick={() => setShowNew(true)}
-              className="w-full py-3 rounded-2xl font-semibold text-white text-sm flex items-center justify-center gap-2"
-              style={{ background: "linear-gradient(135deg, #a855f7, #6366f1)" }}>
-              <Icon name="Plus" size={16} />
-              Написать в поддержку
-            </button>
+            {!isAdmin && (
+              <button onClick={() => setShowNew(true)}
+                className="w-full py-3 rounded-2xl font-semibold text-white text-sm flex items-center justify-center gap-2"
+                style={{ background: "linear-gradient(135deg, #a855f7, #6366f1)" }}>
+                <Icon name="Plus" size={16} />
+                Написать в поддержку
+              </button>
+            )}
 
             {loading && <p className="text-center text-xs text-muted-foreground py-4">Загрузка...</p>}
             {!loading && tickets.length === 0 && (
               <div className="glass rounded-2xl p-6 text-center">
                 <Icon name="MessageSquare" size={32} className="text-muted-foreground/40 mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">Нет обращений</p>
+                <p className="text-sm text-muted-foreground">{isAdmin ? "Нет обращений от пользователей" : "Нет обращений"}</p>
               </div>
             )}
             {tickets.map(t => (
@@ -163,13 +167,19 @@ export default function SupportModal({ token, onClose, initialTicketId }: { toke
                     </span>
                   )}
                 </div>
+                {isAdmin && t.user_name && (
+                  <p className="text-xs text-purple-300/80 truncate mb-0.5">
+                    <Icon name="User" size={11} className="inline mr-1 -mt-0.5" />
+                    {t.user_name}{t.user_email ? ` · ${t.user_email}` : ""}
+                  </p>
+                )}
                 <p className="text-xs text-muted-foreground">{new Date(t.updated_at).toLocaleString("ru-RU")}</p>
               </button>
             ))}
           </div>
         )}
 
-        {showNew && !activeTicket && (
+        {showNew && !activeTicket && !isAdmin && (
           <div className="flex-1 overflow-y-auto px-5 py-3 space-y-3">
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Тема</label>
