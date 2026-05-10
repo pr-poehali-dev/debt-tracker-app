@@ -447,7 +447,6 @@ export default function Auth({ onAuth }: Props) {
               <p className="text-xs text-muted-foreground text-center">Введите 4-значный код из SMS</p>
               {devCode && (
                 <div className="rounded-2xl px-4 py-3 text-center" style={{ background: "rgba(168,85,247,0.12)", border: "1px solid rgba(168,85,247,0.4)" }}>
-                  <p className="text-[10px] uppercase tracking-wider text-purple-300 mb-1">Тестовый режим — SMS пока не отправляются</p>
                   <p className="text-xs text-muted-foreground mb-1">Ваш код:</p>
                   <p className="font-black text-3xl tracking-[8px] text-purple-300" style={{ textShadow: "0 0 12px rgba(168,85,247,0.5)" }}>{devCode}</p>
                 </div>
