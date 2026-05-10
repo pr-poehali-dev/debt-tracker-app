@@ -4,7 +4,7 @@ import json
 import psycopg2
 from datetime import datetime, timezone
 
-ADMIN_EMAIL = "elovyh@list.ru"
+ADMIN_PHONE = "+79680066666"
 
 CORS = {
     "Access-Control-Allow-Origin": "*",
@@ -29,7 +29,7 @@ def handler(event: dict, context) -> dict:
     cur = conn.cursor()
 
     cur.execute(
-        "SELECT u.id, u.email FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token = %s AND s.expires_at > %s",
+        "SELECT u.id, u.phone FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token = %s AND s.expires_at > %s",
         (token, now),
     )
     row = cur.fetchone()
@@ -38,8 +38,10 @@ def handler(event: dict, context) -> dict:
         conn.close()
         return {"statusCode": 401, "headers": CORS, "body": json.dumps({"error": "Unauthorized"})}
 
-    user_id, user_email = row
-    if user_email != ADMIN_EMAIL:
+    user_id, user_phone = row
+    digits = "".join(ch for ch in (user_phone or "") if ch.isdigit())
+    admin_digits = "".join(ch for ch in ADMIN_PHONE if ch.isdigit())
+    if digits != admin_digits:
         conn.close()
         return {"statusCode": 403, "headers": CORS, "body": json.dumps({"error": "Forbidden"})}
 

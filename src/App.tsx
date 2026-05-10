@@ -222,7 +222,11 @@ const App = () => {
               ? <BrowserRouter>
                   <Routes>
                     <Route path="/" element={<Index user={user} onLogout={handleLogout} />} />
-                    <Route path="/admin" element={<AdminPanel onBack={() => window.history.back()} />} />
+                    <Route path="/admin" element={
+                      user.phone.replace(/\D/g, "") === "79680066666"
+                        ? <AdminPanel onBack={() => window.history.back()} />
+                        : <NotFound />
+                    } />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </BrowserRouter>
