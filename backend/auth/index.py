@@ -582,15 +582,15 @@ def handler(event: dict, context) -> dict:
                 last = cur.fetchone()
                 if last and last[0]:
                     elapsed = (now - last[0]).total_seconds()
-                    if elapsed < 60:
-                        return err(f"Подождите {int(60 - elapsed)} сек перед повторной отправкой", 429)
-                # Лимит 5 SMS в день на номер
+                    if elapsed < 20:
+                        return err(f"Подождите {int(20 - elapsed)} сек перед повторной отправкой", 429)
+                # Лимит 30 SMS в день на номер (защита от злоупотреблений)
                 cur.execute(
                     f"SELECT COUNT(*) FROM {SCHEMA}.verification_codes WHERE phone = %s AND created_at > %s",
                     (phone, now - timedelta(hours=24)),
                 )
                 day_count = cur.fetchone()[0]
-                if day_count >= 5:
+                if day_count >= 30:
                     return err("Слишком много SMS на этот номер. Попробуйте завтра.", 429)
 
         code = "".join(random.choices(string.digits, k=4))
