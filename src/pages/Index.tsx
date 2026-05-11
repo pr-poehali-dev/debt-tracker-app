@@ -88,6 +88,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
               borrowerDismissed: isLender && d.borrower_dismissed ? true : undefined,
               pendingPaymentsCount: d.pending_payments_count != null ? Number(d.pending_payments_count) : 0,
               counterpartyName: String(isLender ? (d.borrower_name || "") : (d.lender_name || "")) || undefined,
+              archivedDir: (status === "archived" || isDeleted) ? (isLender ? "lent" : "borrowed") : undefined,
             };
 
             if (status === "archived") {
@@ -908,7 +909,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
           {section === "borrowed"      && <DebtList debts={borrowedDebts} dir="borrowed" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => setActiveChat({ debtId: id, title })} onMarkPaid={handleMarkPaid} onDeleteDebt={handleDeleteDebt} onAddNew={() => setShowPersonalLoan(true)} personalLoans={personalLoans} onPersonalLoanUpdate={(loans) => { setPersonalLoans(loans); localStorage.setItem("df-personal-loans", JSON.stringify(loans)); }} token={token} onPaymentAccepted={handlePaymentAccepted} />}
           {section === "calendar"      && <CalendarSection contacts={contacts} t={t} debts={[...lentDebts, ...borrowedDebts]} rentals={rentals} userId={user.id} />}
           {section === "notifications" && <NotificationsSection notifs={notifs} onMarkAllRead={handleMarkAllRead} onMarkRead={handleMarkRead} t={t} token={token} onOpenChat={(debtId, rentalId, title) => setActiveChat({ debtId: debtId || undefined, rentalId: rentalId || undefined, title })} onOpenSupport={(ticketId) => { setSupportTicketId(ticketId); setShowSupport(true); }} onPaymentAccepted={handlePaymentAccepted} />}
-          {section === "archive"       && <ArchiveSection contacts={contacts} t={t} locale={locale} archiveDebts={archiveDebts} />}
+          {section === "archive"       && <ArchiveSection contacts={contacts} t={t} locale={locale} archiveDebts={archiveDebts} token={token} onOpenChat={(id, title) => setActiveChat({ debtId: id, title })} />}
           {section === "rental"        && <RentalSection userId={user.id} token={token} myName={profile.name} isDemo={isDemo} openNew={showNewRental} onNewClose={() => setShowNewRental(false)} t={t} />}
           {section === "contacts"      && <ContactsSection contacts={contacts} onColorChange={handleColorChange} t={t} />}
           {section === "settings"      && <SettingsSection theme={theme} onThemeChange={setTheme} profile={profile} onProfileChange={handleProfileChange} t={t} lang={lang} onLangChange={handleLangChange} onLogout={onLogout} isDemo={isDemo} onOpenSupport={() => setShowSupport(true)} token={token} authUrl={func2url.auth} />}

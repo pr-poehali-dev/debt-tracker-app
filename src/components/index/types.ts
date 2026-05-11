@@ -31,6 +31,7 @@ export interface Debt {
   borrowerDismissed?: boolean;
   pendingPaymentsCount?: number;
   counterpartyName?: string;
+  archivedDir?: "lent" | "borrowed";
 }
 
 export interface ChatMeta {

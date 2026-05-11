@@ -7,7 +7,7 @@ interface Debt {
   name: string;
   amount: number;
   dueDate: string;
-  status: "active" | "overdue" | "paid";
+  status: "active" | "overdue" | "paid" | "deleted";
   avatar: string;
   note?: string;
   debtDbId?: string;
@@ -111,12 +111,13 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
 
   const pendingPayment = dir === "lent" ? history.find(h => h.status === "pending") : null;
 
-  const statusMap = {
+  const statusMap: Record<string, { label: string; cls: string }> = {
     active:  { label: "Активен",    cls: "bg-blue-500/15 text-blue-400 border border-blue-500/20" },
     overdue: { label: "Просрочен",  cls: "bg-red-500/15 text-red-400 border border-red-500/20" },
     paid:    { label: "Возвращён",  cls: "bg-green-500/15 text-green-400 border border-green-500/20" },
+    deleted: { label: "Удалён",     cls: "bg-red-500/15 text-red-400 border border-red-500/20" },
   };
-  const status = statusMap[debt.status];
+  const status = statusMap[debt.status] || statusMap.paid;
   const gradientClass = dir === "lent" ? "from-purple-500 to-indigo-500" : "from-sky-500 to-blue-600";
   const daysLeft = Math.ceil((new Date(debt.dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
 

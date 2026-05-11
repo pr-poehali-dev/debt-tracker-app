@@ -1077,9 +1077,10 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
 }
 
 // ─── Section: Archive ─────────────────────────────────────────────────────────
-export function ArchiveSection({ contacts, t, locale, archiveDebts }: { contacts: Contact[]; t: ReturnType<typeof getT>; locale: string; archiveDebts: Debt[] }) {
+export function ArchiveSection({ contacts, t, locale, archiveDebts, token = "", onOpenChat }: { contacts: Contact[]; t: ReturnType<typeof getT>; locale: string; archiveDebts: Debt[]; token?: string; onOpenChat?: (debtId: string, title: string) => void }) {
   const [filter, setFilter] = useState<"returned" | "deleted">("returned");
   const [search, setSearch] = useState("");
+  const [selectedDebt, setSelectedDebt] = useState<Debt | null>(null);
   const q = search.trim().toLowerCase();
   const matchSearch = (d: Debt) => {
     if (!q) return true;
@@ -1098,6 +1099,14 @@ export function ArchiveSection({ contacts, t, locale, archiveDebts }: { contacts
 
   return (
     <div className="animate-fade-in">
+      <DebtDetailModal
+        debt={selectedDebt}
+        dir={selectedDebt?.archivedDir || "lent"}
+        locale={locale}
+        token={token}
+        onClose={() => setSelectedDebt(null)}
+        onOpenChat={onOpenChat}
+      />
       {archiveDebts.length > 0 && (
         <div className="glass rounded-2xl mb-3 flex items-center gap-2 px-3 py-2.5">
           <Icon name="Search" size={16} className="text-muted-foreground flex-shrink-0" />
@@ -1175,7 +1184,8 @@ export function ArchiveSection({ contacts, t, locale, archiveDebts }: { contacts
           return (
             <div
               key={d.id}
-              className="glass rounded-2xl p-4 flex items-center gap-4 opacity-80 hover:opacity-100 transition-opacity"
+              onClick={() => setSelectedDebt(d)}
+              className="glass rounded-2xl p-4 flex items-center gap-4 opacity-80 hover:opacity-100 hover:bg-white/[0.06] transition-all cursor-pointer active:scale-[0.99]"
               style={{ animationDelay: `${i * 0.05}s`, borderLeft: isDeleted ? "3px solid #f87171" : undefined }}
             >
               <Avatar initials={d.avatar} color={contact?.color} />
