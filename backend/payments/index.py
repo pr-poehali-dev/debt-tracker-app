@@ -16,6 +16,7 @@ HEADERS = {
 }
 
 ROBOKASSA_URL = 'https://auth.robokassa.ru/Merchant/Index.aspx'
+SCHEMA = 't_p29977622_debt_tracker_app'
 
 
 def get_db():
@@ -39,9 +40,9 @@ def get_user_from_token(token: str):
     conn = get_db()
     cur = conn.cursor()
     cur.execute(
-        """
-        SELECT u.id, u.email, u.name FROM sessions s
-        JOIN users u ON u.id = s.user_id
+        f"""
+        SELECT u.id, u.email, u.full_name FROM {SCHEMA}.sessions s
+        JOIN {SCHEMA}.users u ON u.id = s.user_id
         WHERE s.token = %s AND s.expires_at > NOW()
         """,
         (token,),
@@ -77,18 +78,18 @@ def handler(event: dict, context) -> dict:
         cur = conn.cursor()
         if target_type and target_id:
             cur.execute(
-                """
+                f"""
                 SELECT id, order_number, amount, status, target_type, target_id, target_month, created_at, paid_at
-                FROM orders WHERE user_id = %s AND target_type = %s AND target_id = %s
+                FROM {SCHEMA}.orders WHERE user_id = %s AND target_type = %s AND target_id = %s
                 ORDER BY created_at DESC LIMIT 100
                 """,
                 (user['id'], target_type, target_id),
             )
         else:
             cur.execute(
-                """
+                f"""
                 SELECT id, order_number, amount, status, target_type, target_id, target_month, created_at, paid_at
-                FROM orders WHERE user_id = %s
+                FROM {SCHEMA}.orders WHERE user_id = %s
                 ORDER BY created_at DESC LIMIT 100
                 """,
                 (user['id'],),
@@ -137,7 +138,7 @@ def handler(event: dict, context) -> dict:
     inv_id = 0
     for _ in range(10):
         candidate = random.randint(100000, 2147483647)
-        cur.execute("SELECT 1 FROM orders WHERE robokassa_inv_id = %s", (candidate,))
+        cur.execute(f"SELECT 1 FROM {SCHEMA}.orders WHERE robokassa_inv_id = %s", (candidate,))
         if cur.fetchone() is None:
             inv_id = candidate
             break
@@ -149,8 +150,8 @@ def handler(event: dict, context) -> dict:
     order_number = f"PAY-{datetime.now().strftime('%Y%m%d')}-{inv_id}"
 
     cur.execute(
-        """
-        INSERT INTO orders (
+        f"""
+        INSERT INTO {SCHEMA}.orders (
             order_number, user_name, user_email, user_phone, amount,
             robokassa_inv_id, status, order_comment,
             user_id, target_type, target_id, target_month
@@ -197,7 +198,7 @@ def handler(event: dict, context) -> dict:
         params['FailUrl2Method'] = 'GET'
 
     payment_url = f"{ROBOKASSA_URL}?{urlencode(params)}"
-    cur.execute("UPDATE orders SET payment_url = %s WHERE id = %s", (payment_url, order_id))
+    cur.execute(f"UPDATE {SCHEMA}.orders SET payment_url = %s WHERE id = %s", (payment_url, order_id))
     conn.commit()
     cur.close()
     conn.close()
