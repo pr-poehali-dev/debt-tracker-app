@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Icon from "@/components/ui/icon";
 import NewDebtModal, { SharedDebtView } from "@/components/NewDebtModal";
 import ChatWindow from "@/components/ChatWindow";
@@ -6,6 +6,8 @@ import RentalSection, { RentalInviteModal } from "@/components/RentalSection";
 import PersonalLoanModal, { type PersonalLoan } from "@/components/PersonalLoanModal";
 import SupportModal from "@/components/SupportModal";
 import BalanceReportModal from "@/components/BalanceReportModal";
+import ContactModal from "@/components/ContactModal";
+import ContactDetailModal from "@/components/ContactDetailModal";
 import { type Lang, getT } from "@/i18n";
 import {
   type Section, type Theme, type Contact, type Debt, type Notification, type ContactColor, type ChatMeta,
@@ -47,6 +49,36 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
   const [notifs, setNotifs] = useState<Notification[]>([]);
   const audioCtxRef = { current: null as AudioContext | null };
   const [unreadMessages, setUnreadMessages] = useState(0);
+  const [showContactModal, setShowContactModal] = useState(false);
+  const [editingContact, setEditingContact] = useState<Contact | null>(null);
+  const [viewingContact, setViewingContact] = useState<Contact | null>(null);
+  const [contactSaving, setContactSaving] = useState(false);
+
+  useEffect(() => {
+    if (isDemo) return;
+    import("../../backend/func2url.json").then(({ default: urls }) => {
+      const contactsUrl = (urls as Record<string, string>)["contacts"];
+      if (!contactsUrl) return;
+      fetch(contactsUrl, { headers: { Authorization: `Bearer ${token}` } })
+        .then((r) => (r.ok ? r.json() : { contacts: [] }))
+        .then((data: { contacts?: Array<Record<string, unknown>> }) => {
+          const list: Contact[] = (data.contacts || []).map((c) => ({
+            id: Number(c.id),
+            name: String(c.name || ""),
+            phone: String(c.phone || ""),
+            email: String(c.email || ""),
+            telegram: String(c.telegram || ""),
+            note: String(c.note || ""),
+            avatar: String(c.avatar || (String(c.name || "??")).slice(0, 2).toUpperCase()),
+            color: (String(c.color || "purple") as ContactColor),
+            totalLent: 0,
+            totalBorrowed: 0,
+          }));
+          setContacts(list);
+        })
+        .catch(() => {});
+    });
+  }, [isDemo, token]);
 
   useEffect(() => {
     if (isDemo) return;
@@ -64,15 +96,31 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
           const seenKey = "df-seen-decisions";
           const seen: string[] = JSON.parse(localStorage.getItem(seenKey) || "[]");
 
+          const normPhone = (p: string) => p.replace(/\D/g, "").replace(/^8(\d{10})$/, "7$1");
+          function findContactId(name: string, phone: string): number {
+            const np = normPhone(phone || "");
+            const ln = (name || "").trim().toLowerCase();
+            for (const c of contacts) {
+              if (np && normPhone(c.phone || "") === np) return c.id;
+              if (ln && (c.name || "").trim().toLowerCase() === ln) return c.id;
+            }
+            return 0;
+          }
+
           debts.forEach((d) => {
             const isLender = d.lender_user_id === user.id;
             const decision = d.borrower_decision as string | null;
             const status = d.status as string;
 
             const isDeleted = status === "deleted";
+            const cpName = String(isLender ? (d.borrower_name || "") : (d.lender_name || ""));
+            const cpPhone = String(isLender ? (d.borrower_phone || "") : (d.lender_phone || ""));
+            const linkedId = isLender
+              ? (d.borrower_contact_id ? Number(d.borrower_contact_id) : 0)
+              : (d.lender_contact_id ? Number(d.lender_contact_id) : 0);
             const debt: Debt = {
               id: Number(d.id),
-              contactId: 0,
+              contactId: linkedId || findContactId(cpName, cpPhone),
               name: String(d.title),
               amount: Number(d.amount),
               dueDate: String(d.due_date || new Date().toISOString().slice(0, 10)),
@@ -123,7 +171,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
           if (newNotifs.length > 0) setNotifs(prev => [...newNotifs, ...prev]);
         });
     });
-  }, [isDemo, user.id, token]);
+  }, [isDemo, user.id, token, contacts]);
 
   useEffect(() => {
     if (isDemo) return;
@@ -691,12 +739,101 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
     localStorage.setItem("df-theme", theme);
   }, [theme]);
 
+  const contactsWithTotals = useMemo<Contact[]>(() => {
+    return contacts.map((c) => {
+      const lent = lentDebts.filter((d) => d.contactId === c.id && d.status !== "paid").reduce((s, d) => s + d.amount, 0);
+      const borrowed = borrowedDebts.filter((d) => d.contactId === c.id && d.status !== "paid").reduce((s, d) => s + d.amount, 0);
+      return { ...c, totalLent: lent, totalBorrowed: borrowed };
+    });
+  }, [contacts, lentDebts, borrowedDebts]);
+
   const debtToken = new URLSearchParams(window.location.search).get("debt");
   if (debtToken) return <SharedDebtView token={debtToken} />;
 
-  function handleColorChange(id: number, color: ContactColor) {
-    setContacts(prev => prev.map(c => c.id === id ? { ...c, color } : c));
+  async function handleSaveContact(values: { name: string; phone: string; email: string; telegram: string; note: string; color: ContactColor }, opts?: { forceDuplicate?: boolean }) {
+    if (isDemo) {
+      const id = Date.now();
+      const avatar = (values.name.trim().split(/\s+/).map(s => s[0]).slice(0, 2).join("") || "??").toUpperCase();
+      if (editingContact) {
+        setContacts(prev => prev.map(c => c.id === editingContact.id ? { ...c, ...values, avatar } : c));
+      } else {
+        setContacts(prev => [...prev, { id, ...values, avatar, totalLent: 0, totalBorrowed: 0 }]);
+      }
+      setShowContactModal(false);
+      setEditingContact(null);
+      return;
+    }
+    setContactSaving(true);
+    try {
+      const { default: urls } = await import("../../backend/func2url.json");
+      const contactsUrl = (urls as Record<string, string>)["contacts"];
+      if (!contactsUrl) return;
+      const isEdit = !!editingContact;
+      const url = isEdit ? `${contactsUrl}?id=${editingContact!.id}` : contactsUrl;
+      const body = { ...values, skip_duplicate_check: opts?.forceDuplicate ? true : false };
+      const res = await fetch(url, {
+        method: isEdit ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.duplicate) {
+        return { duplicate: true } as const;
+      }
+      const c = data.contact as Record<string, unknown>;
+      const updated: Contact = {
+        id: Number(c.id),
+        name: String(c.name || ""),
+        phone: String(c.phone || ""),
+        email: String(c.email || ""),
+        telegram: String(c.telegram || ""),
+        note: String(c.note || ""),
+        avatar: String(c.avatar || ""),
+        color: String(c.color || "purple") as ContactColor,
+        totalLent: 0,
+        totalBorrowed: 0,
+      };
+      if (isEdit) {
+        setContacts(prev => prev.map(x => x.id === updated.id ? { ...x, ...updated } : x));
+      } else {
+        setContacts(prev => [...prev, updated]);
+      }
+      setShowContactModal(false);
+      setEditingContact(null);
+    } finally {
+      setContactSaving(false);
+    }
   }
+
+  async function handleDeleteContact() {
+    if (!editingContact) return;
+    if (isDemo) {
+      setContacts(prev => prev.filter(c => c.id !== editingContact.id));
+      setShowContactModal(false);
+      setEditingContact(null);
+      setViewingContact(null);
+      return;
+    }
+    const { default: urls } = await import("../../backend/func2url.json");
+    const contactsUrl = (urls as Record<string, string>)["contacts"];
+    if (!contactsUrl) return;
+    const res = await fetch(`${contactsUrl}?id=${editingContact.id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return;
+    setContacts(prev => prev.filter(c => c.id !== editingContact.id));
+    setShowContactModal(false);
+    setEditingContact(null);
+    setViewingContact(null);
+  }
+
+  function handleImportFromPhonebook() {
+    alert("Импорт из телефонной книги пока в разработке. Скоро здесь будет выбор контактов из адресной книги устройства.");
+  }
+
+
 
   async function handleMarkPaid(debtDbId: string) {
     import("../../backend/func2url.json").then(async ({ default: urls }) => {
@@ -904,14 +1041,22 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
         }}
       >
         <div key={section} className={`max-w-lg mx-auto ${swipeDir === "left" ? "animate-slide-in-right" : swipeDir === "right" ? "animate-slide-in-left" : ""}`}>
-          {section === "dashboard"     && <Dashboard onNav={setSection} contacts={contacts} t={t} lentDebts={lentDebts} borrowedDebts={borrowedDebts} activeRentalCount={activeRentalCount} totalRentalAmount={totalRentalAmount} personalLoans={personalLoans} onOpenReport={() => setShowReport(true)} />}
+          {section === "dashboard"     && <Dashboard onNav={setSection} contacts={contactsWithTotals} t={t} lentDebts={lentDebts} borrowedDebts={borrowedDebts} activeRentalCount={activeRentalCount} totalRentalAmount={totalRentalAmount} personalLoans={personalLoans} onOpenReport={() => setShowReport(true)} />}
           {section === "lent"          && <DebtList debts={lentDebts} dir="lent" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => setActiveChat({ debtId: id, title })} onMarkPaid={handleMarkPaid} onDeleteDebt={handleDeleteDebt} onAddNew={() => setShowNewDebt(true)} token={token} onPaymentAccepted={handlePaymentAccepted} />}
           {section === "borrowed"      && <DebtList debts={borrowedDebts} dir="borrowed" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => setActiveChat({ debtId: id, title })} onMarkPaid={handleMarkPaid} onDeleteDebt={handleDeleteDebt} onAddNew={() => setShowPersonalLoan(true)} personalLoans={personalLoans} onPersonalLoanUpdate={(loans) => { setPersonalLoans(loans); localStorage.setItem("df-personal-loans", JSON.stringify(loans)); }} token={token} onPaymentAccepted={handlePaymentAccepted} />}
           {section === "calendar"      && <CalendarSection contacts={contacts} t={t} debts={[...lentDebts, ...borrowedDebts]} rentals={rentals} userId={user.id} />}
           {section === "notifications" && <NotificationsSection notifs={notifs} onMarkAllRead={handleMarkAllRead} onMarkRead={handleMarkRead} t={t} token={token} onOpenChat={(debtId, rentalId, title) => setActiveChat({ debtId: debtId || undefined, rentalId: rentalId || undefined, title })} onOpenSupport={(ticketId) => { setSupportTicketId(ticketId); setShowSupport(true); }} onPaymentAccepted={handlePaymentAccepted} />}
           {section === "archive"       && <ArchiveSection contacts={contacts} t={t} locale={locale} archiveDebts={archiveDebts} token={token} onOpenChat={(id, title) => setActiveChat({ debtId: id, title })} />}
           {section === "rental"        && <RentalSection userId={user.id} token={token} myName={profile.name} isDemo={isDemo} openNew={showNewRental} onNewClose={() => setShowNewRental(false)} t={t} />}
-          {section === "contacts"      && <ContactsSection contacts={contacts} onColorChange={handleColorChange} t={t} />}
+          {section === "contacts"      && (
+            <ContactsSection
+              contacts={contactsWithTotals}
+              onAddContact={() => { setEditingContact(null); setShowContactModal(true); }}
+              onSelectContact={(c) => setViewingContact(c)}
+              onImportFromPhonebook={handleImportFromPhonebook}
+              t={t}
+            />
+          )}
           {section === "settings"      && <SettingsSection theme={theme} onThemeChange={setTheme} profile={profile} onProfileChange={handleProfileChange} t={t} lang={lang} onLangChange={handleLangChange} onLogout={onLogout} isDemo={isDemo} onOpenSupport={() => setShowSupport(true)} token={token} authUrl={func2url.auth} />}
         </div>
       </main>
@@ -943,6 +1088,31 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
           </div>
         </div>
       </nav>
+
+      <ContactModal
+        open={showContactModal}
+        initial={editingContact || undefined}
+        onClose={() => { setShowContactModal(false); setEditingContact(null); }}
+        onSave={handleSaveContact}
+        onDelete={editingContact ? handleDeleteContact : undefined}
+        saving={contactSaving}
+      />
+
+      {viewingContact && (
+        <ContactDetailModal
+          contact={contactsWithTotals.find(c => c.id === viewingContact.id) || viewingContact}
+          lentDebts={lentDebts}
+          borrowedDebts={borrowedDebts}
+          archiveDebts={archiveDebts}
+          onClose={() => setViewingContact(null)}
+          onEdit={() => {
+            const fresh = contactsWithTotals.find(c => c.id === viewingContact.id) || viewingContact;
+            setEditingContact(fresh);
+            setViewingContact(null);
+            setShowContactModal(true);
+          }}
+        />
+      )}
     </div>
   );
 }

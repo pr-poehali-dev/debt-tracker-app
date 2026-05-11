@@ -581,11 +581,13 @@ export default function NewDebtModal({ open, onClose, myName = "", myPhone = "",
     title: "",
     amount: "",
     borrower_name: "",
+    borrower_phone: "",
     note: "",
     due_date: "",
     interest_rate: "",
     interest_type: "simple" as "simple" | "compound",
   });
+  const [saveAsContact, setSaveAsContact] = useState(false);
 
   function set(k: string, v: string) { setForm(f => ({ ...f, [k]: v })); }
 
@@ -629,6 +631,7 @@ export default function NewDebtModal({ open, onClose, myName = "", myPhone = "",
           lender_name: myName,
           lender_phone: myPhone || undefined,
           borrower_name: form.borrower_name || undefined,
+          borrower_phone: form.borrower_phone || undefined,
           note: form.note || undefined,
           due_date: form.due_date || undefined,
           interest_rate: form.interest_rate ? parseFloat(form.interest_rate) : undefined,
@@ -638,6 +641,24 @@ export default function NewDebtModal({ open, onClose, myName = "", myPhone = "",
       });
       const d = await r.json();
       if (d.share_token) {
+        if (saveAsContact && form.borrower_name.trim()) {
+          try {
+            const contactsUrl = (func2url as Record<string, string>)["contacts"];
+            if (contactsUrl) {
+              await fetch(contactsUrl, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
+                body: JSON.stringify({
+                  name: form.borrower_name.trim(),
+                  phone: form.borrower_phone.trim(),
+                }),
+              });
+            }
+          } catch { /* ignore */ }
+        }
         setCreatedDebt(d);
         setStep("qr");
         onCreated?.(d);
@@ -664,7 +685,7 @@ export default function NewDebtModal({ open, onClose, myName = "", myPhone = "",
     } else copyLink();
   }
 
-  function close() { setStep("form"); setCreatedDebt(null); setForm({ title: "", amount: "", borrower_name: "", note: "", due_date: "", interest_rate: "", interest_type: "simple" }); onClose(); }
+  function close() { setStep("form"); setCreatedDebt(null); setForm({ title: "", amount: "", borrower_name: "", borrower_phone: "", note: "", due_date: "", interest_rate: "", interest_type: "simple" }); setSaveAsContact(false); onClose(); }
 
   if (!open) return null;
 
@@ -729,6 +750,23 @@ export default function NewDebtModal({ open, onClose, myName = "", myPhone = "",
               <label className="text-xs text-muted-foreground mb-1 block">{t.borrowerNameLabel}</label>
               <input value={form.borrower_name} onChange={e => set("borrower_name", e.target.value)} placeholder={t.borrowerPlaceholderRu} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-purple-500/50 transition-colors" />
             </div>
+            {form.borrower_name.trim() && (
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Телефон должника (для контакта)</label>
+                <input value={form.borrower_phone} onChange={e => set("borrower_phone", e.target.value)} placeholder="+7 999 123 45 67" inputMode="tel" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-purple-500/50 transition-colors" />
+              </div>
+            )}
+            {form.borrower_name.trim() && (
+              <label className="flex items-center gap-2 cursor-pointer select-none py-1">
+                <input
+                  type="checkbox"
+                  checked={saveAsContact}
+                  onChange={(e) => setSaveAsContact(e.target.checked)}
+                  className="w-4 h-4 rounded accent-purple-500"
+                />
+                <span className="text-xs text-foreground">Сохранить «{form.borrower_name.trim()}» в контакты</span>
+              </label>
+            )}
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">{t.dueDateLabel}</label>
               <input value={form.due_date} onChange={e => set("due_date", e.target.value)} type="date" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-foreground outline-none focus:border-purple-500/50 transition-colors" style={{ colorScheme: "dark" }} />

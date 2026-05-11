@@ -1232,11 +1232,45 @@ export function ArchiveSection({ contacts, t, locale, archiveDebts, token = "", 
 }
 
 // ─── Section: Contacts ────────────────────────────────────────────────────────
-export function ContactsSection({ contacts, onColorChange, t }: { contacts: Contact[]; onColorChange: (id: number, color: ContactColor) => void; t: ReturnType<typeof getT> }) {
-  const [editingId, setEditingId] = useState<number | null>(null);
+export function ContactsSection({
+  contacts,
+  onAddContact,
+  onSelectContact,
+  onImportFromPhonebook,
+  t,
+}: {
+  contacts: Contact[];
+  onAddContact: () => void;
+  onSelectContact: (c: Contact) => void;
+  onImportFromPhonebook: () => void;
+  t: ReturnType<typeof getT>;
+}) {
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
+  const filtered = q
+    ? contacts.filter(
+        (c) =>
+          c.name.toLowerCase().includes(q) ||
+          (c.phone || "").toLowerCase().includes(q) ||
+          (c.email || "").toLowerCase().includes(q) ||
+          (c.telegram || "").toLowerCase().includes(q),
+      )
+    : contacts;
 
   return (
     <div className="animate-fade-in">
+      {contacts.length > 0 && (
+        <div className="mb-3 relative">
+          <Icon name="Search" size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Поиск контактов..."
+            className="w-full pl-10 pr-4 py-3 rounded-2xl bg-white/5 border border-white/10 focus:border-purple-500/50 outline-none text-foreground text-sm"
+          />
+        </div>
+      )}
+
       {contacts.length === 0 && (
         <div className="glass rounded-2xl p-8 flex flex-col items-center text-center gap-3 mb-4">
           <Icon name="Users" size={32} className="text-purple-400 opacity-50" />
@@ -1244,63 +1278,75 @@ export function ContactsSection({ contacts, onColorChange, t }: { contacts: Cont
           <p className="text-xs text-muted-foreground">{t.contactsHint}</p>
         </div>
       )}
+
+      {contacts.length > 0 && filtered.length === 0 && (
+        <div className="rounded-2xl p-6 text-center text-sm text-muted-foreground bg-white/5 border border-white/10 mb-3">
+          Ничего не найдено
+        </div>
+      )}
+
       <div className="space-y-3">
-        {contacts.map((c, i) => {
+        {filtered.map((c, i) => {
           const col = getColor(c.color);
-          const isEditing = editingId === c.id;
           return (
-            <div
+            <button
               key={c.id}
-              className="glass rounded-2xl p-4 transition-all duration-200"
+              onClick={() => onSelectContact(c)}
+              className="w-full text-left glass rounded-2xl p-4 transition-all duration-200 hover:bg-white/[0.07]"
               style={{ animationDelay: `${i * 0.05}s`, borderLeft: `3px solid ${col.hex}` }}
             >
-              <div className="flex items-center gap-4 mb-3">
+              <div className="flex items-center gap-4 mb-2">
                 <Avatar initials={c.avatar} color={c.color} size="lg" />
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-foreground">{c.name}</p>
-                  <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                    <Icon name="Phone" size={11} />{c.phone}
-                  </p>
-                  <p className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Icon name="Mail" size={11} />{c.email}
-                  </p>
+                  <p className="font-semibold text-foreground truncate">{c.name}</p>
+                  {c.phone && (
+                    <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                      <Icon name="Phone" size={11} />{c.phone}
+                    </p>
+                  )}
+                  {c.telegram && (
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Icon name="Send" size={11} />@{c.telegram}
+                    </p>
+                  )}
                 </div>
-                <button
-                  onClick={() => setEditingId(isEditing ? null : c.id)}
-                  className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors hover:bg-white/10"
-                  style={{ color: col.text }}
-                  title={t.chooseColor}
-                >
-                  <div className="w-4 h-4 rounded-full" style={{ background: col.hex }} />
-                </button>
+                <Icon name="ChevronRight" size={18} className="text-muted-foreground" />
               </div>
-              {isEditing && (
-                <div className="pt-2 border-t border-white/5">
-                  <p className="text-xs text-muted-foreground mb-2">{t.chooseColor}</p>
-                  <ColorPicker value={c.color} onChange={color => { onColorChange(c.id, color); setEditingId(null); }} />
+              {(c.totalLent > 0 || c.totalBorrowed > 0) && (
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  {c.totalLent > 0 && (
+                    <div className="rounded-xl p-2.5" style={{ background: col.bg, border: `1px solid ${col.border}` }}>
+                      <p className="text-[10px] text-muted-foreground">{t.gave}</p>
+                      <p className="font-bold text-sm" style={{ color: col.text }}>{fmt(c.totalLent)}</p>
+                    </div>
+                  )}
+                  {c.totalBorrowed > 0 && (
+                    <div className="rounded-xl p-2.5 bg-sky-500/10 border border-sky-500/20">
+                      <p className="text-[10px] text-muted-foreground">{t.took}</p>
+                      <p className="font-bold text-sm text-sky-400">{fmt(c.totalBorrowed)}</p>
+                    </div>
+                  )}
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-2">
-                {c.totalLent > 0 && (
-                  <div className="rounded-xl p-2.5" style={{ background: col.bg, border: `1px solid ${col.border}` }}>
-                    <p className="text-[10px] text-muted-foreground">{t.gave}</p>
-                    <p className="font-bold text-sm" style={{ color: col.text }}>{fmt(c.totalLent)}</p>
-                  </div>
-                )}
-                {c.totalBorrowed > 0 && (
-                  <div className="rounded-xl p-2.5 bg-sky-500/10 border border-sky-500/20">
-                    <p className="text-[10px] text-muted-foreground">{t.took}</p>
-                    <p className="font-bold text-sm text-sky-400">{fmt(c.totalBorrowed)}</p>
-                  </div>
-                )}
-              </div>
-            </div>
+            </button>
           );
         })}
       </div>
-      <button className="mt-4 w-full py-3 rounded-2xl glass border border-dashed border-purple-500/30 text-purple-400 hover:bg-purple-500/10 transition-all duration-200 font-medium flex items-center justify-center gap-2">
+
+      <button
+        onClick={onAddContact}
+        className="mt-4 w-full py-3 rounded-2xl glass border border-dashed border-purple-500/30 text-purple-400 hover:bg-purple-500/10 transition-all duration-200 font-medium flex items-center justify-center gap-2"
+      >
         <Icon name="UserPlus" size={16} />
         {t.addContact}
+      </button>
+
+      <button
+        onClick={onImportFromPhonebook}
+        className="mt-2 w-full py-3 rounded-2xl glass border border-dashed border-white/10 text-muted-foreground hover:bg-white/5 transition-all duration-200 font-medium flex items-center justify-center gap-2 text-sm"
+      >
+        <Icon name="Download" size={14} />
+        Импорт из телефонной книги
       </button>
     </div>
   );

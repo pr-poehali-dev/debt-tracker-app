@@ -7,6 +7,8 @@ export interface Contact {
   name: string;
   phone: string;
   email: string;
+  telegram?: string;
+  note?: string;
   avatar: string;
   totalLent: number;
   totalBorrowed: number;
