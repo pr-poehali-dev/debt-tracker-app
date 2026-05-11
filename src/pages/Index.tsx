@@ -320,43 +320,39 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
       if (!res.ok) return;
       const d = await res.json();
       const count: number = d.unread || 0;
-      const chats: Array<{ debt_id?: string; rental_id?: number; chat_title: string; sender_name: string; last_text: string }> = d.chats || [];
+      const chats: Array<{ debt_id?: string; rental_id?: number; chat_title: string; sender_name: string; last_text: string; unread: number; is_mine: boolean; created_at: string }> = d.chats || [];
 
       if (count > prevUnread && prevUnread !== -1) {
         playChatSound();
-        // Создаём уведомление для каждого чата с новыми сообщениями
-        setNotifs(prev => {
-          let updated = prev.filter(n => n.chatMeta === undefined || n.read);
-          chats.forEach(chat => {
-            const meta: ChatMeta = {
-              debtId: chat.debt_id || undefined,
-              rentalId: chat.rental_id || undefined,
-              chatTitle: chat.chat_title,
-              senderName: chat.sender_name,
-              lastText: chat.last_text,
-            };
-            const existing = updated.find(n => n.chatMeta?.debtId === meta.debtId && n.chatMeta?.rentalId === meta.rentalId && !n.read);
-            if (existing) {
-              updated = updated.map(n => n === existing ? { ...n, chatMeta: meta, message: chat.last_text } : n);
-            } else {
-              updated = [{
-                id: Date.now() + Math.random(),
-                type: "info" as const,
-                title: `💬 ${chat.sender_name}`,
-                message: chat.last_text,
-                date: new Date().toLocaleDateString("ru-RU"),
-                read: false,
-                chatMeta: meta,
-              }, ...updated];
-            }
-          });
-          return updated;
-        });
       }
 
-      if (count === 0 && prevUnread > 0) {
-        setNotifs(prev => prev.filter(n => !n.chatMeta || n.read));
-      }
+      // Всегда показываем все чаты как треды в колокольчике
+      setNotifs(prev => {
+        // оставляем не-чатовые уведомления
+        const others = prev.filter(n => !n.chatMeta);
+        const chatNotifs = chats.map(chat => {
+          const meta: ChatMeta = {
+            debtId: chat.debt_id || undefined,
+            rentalId: chat.rental_id || undefined,
+            chatTitle: chat.chat_title,
+            senderName: chat.sender_name,
+            lastText: chat.last_text,
+          };
+          const ts = new Date(chat.created_at).getTime() || Date.now();
+          const displayText = chat.is_mine ? `Вы: ${chat.last_text}` : chat.last_text;
+          const dateStr = new Date(chat.created_at).toLocaleDateString("ru-RU");
+          return {
+            id: ts,
+            type: "info" as const,
+            title: `💬 ${chat.sender_name}`,
+            message: displayText,
+            date: dateStr,
+            read: chat.unread === 0,
+            chatMeta: meta,
+          };
+        });
+        return [...chatNotifs, ...others];
+      });
 
       prevUnread = count;
       setUnreadMessages(count);
