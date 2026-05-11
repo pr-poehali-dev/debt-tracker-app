@@ -38,6 +38,32 @@ def err(msg, status=400):
     return json_resp({"error": msg}, status)
 
 
+def send_push(conn, user_id, title, body_text, url="/"):
+    try:
+        from pywebpush import webpush
+        vapid_private = os.environ.get("VAPID_PRIVATE_KEY", "")
+        if not vapid_private or not user_id:
+            return
+        with conn.cursor() as cur:
+            cur.execute(
+                f"SELECT endpoint, p256dh, auth_key FROM {SCHEMA}.push_subscriptions WHERE user_id = %s",
+                (int(user_id),)
+            )
+            subs = cur.fetchall()
+        for endpoint, p256dh, auth_key in subs:
+            try:
+                webpush(
+                    subscription_info={"endpoint": endpoint, "keys": {"p256dh": p256dh, "auth": auth_key}},
+                    data=json.dumps({"title": title, "body": body_text, "url": url}, ensure_ascii=False),
+                    vapid_private_key=vapid_private,
+                    vapid_claims={"sub": "mailto:noreply@debt-debt.ru"}
+                )
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+
 def gen_token(n=8):
     chars = string.ascii_uppercase + string.digits
     return "".join(random.choices(chars, k=n))
@@ -317,6 +343,7 @@ def handler(event: dict, context) -> dict:
                                 f"INSERT INTO {SCHEMA}.notifications (user_id, type, title, body, data) VALUES (%s, %s, %s, %s, %s)",
                                 (rental["landlord_user_id"], "payment", notif_title, notif_body, json.dumps({"rental_token": token, "month": current_month}))
                             )
+                            send_push(conn, rental["landlord_user_id"], notif_title, notif_body, "/?section=rental")
                         elif role == "landlord" and rental.get("tenant_user_id"):
                             notif_title = f"💰 {rental['landlord_name']} подтвердил получение оплаты"
                             notif_body = f"«{rental['title']}» — {int(rental['amount']):,} ₽".replace(",", " ")
@@ -324,6 +351,7 @@ def handler(event: dict, context) -> dict:
                                 f"INSERT INTO {SCHEMA}.notifications (user_id, type, title, body, data) VALUES (%s, %s, %s, %s, %s)",
                                 (rental["tenant_user_id"], "payment", notif_title, notif_body, json.dumps({"rental_token": token, "month": current_month}))
                             )
+                            send_push(conn, rental["tenant_user_id"], notif_title, notif_body, "/?section=rental")
 
                 # Изменение суммы арендодателем
                 if "new_amount" in body:
@@ -383,6 +411,7 @@ def handler(event: dict, context) -> dict:
                         (rental["landlord_user_id"], "rental_decision", notif_title, notif_body,
                          json.dumps({"rental_token": token, "decision": decision}))
                     )
+                    send_push(conn, rental["landlord_user_id"], notif_title, notif_body, "/?section=rental")
                 conn.commit()
 
         if "new_amount" in body and rental.get("tenant_user_id"):

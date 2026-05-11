@@ -33,6 +33,31 @@ def json_resp(data, status=200):
 def err(msg, status=400):
     return json_resp({"error": msg}, status)
 
+def send_push(conn, user_id, title, body_text, url="/"):
+    try:
+        from pywebpush import webpush, WebPushException
+        vapid_private = os.environ.get("VAPID_PRIVATE_KEY", "")
+        if not vapid_private or not user_id:
+            return
+        with conn.cursor() as cur:
+            cur.execute(
+                f"SELECT endpoint, p256dh, auth_key FROM {SCHEMA}.push_subscriptions WHERE user_id = %s",
+                (int(user_id),)
+            )
+            subs = cur.fetchall()
+        for endpoint, p256dh, auth_key in subs:
+            try:
+                webpush(
+                    subscription_info={"endpoint": endpoint, "keys": {"p256dh": p256dh, "auth": auth_key}},
+                    data=json.dumps({"title": title, "body": body_text, "url": url}, ensure_ascii=False),
+                    vapid_private_key=vapid_private,
+                    vapid_claims={"sub": "mailto:noreply@debt-debt.ru"}
+                )
+            except Exception:
+                pass
+    except Exception:
+        pass
+
 def calc_total(amount: float, rate, itype, due_date) -> float:
     if not rate or not due_date:
         return amount
@@ -254,7 +279,7 @@ def handler(event: dict, context) -> dict:
                     vals
                 )
                 row = cur.fetchone()
-                # Отправляем email кредитору если должник принял/отклонил
+                # Отправляем email и push кредитору если должник принял/отклонил
                 if row and body.get("borrower_decision") in ("accepted", "rejected") and row[13]:
                     cur.execute(f"SELECT email FROM {SCHEMA}.users WHERE id = %s", (row[13],))
                     lender_row = cur.fetchone()
@@ -270,6 +295,11 @@ def handler(event: dict, context) -> dict:
                             interest_type=row[17],
                             due_date=row[5],
                         )
+                    decision = body["borrower_decision"]
+                    b_name = body.get("borrower_name") or str(row[8] or "Должник")
+                    emoji = "✅" if decision == "accepted" else "❌"
+                    status_text = "принял долг" if decision == "accepted" else "отклонил долг"
+                    send_push(conn, row[13], f"{emoji} {b_name} {status_text}", f"«{row[2]}» — {float(row[3]):,.0f} ₽".replace(",", " "), "/?section=lent")
             conn.commit()
         if not row:
             return err("Долг не найден", 404)
@@ -317,6 +347,7 @@ def handler(event: dict, context) -> dict:
                      f"«{title}» — {float(amount):,.0f} ₽".replace(",", " "),
                      json.dumps({"payment_request_id": req_id, "debt_id": debt_id, "amount": float(amount), "from_name": borrower_name, "debt_title": title}))
                 )
+            send_push(conn, lender_id, f"💳 {borrower_name} отправил платёж", f"«{title}» — {float(amount):,.0f} ₽".replace(",", " "), "/?section=notifications")
             conn.commit()
         return json_resp({"ok": True, "payment_request_id": req_id}, 201)
 
@@ -364,6 +395,7 @@ def handler(event: dict, context) -> dict:
                             WHERE id = %s AND lender_user_id = %s""",
                         (debt_id, user_id)
                     )
+            send_push(conn, from_user_id, f"{emoji} {lender_name} {status_text} платёж", f"«{title}» — {float(amount):,.0f} ₽".replace(",", " "), "/?section=notifications")
             conn.commit()
         return json_resp({"ok": True})
 
