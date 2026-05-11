@@ -11,7 +11,6 @@ import PayButton from "@/components/PayButton";
 import ManualReturnModal from "@/components/ManualReturnModal";
 
 // ─── Section: DebtList ────────────────────────────────────────────────────────
-const MONTHS_RU_SHORT = ["Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"];
 
 function playPaymentSound() {
   try {
@@ -54,7 +53,7 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
     const d = debts.find(x => x.debtDbId === debtDbId);
     onMarkPaid(debtDbId);
     playPaymentSound();
-    showToast(d ? `Долг «${d.name}» отмечен возвращённым` : "Долг отмечен возвращённым");
+    showToast(d ? t.debtMarkedPaidNamed.replace("{name}", d.name) : t.debtMarkedPaid);
   }
   const total = debts.filter(d => d.status !== "paid").reduce((s, d) => s + d.amount, 0);
   const overdue = debts.filter(d => d.status === "overdue").length;
@@ -76,14 +75,14 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
           defaultAmount={manualReturn.interestRate ? calcTotalWithInterest(manualReturn.amount, manualReturn.interestRate, manualReturn.interestType || "simple", manualReturn.dueDate) : manualReturn.amount}
           token={token}
           onClose={() => setManualReturn(null)}
-          onSent={() => showToast("Запрос на возврат отправлен кредитору")}
+          onSent={() => showToast(t.returnRequestSent)}
         />
       )}
       {confirmDelete && (() => {
         const isBorrower = dir === "borrowed";
         const descText = isBorrower
-          ? "Долг будет удалён из вашего списка. На стороне кредитора он останется."
-          : "Должник получит уведомление об удалении. Действие нельзя отменить.";
+          ? t.deleteDebtDescBorrower
+          : t.deleteDebtDescLender;
         return (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/75 backdrop-blur-md" onClick={deleting ? undefined : () => setConfirmDelete(null)} />
@@ -95,7 +94,7 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                 <div className="w-14 h-14 rounded-full bg-red-500/15 flex items-center justify-center">
                   <Icon name="Trash2" size={26} className="text-red-400" />
                 </div>
-                <p className="font-semibold text-foreground text-lg">Удалить долг?</p>
+                <p className="font-semibold text-foreground text-lg">{t.deleteDebtTitle}</p>
                 <p className="text-sm text-muted-foreground">
                   «{confirmDelete.name}» — {fmt(confirmDelete.amount)}
                 </p>
@@ -107,7 +106,7 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                   disabled={deleting}
                   className="flex-1 py-3 rounded-2xl bg-white/5 text-foreground font-medium text-sm border border-white/10 hover:bg-white/10 transition-colors disabled:opacity-50"
                 >
-                  Отмена
+                  {t.cancel}
                 </button>
                 <button
                   onClick={async () => {
@@ -115,7 +114,7 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                     setDeleting(true);
                     try {
                       await onDeleteDebt(confirmDelete.debtDbId);
-                      showToast(`Долг «${confirmDelete.name}» удалён`);
+                      showToast(t.debtDeletedNamed.replace("{name}", confirmDelete.name));
                       setConfirmDelete(null);
                     } finally {
                       setDeleting(false);
@@ -124,7 +123,7 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                   disabled={deleting}
                   className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-gradient-to-r from-red-500 to-rose-600 text-white font-semibold text-sm shadow-lg shadow-red-500/20 hover:opacity-90 transition-opacity disabled:opacity-50"
                 >
-                  {deleting ? <Icon name="Loader2" size={16} className="animate-spin" /> : <><Icon name="Trash2" size={16} />Удалить</>}
+                  {deleting ? <Icon name="Loader2" size={16} className="animate-spin" /> : <><Icon name="Trash2" size={16} />{t.delete}</>}
                 </button>
               </div>
             </div>
@@ -154,8 +153,8 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
             <Icon name={dir === "lent" ? "TrendingUp" : "TrendingDown"} size={32} className={dir === "lent" ? "text-purple-400" : "text-sky-400"} />
           </div>
           <div>
-            <p className="font-semibold text-foreground mb-1">{dir === "lent" ? "Вы ещё никому не давали в долг" : "Вы ещё не брали в долг"}</p>
-            <p className="text-xs text-muted-foreground">Нажмите + чтобы добавить первый займ</p>
+            <p className="font-semibold text-foreground mb-1">{dir === "lent" ? t.emptyLentTitle : t.emptyBorrowedTitle}</p>
+            <p className="text-xs text-muted-foreground">{t.emptyDebtsHint}</p>
           </div>
         </div>
       ) : (
@@ -180,13 +179,13 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                   {d.deletedByLender && (
                     <p className="text-[11px] mt-1 flex items-center gap-1" style={{ color: "#f87171" }}>
                       <Icon name="Trash2" size={11} />
-                      <span className="truncate">{d.deletedByLenderName} удалил долг</span>
+                      <span className="truncate">{d.deletedByLenderName} удалил долг{/* TODO: i18n */}</span>
                     </p>
                   )}
                   {dir === "lent" && d.borrowerDismissed && (
                     <p className="text-[11px] mt-1 flex items-center gap-1" style={{ color: "#fb923c" }}>
                       <Icon name="EyeOff" size={11} />
-                      <span className="truncate">Должник удалил долг у себя</span>
+                      <span className="truncate">Должник удалил долг у себя{/* TODO: i18n */}</span>
                     </p>
                   )}
                   <div className="flex items-center gap-2 mt-0.5 flex-wrap">
@@ -197,15 +196,15 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                     {dir === "lent" && d.debtDbId && (
                       d.borrowerDecision === "accepted" ? (
                         <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium" style={{ background: "rgba(34,197,94,0.15)", color: "#4ade80" }}>
-                          <Icon name="CheckCircle" size={9} /> Подтверждено
+                          <Icon name="CheckCircle" size={9} /> Подтверждено{/* TODO: i18n */}
                         </span>
                       ) : d.borrowerDecision === "rejected" ? (
                         <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium" style={{ background: "rgba(244,63,94,0.15)", color: "#fb7185" }}>
-                          <Icon name="XCircle" size={9} /> Отклонено
+                          <Icon name="XCircle" size={9} /> Отклонено{/* TODO: i18n */}
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium" style={{ background: "rgba(245,158,11,0.15)", color: "#fbbf24" }}>
-                          <Icon name="Clock" size={9} /> Ожидает
+                          <Icon name="Clock" size={9} /> Ожидает{/* TODO: i18n */}
                         </span>
                       )
                     )}
@@ -228,17 +227,17 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                   {d.debtDbId && d.status !== "paid" && (() => {
                     const dec = d.borrowerDecision;
                     if (dec === "accepted") return (
-                      <span title="Подтверждён заёмщиком" className="inline-flex items-center justify-center w-5 h-5 rounded-full" style={{ background: "rgba(34,197,94,0.15)", color: "#4ade80" }}>
+                      <span title="Подтверждён заёмщиком"/* TODO: i18n */ className="inline-flex items-center justify-center w-5 h-5 rounded-full" style={{ background: "rgba(34,197,94,0.15)", color: "#4ade80" }}>
                         <Icon name="Check" size={12} />
                       </span>
                     );
                     if (dec === "rejected") return (
-                      <span title="Отклонён заёмщиком" className="inline-flex items-center justify-center w-5 h-5 rounded-full" style={{ background: "rgba(239,68,68,0.15)", color: "#f87171" }}>
+                      <span title="Отклонён заёмщиком"/* TODO: i18n */ className="inline-flex items-center justify-center w-5 h-5 rounded-full" style={{ background: "rgba(239,68,68,0.15)", color: "#f87171" }}>
                         <Icon name="X" size={12} />
                       </span>
                     );
                     return (
-                      <span title="Ожидает подтверждения" className="inline-flex items-center justify-center w-5 h-5 rounded-full" style={{ background: "rgba(251,146,60,0.15)", color: "#fb923c" }}>
+                      <span title="Ожидает подтверждения"/* TODO: i18n */ className="inline-flex items-center justify-center w-5 h-5 rounded-full" style={{ background: "rgba(251,146,60,0.15)", color: "#fb923c" }}>
                         <Icon name="Clock" size={11} />
                       </span>
                     );
@@ -247,7 +246,7 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                     {d.debtDbId && onOpenChat && d.borrowerDecision === "accepted" && (
                       <button
                         onClick={e => { e.stopPropagation(); onOpenChat(d.debtDbId!, d.name); }}
-                        title="Чат"
+                        title={t.openChat}
                         className="inline-flex items-center justify-center w-8 h-8 rounded-lg transition-all active:scale-95"
                         style={{ background: "rgba(168,85,247,0.15)", border: "1px solid rgba(168,85,247,0.3)" }}
                       >
@@ -257,7 +256,7 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                     {dir === "borrowed" && d.debtDbId && d.status !== "paid" && d.borrowerDecision === "accepted" && (
                       <button
                         onClick={e => { e.stopPropagation(); setManualReturn(d); }}
-                        title="Вернул лично (наличкой / переводом)"
+                        title={t.returnedOutside}
                         className="inline-flex items-center justify-center w-8 h-8 rounded-lg transition-all active:scale-95"
                         style={{ background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.3)" }}
                       >
@@ -267,7 +266,7 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                     {dir === "lent" && d.debtDbId && d.status !== "paid" && onDeleteDebt && (
                       <button
                         onClick={e => { e.stopPropagation(); setConfirmDelete(d); }}
-                        title="Удалить займ"
+                        title={t.delete}
                         className="inline-flex items-center justify-center w-8 h-8 rounded-lg transition-all active:scale-95"
                         style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)" }}
                       >
@@ -277,7 +276,7 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                     {dir === "borrowed" && d.debtDbId && d.status !== "paid" && onDeleteDebt && (
                       <button
                         onClick={e => { e.stopPropagation(); setConfirmDelete(d); }}
-                        title="Удалить долг"
+                        title={t.delete}
                         className="inline-flex items-center justify-center w-8 h-8 rounded-lg transition-all active:scale-95"
                         style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)" }}
                       >
@@ -289,11 +288,11 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                         <PayButton
                           token={token}
                           amount={d.interestRate ? calcTotalWithInterest(d.amount, d.interestRate, d.interestType || "simple", d.dueDate) : d.amount}
-                          description={`Возврат долга: ${d.name}`}
+                          description={`Возврат долга: ${d.name}` /* TODO: i18n */}
                           targetType="debt"
                           targetId={d.debtDbId}
                           size="sm"
-                          label="Оплатить"
+                          label={"Оплатить"/* TODO: i18n */}
                         />
                       </div>
                     )}
@@ -308,7 +307,7 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
       {/* Личные займы (только в разделе "Взятые") */}
       {dir === "borrowed" && personalLoans.length > 0 && (
         <div className="mt-4 space-y-3">
-          <p className="text-xs font-semibold text-muted-foreground px-1 uppercase tracking-wider">Личные займы</p>
+          <p className="text-xs font-semibold text-muted-foreground px-1 uppercase tracking-wider">Личные займы{/* TODO: i18n */}</p>
           {personalLoans.map(loan => {
             const sched = computeSchedule(loan);
             const monthCount = sched.monthCount;
@@ -327,7 +326,7 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
               if (!already) {
                 playPaymentSound();
                 const [yy, mm] = month.split("-");
-                showToast(`Платёж за ${MONTHS_RU_SHORT[parseInt(mm) - 1]} ${yy} внесён`);
+                showToast(`Платёж за ${t.monthsShort[parseInt(mm) - 1]} ${yy} внесён`/* TODO: i18n */);
               }
             }
 
@@ -347,26 +346,26 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-foreground truncate">{loan.title}</p>
                     <p className="text-xs text-muted-foreground">
-                      Личный займ · {loan.notifyDay}-е число
+                      {/* TODO: i18n */}Личный займ · {loan.notifyDay}-е число
                       {loan.interestRate ? ` · ${loan.interestRate}%` : ""}
                     </p>
                   </div>
                   <div className="text-right">
                     <p className="text-lg font-bold font-heading" style={{ color: "#7dd3fc" }}>{fmt(remaining > 0 ? remaining : 0)}</p>
-                    <p className="text-xs text-muted-foreground">осталось</p>
+                    <p className="text-xs text-muted-foreground">осталось{/* TODO: i18n */}</p>
                   </div>
                 </div>
 
                 {/* Платёж сейчас */}
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">Платёж в месяц</span>
+                  <span className="text-muted-foreground">Платёж в месяц{/* TODO: i18n */}</span>
                   <span className="font-semibold text-foreground">{fmt(sched.currentMonthly)}</span>
                 </div>
 
                 {/* Прогресс */}
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Оплачено {paid} из {monthCount} платежей</span>
+                    <span>{/* TODO: i18n */}Оплачено {paid} из {monthCount} платежей</span>
                     <span>{Math.round(paid / Math.max(1, monthCount) * 100)}%</span>
                   </div>
                   <div className="h-1.5 rounded-full bg-white/10">
@@ -380,16 +379,16 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                     className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
                     style={{ background: "linear-gradient(135deg, #38bdf8, #0ea5e9)" }}>
                     <Icon name="Wallet" size={16} />
-                    Внести
+                    {/* TODO: i18n */}Внести
                   </button>
                   {token && sched.currentMonthly > 0 && (
                     <PayButton
                       token={token}
                       amount={sched.currentMonthly}
-                      description={`Платёж по займу: ${loan.title}`}
+                      description={`Платёж по займу: ${loan.title}` /* TODO: i18n */}
                       targetType="loan"
                       targetId={loan.id}
-                      label={`Оплатить ${sched.currentMonthly.toLocaleString("ru-RU")} ₽`}
+                      label={`Оплатить ${sched.currentMonthly.toLocaleString("ru-RU")} ₽` /* TODO: i18n */}
                       className="w-full"
                     />
                   )}
@@ -398,7 +397,7 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                 {/* Список досрочных платежей */}
                 {extras.length > 0 && (
                   <div className="space-y-1.5">
-                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Досрочные платежи</p>
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Досрочные платежи{/* TODO: i18n */}</p>
                     {extras.map(ex => {
                       const [y, m] = ex.date.split("-");
                       return (
@@ -406,9 +405,9 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                           style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.15)" }}>
                           <div className="flex items-center gap-2">
                             <Icon name="ArrowDownCircle" size={14} className="text-green-400" />
-                            <span className="text-xs text-foreground">{MONTHS_RU_SHORT[parseInt(m) - 1]} {y}</span>
+                            <span className="text-xs text-foreground">{t.monthsShort[parseInt(m) - 1]} {y}</span>
                             <span className="text-[10px] text-muted-foreground">
-                              {ex.mode === "reducePayment" ? "↓ платёж" : "↓ срок"}
+                              {ex.mode === "reducePayment" ? "↓ платёж" : "↓ срок"/* TODO: i18n */}
                             </span>
                           </div>
                           <div className="flex items-center gap-2">
@@ -426,7 +425,7 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                 {/* График */}
                 <button onClick={() => setExpandedLoan(isExpanded ? null : loan.id)}
                   className="w-full flex items-center justify-between text-xs text-muted-foreground hover:text-foreground transition-colors">
-                  <span>График платежей</span>
+                  <span>График платежей{/* TODO: i18n */}</span>
                   <Icon name={isExpanded ? "ChevronUp" : "ChevronDown"} size={14} />
                 </button>
 
@@ -439,7 +438,7 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                         <button key={row.month} onClick={() => togglePaid(row.month)}
                           className="w-full flex items-center justify-between rounded-xl px-3 py-2 transition-all text-left"
                           style={{ background: isPaid ? "rgba(34,197,94,0.1)" : "rgba(255,255,255,0.03)", border: isPaid ? "1px solid rgba(34,197,94,0.2)" : "1px solid transparent" }}>
-                          <span className="text-xs text-muted-foreground">{MONTHS_RU_SHORT[parseInt(m) - 1]} {y}</span>
+                          <span className="text-xs text-muted-foreground">{t.monthsShort[parseInt(m) - 1]} {y}</span>
                           <div className="flex items-center gap-2">
                             {row.extra > 0 && <span className="text-[10px] text-green-400">+{fmt(row.extra)}</span>}
                             <span className="text-xs font-medium" style={{ color: isPaid ? "#4ade80" : "#7dd3fc" }}>{fmt(row.payment)}</span>
@@ -456,7 +455,7 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
 
                 <button onClick={deleteLoan} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-red-400 transition-colors">
                   <Icon name="Trash2" size={11} />
-                  Удалить займ
+                  {t.delete}
                 </button>
               </div>
             );
@@ -480,7 +479,7 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
             onPersonalLoanUpdate(personalLoans.map(l => l.id === updated.id ? updated : l));
             const last = (updated.extraPayments || [])[updated.extraPayments!.length - 1];
             if (last) {
-              showToast(`Досрочный платёж ${last.amount.toLocaleString("ru-RU")} ₽ внесён`);
+              showToast(`Досрочный платёж ${last.amount.toLocaleString("ru-RU")} ₽ внесён`/* TODO: i18n */);
             }
           }}
         />
@@ -510,23 +509,23 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                 <Icon name="CheckCircle2" size={20} style={{ color: "#4ade80" }} />
               </div>
               <div className="min-w-0">
-                <p className="font-semibold text-foreground">Подтвердить возврат долга?</p>
+                <p className="font-semibold text-foreground">Подтвердить возврат долга?{/* TODO: i18n */}</p>
                 <p className="text-xs text-muted-foreground truncate">
                   «{confirmReturn.name}» · {fmt(confirmReturn.interestRate ? calcTotalWithInterest(confirmReturn.amount, confirmReturn.interestRate, confirmReturn.interestType || "simple", confirmReturn.dueDate) : confirmReturn.amount)}
                 </p>
               </div>
             </div>
-            <p className="text-[11px] text-center text-muted-foreground">Отменить это действие будет нельзя</p>
+            <p className="text-[11px] text-center text-muted-foreground">Отменить это действие будет нельзя{/* TODO: i18n */}</p>
             <div className="flex gap-2">
               <button onClick={() => setConfirmReturn(null)}
                 className="flex-1 py-2 rounded-xl text-sm font-medium text-muted-foreground"
                 style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
-                Отмена
+                {t.cancel}
               </button>
               <button onClick={() => { if (confirmReturn.debtDbId) markPaidWithFeedback(confirmReturn.debtDbId); setConfirmReturn(null); }}
                 className="flex-1 py-2 rounded-xl text-sm font-semibold text-white"
                 style={{ background: "linear-gradient(135deg, #22c55e, #16a34a)" }}>
-                Подтвердить
+                {t.confirm}
               </button>
             </div>
           </div>
@@ -604,9 +603,9 @@ export function CalendarSection({ contacts, t, debts, rentals = [], userId = 0 }
         {/* Легенда */}
         {(upcomingDebts.length > 0 || rentalEvents.length > 0) && (
           <div className="flex gap-3 mb-3 flex-wrap">
-            {upcomingDebts.length > 0 && <span className="flex items-center gap-1 text-[10px] text-muted-foreground"><span className="w-2 h-2 rounded-full inline-block" style={{ background: "#a855f7" }} />Займы</span>}
-            {rentalEvents.some(r => r.landlord_user_id === userId) && <span className="flex items-center gap-1 text-[10px] text-muted-foreground"><span className="w-2 h-2 rounded-full inline-block" style={{ background: "#c084fc" }} />Сдаю</span>}
-            {rentalEvents.some(r => r.tenant_user_id === userId) && <span className="flex items-center gap-1 text-[10px] text-muted-foreground"><span className="w-2 h-2 rounded-full inline-block" style={{ background: "#7dd3fc" }} />Снимаю</span>}
+            {upcomingDebts.length > 0 && <span className="flex items-center gap-1 text-[10px] text-muted-foreground"><span className="w-2 h-2 rounded-full inline-block" style={{ background: "#a855f7" }} />{/* TODO: i18n */}Займы</span>}
+            {rentalEvents.some(r => r.landlord_user_id === userId) && <span className="flex items-center gap-1 text-[10px] text-muted-foreground"><span className="w-2 h-2 rounded-full inline-block" style={{ background: "#c084fc" }} />{t.rentalLandlord}</span>}
+            {rentalEvents.some(r => r.tenant_user_id === userId) && <span className="flex items-center gap-1 text-[10px] text-muted-foreground"><span className="w-2 h-2 rounded-full inline-block" style={{ background: "#7dd3fc" }} />{t.rentalTenant}</span>}
           </div>
         )}
 
@@ -691,7 +690,7 @@ export function CalendarSection({ contacts, t, debts, rentals = [], userId = 0 }
                   <Icon name={isLandlord ? "KeyRound" : "Home"} size={12} style={{ color }} />
                   <p className="font-medium text-foreground">{r.title}</p>
                 </div>
-                <p className="text-xs text-muted-foreground">{isLandlord ? "Ожидаю платёж" : "Нужно оплатить"}</p>
+                <p className="text-xs text-muted-foreground">{isLandlord ? t.receive : t.pay}</p>
               </div>
               <div className="font-bold font-heading text-base flex-shrink-0" style={{ color }}>
                 {fmt(r.amount)}
@@ -796,8 +795,8 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
       {notifs.length === 0 && (
         <div className="glass rounded-2xl p-8 flex flex-col items-center text-center gap-3">
           <Icon name="Bell" size={32} className="text-purple-400" />
-          <p className="font-semibold text-foreground">Уведомлений нет</p>
-          <p className="text-xs text-muted-foreground">Здесь будут появляться уведомления о ваших долгах</p>
+          <p className="font-semibold text-foreground">{t.noNotifications}</p>
+          <p className="text-xs text-muted-foreground">{t.notificationsEmpty}</p>
         </div>
       )}
       <div className="space-y-3">
@@ -827,7 +826,7 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
                     <p className="text-xs text-muted-foreground mb-0.5">{n.chatMeta.chatTitle}</p>
                   )}
                   {isSupport && n.supportMeta && (
-                    <p className="text-xs text-muted-foreground mb-0.5">Тикет #{n.supportMeta.ticketId}</p>
+                    <p className="text-xs text-muted-foreground mb-0.5">{/* TODO: i18n */}Тикет #{n.supportMeta.ticketId}</p>
                   )}
                   <p className="text-xs text-muted-foreground leading-relaxed">{n.message}</p>
                   <p className="text-[11px] text-muted-foreground/60 mt-1">{n.date}</p>
@@ -838,7 +837,7 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
                     className="flex-shrink-0 px-2.5 py-1.5 rounded-xl text-[11px] font-medium transition-all"
                     style={{ background: "rgba(168,85,247,0.15)", border: "1px solid rgba(168,85,247,0.3)", color: "#c084fc" }}
                   >
-                    Открыть
+                    {/* TODO: i18n */}Открыть
                   </button>
                 )}
                 {isSupport && onOpenSupport && n.supportMeta && (
@@ -847,7 +846,7 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
                     className="flex-shrink-0 px-2.5 py-1.5 rounded-xl text-[11px] font-medium transition-all"
                     style={{ background: "rgba(56,189,248,0.15)", border: "1px solid rgba(56,189,248,0.3)", color: "#7dd3fc" }}
                   >
-                    Открыть
+                    {/* TODO: i18n */}Открыть
                   </button>
                 )}
               </div>
@@ -862,7 +861,7 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
                       <div className="mt-3 flex items-center gap-2 text-xs">
                         <Icon name={decided === "accepted" ? "CheckCircle2" : "XCircle"} size={14} className={decided === "accepted" ? "text-green-400" : "text-red-400"} />
                         <span className={decided === "accepted" ? "text-green-400" : "text-red-400"}>
-                          {decided === "accepted" ? "Возврат подтверждён" : "Возврат отклонён"}
+                          {decided === "accepted" ? "Возврат подтверждён" : "Возврат отклонён"/* TODO: i18n */}
                         </span>
                       </div>
                     </div>
@@ -871,7 +870,7 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
                 return (
                   <div className="px-4 pb-3 border-t border-white/5">
                     <p className="text-[11px] text-muted-foreground mt-3 mb-2">
-                      Сумма к подтверждению: <span className="text-foreground font-semibold">{n.paymentRequestMeta.amount.toLocaleString("ru-RU")} ₽</span>
+                      {/* TODO: i18n */}Сумма к подтверждению: <span className="text-foreground font-semibold">{n.paymentRequestMeta.amount.toLocaleString("ru-RU")} ₽</span>
                     </p>
                     <div className="flex gap-2">
                       <button
@@ -881,7 +880,7 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
                         style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", color: "#f87171" }}
                       >
                         <Icon name="X" size={13} />
-                        Отклонить
+                        {/* TODO: i18n */}Отклонить
                       </button>
                       <button
                         onClick={() => decidePayment(n, "accepted")}
@@ -894,7 +893,7 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
                         ) : (
                           <>
                             <Icon name="Check" size={13} />
-                            Подтвердить
+                            {t.confirm}
                           </>
                         )}
                       </button>
@@ -911,7 +910,7 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
                       value={replyText[n.id] || ""}
                       onChange={e => setReplyText(prev => ({ ...prev, [n.id]: e.target.value }))}
                       onKeyDown={e => e.key === "Enter" && sendReply(n)}
-                      placeholder="Ответить..."
+                      placeholder="Ответить..."/* TODO: i18n */
                       className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:border-purple-500/40 transition-colors"
                     />
                     <button
@@ -964,7 +963,7 @@ export function ArchiveSection({ contacts, t, locale, archiveDebts }: { contacts
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Поиск по имени или названию займа"
+            placeholder="Поиск по имени или названию займа"/* TODO: i18n */
             className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
           />
           {search && (
@@ -985,7 +984,7 @@ export function ArchiveSection({ contacts, t, locale, archiveDebts }: { contacts
             }
           >
             <Icon name="CheckCircle2" size={13} />
-            Возвращённые
+            {t.statusReturned}
             <span className="text-[10px] opacity-70">{returnedDebts.length}</span>
           </button>
           <button
@@ -997,7 +996,7 @@ export function ArchiveSection({ contacts, t, locale, archiveDebts }: { contacts
             }
           >
             <Icon name="Trash2" size={13} />
-            Удалённые
+            {/* TODO: i18n */}Удалённые
             <span className="text-[10px] opacity-70">{deletedDebts.length}</span>
           </button>
         </div>
@@ -1010,7 +1009,7 @@ export function ArchiveSection({ contacts, t, locale, archiveDebts }: { contacts
             </div>
             <div>
               <p className={`font-semibold ${filter === "returned" ? "text-green-400" : "text-red-400"}`}>
-                {filter === "returned" ? `${t.paidOn} ${fmt(total)}` : `Удалено на ${fmt(total)}`}
+                {filter === "returned" ? `${t.paidOn} ${fmt(total)}` : `Удалено на ${fmt(total)}` /* TODO: i18n */}
               </p>
               <p className="text-xs text-muted-foreground">{visible.length} {t.completedTx}</p>
             </div>
@@ -1021,10 +1020,10 @@ export function ArchiveSection({ contacts, t, locale, archiveDebts }: { contacts
         <div className="glass rounded-2xl p-8 flex flex-col items-center text-center gap-3">
           <Icon name={q ? "SearchX" : filter === "returned" ? "Archive" : "Trash2"} size={32} className="text-purple-400 opacity-50" />
           <p className="font-semibold text-foreground">
-            {q ? "Ничего не найдено" : filter === "returned" ? t.archiveEmpty : "Удалённых займов нет"}
+            {q ? "Ничего не найдено" /* TODO: i18n */ : filter === "returned" ? t.archiveEmpty : "Удалённых займов нет" /* TODO: i18n */}
           </p>
           <p className="text-xs text-muted-foreground">
-            {q ? `Нет совпадений по запросу «${search}»` : filter === "returned" ? t.archiveEmptyDesc : "Здесь появятся займы, удалённые кредитором"}
+            {q ? `Нет совпадений по запросу «${search}»` /* TODO: i18n */ : filter === "returned" ? t.archiveEmptyDesc : "Здесь появятся займы, удалённые кредитором" /* TODO: i18n */}
           </p>
         </div>
       )}
@@ -1053,7 +1052,7 @@ export function ArchiveSection({ contacts, t, locale, archiveDebts }: { contacts
                 {isDeleted ? (
                   <span className="inline-flex items-center gap-1 mt-1 text-[11px] font-medium px-2 py-0.5 rounded-md" style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", color: "#f87171" }}>
                     <Icon name="Trash2" size={10} />
-                    Удалён
+                    {/* TODO: i18n */}Удалён
                   </span>
                 ) : (
                   <StatusBadge status="paid" t={t} />
@@ -1076,8 +1075,8 @@ export function ContactsSection({ contacts, onColorChange, t }: { contacts: Cont
       {contacts.length === 0 && (
         <div className="glass rounded-2xl p-8 flex flex-col items-center text-center gap-3 mb-4">
           <Icon name="Users" size={32} className="text-purple-400 opacity-50" />
-          <p className="font-semibold text-foreground">{t.addContact}</p>
-          <p className="text-xs text-muted-foreground">Контакты появятся здесь когда вы добавите первый займ</p>
+          <p className="font-semibold text-foreground">{t.noContacts}</p>
+          <p className="text-xs text-muted-foreground">{t.contactsHint}</p>
         </div>
       )}
       <div className="space-y-3">
@@ -1191,13 +1190,13 @@ export function Dashboard({ onNav, contacts, t, lentDebts, borrowedDebts, active
           <div className="relative">
             <div className="flex items-center gap-1.5 mb-1">
               <Icon name="Home" size={12} style={{ color: "#5eead4" }} />
-              <p className="text-[10px] text-muted-foreground">Аренда</p>
+              <p className="text-[10px] text-muted-foreground">{t.titleRental}</p>
             </div>
             <p className="text-xl font-black font-heading mb-0.5" style={{ color: "#5eead4" }}>
               {activeRentalCount}
             </p>
             <p className="text-[10px] text-muted-foreground">
-              {activeRentalCount === 0 ? "нет аренд" : `${fmt(totalRentalAmount)}/мес`}
+              {activeRentalCount === 0 ? "нет аренд" /* TODO: i18n */ : `${fmt(totalRentalAmount)}/мес` /* TODO: i18n */}
             </p>
           </div>
         </button>
@@ -1267,8 +1266,8 @@ export function Dashboard({ onNav, contacts, t, lentDebts, borrowedDebts, active
               <Icon name="Wallet" size={32} className="text-purple-400" />
             </div>
             <div>
-              <p className="font-semibold text-foreground mb-1">Долгов пока нет</p>
-              <p className="text-xs text-muted-foreground">Нажмите + чтобы добавить первый займ</p>
+              <p className="font-semibold text-foreground mb-1">{/* TODO: i18n */}Долгов пока нет</p>
+              <p className="text-xs text-muted-foreground">{t.emptyDebtsHint}</p>
             </div>
           </div>
         ) : (
@@ -1321,7 +1320,7 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
   async function handleDeleteAccount() {
     if (!token || !authUrl) return;
     if (deletePin.length !== 4) {
-      setDeleteError("Введите 4 цифры PIN");
+      setDeleteError("Введите 4 цифры PIN"/* TODO: i18n */);
       return;
     }
     setDeleting(true);
@@ -1334,7 +1333,7 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
       });
       const data = await r.json();
       if (!r.ok) {
-        setDeleteError(data.error || "Не удалось удалить аккаунт");
+        setDeleteError(data.error || "Не удалось удалить аккаунт"/* TODO: i18n */);
         setDeleting(false);
         return;
       }
