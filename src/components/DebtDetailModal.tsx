@@ -24,6 +24,7 @@ interface Props {
   onOpenChat?: (debtId: string, title: string) => void;
   onMarkPaid?: (debtId: string) => void;
   token?: string;
+  onPaymentAccepted?: (debtId: string, newAmount: number, fullyPaid: boolean) => void;
 }
 
 interface PaymentItem {
@@ -49,9 +50,10 @@ function calcTotalWithInterest(amount: number, rate: number, type: string, dueDa
   return Math.round(amount * (1 + (rate / 100) * years));
 }
 
-export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat, onMarkPaid, token }: Props) {
+export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat, onMarkPaid, token, onPaymentAccepted }: Props) {
   const [history, setHistory] = useState<PaymentItem[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [decidingId, setDecidingId] = useState<number | null>(null);
 
   const debtDbId = debt?.debtDbId;
   useEffect(() => {
@@ -76,7 +78,36 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
     return () => { cancelled = true; };
   }, [debtDbId, token]);
 
+  async function decide(p: PaymentItem, decision: "accepted" | "rejected") {
+    const t = token || localStorage.getItem("df-token") || "";
+    if (!t || !debtDbId) return;
+    setDecidingId(p.id);
+    try {
+      const { default: urls } = await import("../../backend/func2url.json");
+      const res = await fetch(`${urls["debts"]}?action=pay`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` },
+        body: JSON.stringify({ payment_request_id: p.id, decision }),
+      });
+      if (!res.ok) return;
+      const data = await res.json().catch(() => ({}));
+      setHistory(prev => prev.map(x => x.id === p.id ? { ...x, status: decision } : x));
+      if (decision === "accepted" && onPaymentAccepted && debtDbId) {
+        onPaymentAccepted(
+          debtDbId,
+          typeof data.new_amount === "number" ? data.new_amount : 0,
+          Boolean(data.fully_paid),
+        );
+        if (data.fully_paid) onClose();
+      }
+    } finally {
+      setDecidingId(null);
+    }
+  }
+
   if (!debt) return null;
+
+  const pendingPayment = dir === "lent" ? history.find(h => h.status === "pending") : null;
 
   const statusMap = {
     active:  { label: "Активен",    cls: "bg-blue-500/15 text-blue-400 border border-blue-500/20" },
@@ -188,6 +219,20 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
               </div>
             )}
 
+            {pendingPayment && dir === "lent" && (
+              <div className="rounded-2xl px-4 py-3" style={{ background: "linear-gradient(135deg, rgba(16,185,129,0.18), rgba(5,150,105,0.1))", border: "1px solid rgba(16,185,129,0.4)" }}>
+                <div className="flex items-center gap-2 mb-1">
+                  <Icon name="BellRing" size={16} className="text-emerald-400" />
+                  <p className="text-xs font-semibold text-emerald-300">Запрос на возврат</p>
+                </div>
+                <p className="text-sm text-foreground">
+                  {pendingPayment.from_name} вернул(а) <span className="font-bold text-emerald-400">{fmt(pendingPayment.amount)}</span>
+                </p>
+                {pendingPayment.note && <p className="text-[11px] text-foreground/70 italic mt-1">«{pendingPayment.note}»</p>}
+                <p className="text-[10px] text-muted-foreground mt-1">После подтверждения остаток станет {fmt(Math.max(0, debt.amount - pendingPayment.amount))}</p>
+              </div>
+            )}
+
             {debt.debtDbId && (
               <div className="glass rounded-2xl px-4 py-3">
                 <div className="flex items-center gap-2 mb-2">
@@ -232,7 +277,33 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
                               {p.from_name} • {statusLabel}
                             </p>
                             {p.note && <p className="text-[11px] text-foreground/80 mt-0.5 italic">«{p.note}»</p>}
-                            {isPend && <p className="text-[10px] mt-0.5" style={{ color: "#fbbf24" }}>Ждёт подтверждения кредитора</p>}
+                            {isPend && dir === "borrowed" && (
+                              <p className="text-[10px] mt-0.5" style={{ color: "#fbbf24" }}>Ждёт подтверждения кредитора</p>
+                            )}
+                            {isPend && dir === "lent" && (
+                              <div className="flex gap-2 mt-2">
+                                <button
+                                  onClick={() => decide(p, "rejected")}
+                                  disabled={decidingId === p.id}
+                                  className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[11px] font-medium disabled:opacity-50 active:scale-95 transition-transform"
+                                  style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", color: "#f87171" }}
+                                >
+                                  <Icon name="X" size={12} /> Отклонить
+                                </button>
+                                <button
+                                  onClick={() => decide(p, "accepted")}
+                                  disabled={decidingId === p.id}
+                                  className="flex-[1.4] flex items-center justify-center gap-1 py-1.5 rounded-lg text-[11px] font-semibold disabled:opacity-50 active:scale-95 transition-transform"
+                                  style={{ background: "linear-gradient(135deg,#10b981,#059669)", color: "#fff" }}
+                                >
+                                  {decidingId === p.id ? (
+                                    <Icon name="Loader2" size={12} className="animate-spin" />
+                                  ) : (
+                                    <><Icon name="Check" size={12} /> Подтвердить {fmt(p.amount)}</>
+                                  )}
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </div>
                       );
@@ -254,7 +325,7 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
                 Открыть чат
               </button>
             )}
-            {debt.debtDbId && debt.status !== "paid" && onMarkPaid && dir === "lent" && (
+            {debt.debtDbId && debt.status !== "paid" && onMarkPaid && dir === "lent" && !pendingPayment && (
               <button
                 onClick={() => { onMarkPaid(debt.debtDbId!); onClose(); }}
                 className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-green-500/15 text-green-400 hover:bg-green-500/25 transition-colors font-medium text-sm border border-green-500/20"

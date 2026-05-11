@@ -1,0 +1,1 @@
+UPDATE t_p29977622_debt_tracker_app.debts SET status = 'active', updated_at = NOW() WHERE id = 'b302f433-5b52-4afa-aba3-36eb248ed89f' AND status = 'archived' AND amount = 85000;
