@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import Icon from "@/components/ui/icon";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { type Debt } from "@/components/index/types";
@@ -75,11 +75,46 @@ export default function BalanceReportModal({ onClose, lentDebts, borrowedDebts, 
 
   const chartData = slices.length > 0 ? slices : [{ key: "empty", label: "Нет данных", value: 1, color: "rgba(255,255,255,0.08)", icon: "Inbox" }];
 
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const dragStartY = useRef<number | null>(null);
+  const [dragY, setDragY] = useState(0);
+
+  function handleTouchStart(e: React.TouchEvent) {
+    dragStartY.current = e.touches[0].clientY;
+  }
+  function handleTouchMove(e: React.TouchEvent) {
+    if (dragStartY.current === null) return;
+    const delta = e.touches[0].clientY - dragStartY.current;
+    if (delta > 0) setDragY(delta);
+  }
+  function handleTouchEnd() {
+    if (dragY > 120) {
+      onClose();
+    } else {
+      setDragY(0);
+    }
+    dragStartY.current = null;
+  }
+
   return (
     <div className="fixed inset-0 z-[100] flex items-stretch justify-center sm:items-center sm:p-4">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full sm:max-w-md glass overflow-hidden flex flex-col sm:rounded-3xl animate-fade-in" style={{ background: "var(--app-bg)" }}>
-        <div className="flex items-center justify-between px-4 py-4 border-b border-white/5">
+      <div
+        ref={sheetRef}
+        className="relative w-full sm:max-w-md glass overflow-hidden flex flex-col sm:rounded-3xl animate-fade-in"
+        style={{
+          background: "var(--app-bg)",
+          transform: dragY > 0 ? `translateY(${dragY}px)` : undefined,
+          transition: dragY === 0 ? "transform 0.25s ease" : "none",
+        }}
+      >
+        <div
+          className="flex items-center justify-between px-4 py-4 border-b border-white/5 touch-none"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
+          <div className="absolute top-1.5 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full bg-white/20" />
           <div className="w-9 h-9" />
           <p className="font-semibold text-foreground">Отчёт</p>
           <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(168,85,247,0.15)" }}>
