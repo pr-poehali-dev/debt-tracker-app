@@ -173,10 +173,24 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
               >
                 <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
                   <Avatar initials={d.avatar} color={contact?.color} />
-                  <p className="text-[10px] text-muted-foreground flex items-center gap-0.5 whitespace-nowrap">
-                    <Icon name="Calendar" size={10} />
-                    {new Date(d.dueDate).toLocaleDateString(locale, { day: "numeric", month: "short" })}
-                  </p>
+                  {(() => {
+                    const today = new Date(); today.setHours(0, 0, 0, 0);
+                    const due = new Date(d.dueDate); due.setHours(0, 0, 0, 0);
+                    const days = Math.round((due.getTime() - today.getTime()) / 86400000);
+                    const isPaid = d.status === "paid";
+                    let cls = "text-muted-foreground";
+                    if (!isPaid) {
+                      if (days < 0) cls = "text-red-400";
+                      else if (days === 0) cls = "text-red-400 font-semibold";
+                      else if (days === 1) cls = "text-amber-400 font-medium";
+                    }
+                    return (
+                      <p className={`text-[10px] flex items-center gap-0.5 whitespace-nowrap ${cls}`}>
+                        <Icon name="Calendar" size={10} />
+                        {new Date(d.dueDate).toLocaleDateString(locale, { day: "numeric", month: "short" })}
+                      </p>
+                    );
+                  })()}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-foreground break-words leading-snug">{d.name}</p>

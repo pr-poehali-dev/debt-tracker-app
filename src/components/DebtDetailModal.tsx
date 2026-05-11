@@ -184,22 +184,44 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
               </div>
             )}
 
-            <div className="flex items-center gap-3 glass rounded-2xl px-4 py-3">
-              <div className="w-8 h-8 rounded-xl bg-purple-500/15 flex items-center justify-center flex-shrink-0">
-                <Icon name="Calendar" size={16} className="text-purple-400" />
-              </div>
-              <div className="flex-1">
-                <p className="text-xs text-muted-foreground">Срок возврата</p>
-                <p className="text-sm font-medium text-foreground">
-                  {new Date(debt.dueDate).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" })}
-                </p>
-              </div>
-              {debt.status !== "paid" && (
-                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${daysLeft < 0 ? "bg-red-500/15 text-red-400" : daysLeft <= 3 ? "bg-amber-500/15 text-amber-400" : "bg-green-500/15 text-green-400"}`}>
-                  {daysLeft < 0 ? `${Math.abs(daysLeft)} дн. назад` : daysLeft === 0 ? "Сегодня" : `${daysLeft} дн.`}
-                </span>
-              )}
-            </div>
+            {(() => {
+              const isPaid = debt.status === "paid";
+              const dueColorCls = !isPaid && daysLeft < 0
+                ? "text-red-400"
+                : !isPaid && daysLeft === 0
+                  ? "text-red-400"
+                  : !isPaid && daysLeft === 1
+                    ? "text-amber-400"
+                    : "text-foreground";
+              const iconBg = !isPaid && daysLeft <= 0
+                ? "bg-red-500/15"
+                : !isPaid && daysLeft === 1
+                  ? "bg-amber-500/15"
+                  : "bg-purple-500/15";
+              const iconCls = !isPaid && daysLeft <= 0
+                ? "text-red-400"
+                : !isPaid && daysLeft === 1
+                  ? "text-amber-400"
+                  : "text-purple-400";
+              return (
+                <div className="flex items-center gap-3 glass rounded-2xl px-4 py-3">
+                  <div className={`w-8 h-8 rounded-xl ${iconBg} flex items-center justify-center flex-shrink-0`}>
+                    <Icon name="Calendar" size={16} className={iconCls} />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs text-muted-foreground">Срок возврата</p>
+                    <p className={`text-sm font-semibold ${dueColorCls}`}>
+                      {new Date(debt.dueDate).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" })}
+                    </p>
+                  </div>
+                  {debt.status !== "paid" && (
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${daysLeft < 0 ? "bg-red-500/15 text-red-400" : daysLeft === 0 ? "bg-red-500/15 text-red-400" : daysLeft === 1 ? "bg-amber-500/15 text-amber-400" : daysLeft <= 3 ? "bg-amber-500/15 text-amber-400" : "bg-green-500/15 text-green-400"}`}>
+                      {daysLeft < 0 ? `${Math.abs(daysLeft)} дн. назад` : daysLeft === 0 ? "Сегодня" : `${daysLeft} дн.`}
+                    </span>
+                  )}
+                </div>
+              );
+            })()}
 
             {debt.note && dir === "lent" && (
               <div className="flex items-start gap-3 glass rounded-2xl px-4 py-3">
