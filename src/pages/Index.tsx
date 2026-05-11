@@ -695,7 +695,29 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
 
       <InstallBanner t={t} />
 
-      <main className="relative z-10 flex-1 px-4 pb-32 overflow-y-auto">
+      <main
+        className="relative z-10 flex-1 px-4 pb-32 overflow-y-auto"
+        onTouchStart={(e) => {
+          const t = e.touches[0];
+          (window as unknown as { __swipeStart?: { x: number; y: number; t: number } }).__swipeStart = { x: t.clientX, y: t.clientY, t: Date.now() };
+        }}
+        onTouchEnd={(e) => {
+          const start = (window as unknown as { __swipeStart?: { x: number; y: number; t: number } }).__swipeStart;
+          if (!start) return;
+          const tch = e.changedTouches[0];
+          const dx = tch.clientX - start.x;
+          const dy = tch.clientY - start.y;
+          const dt = Date.now() - start.t;
+          (window as unknown as { __swipeStart?: unknown }).__swipeStart = undefined;
+          if (dt > 600) return;
+          if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+          const idx = navItems.findIndex(n => n.id === section);
+          if (idx === -1) return;
+          const nextIdx = dx < 0 ? idx + 1 : idx - 1;
+          if (nextIdx < 0 || nextIdx >= navItems.length) return;
+          setSection(navItems[nextIdx].id);
+        }}
+      >
         <div className="max-w-lg mx-auto">
           {section === "dashboard"     && <Dashboard onNav={setSection} contacts={contacts} t={t} lentDebts={lentDebts} borrowedDebts={borrowedDebts} activeRentalCount={activeRentalCount} totalRentalAmount={totalRentalAmount} personalLoans={personalLoans} onOpenReport={() => setShowReport(true)} />}
           {section === "lent"          && <DebtList debts={lentDebts} dir="lent" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => setActiveChat({ debtId: id, title })} onMarkPaid={handleMarkPaid} onDeleteDebt={handleDeleteDebt} onAddNew={() => setShowNewDebt(true)} token={token} />}
