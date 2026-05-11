@@ -54,6 +54,7 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
   const [history, setHistory] = useState<PaymentItem[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [decidingId, setDecidingId] = useState<number | null>(null);
+  const [confirmClose, setConfirmClose] = useState(false);
 
   const debtDbId = debt?.debtDbId;
   useEffect(() => {
@@ -327,7 +328,7 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
             )}
             {debt.debtDbId && debt.status !== "paid" && onMarkPaid && dir === "lent" && !pendingPayment && (
               <button
-                onClick={() => { onMarkPaid(debt.debtDbId!); onClose(); }}
+                onClick={() => setConfirmClose(true)}
                 className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-green-500/15 text-green-400 hover:bg-green-500/25 transition-colors font-medium text-sm border border-green-500/20"
               >
                 <Icon name="CheckCircle2" size={16} />
@@ -341,6 +342,57 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
           )}
         </div>
       </div>
+
+      {confirmClose && (
+        <div
+          className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
+          onClick={() => setConfirmClose(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-3xl p-5 animate-slide-up"
+            style={{ background: "linear-gradient(180deg, rgba(30,30,40,0.98), rgba(20,20,30,0.98))", border: "1px solid rgba(255,255,255,0.08)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: "rgba(34,197,94,0.15)" }}>
+                <Icon name="CheckCircle2" size={24} className="text-green-400" />
+              </div>
+              <div className="flex-1">
+                <p className="text-base font-bold text-foreground">Закрыть долг?</p>
+                <p className="text-xs text-muted-foreground">Действие нельзя отменить</p>
+              </div>
+            </div>
+            <p className="text-sm text-foreground/90 mb-1">
+              Вы уверены, что хотите закрыть долг <span className="font-semibold">«{debt.name}»</span>?
+            </p>
+            <p className="text-xs text-muted-foreground mb-4">
+              Сумма {fmt(debt.amount)} будет считаться полностью возвращённой, долг уйдёт в архив.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setConfirmClose(false)}
+                className="flex-1 py-3 rounded-2xl text-sm font-medium transition-all active:scale-95"
+                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#cbd5e1" }}
+              >
+                Отмена
+              </button>
+              <button
+                onClick={() => {
+                  setConfirmClose(false);
+                  if (onMarkPaid && debt.debtDbId) onMarkPaid(debt.debtDbId);
+                  onClose();
+                }}
+                className="flex-[1.3] py-3 rounded-2xl text-sm font-semibold transition-all active:scale-95 flex items-center justify-center gap-1.5"
+                style={{ background: "linear-gradient(135deg, #10b981, #059669)", color: "#fff" }}
+              >
+                <Icon name="Check" size={14} />
+                Да, закрыть
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
