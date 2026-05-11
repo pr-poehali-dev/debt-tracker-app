@@ -141,8 +141,8 @@ def handler(event: dict, context) -> dict:
     headers = event.get("headers") or {}
     auth_header = headers.get("X-Authorization") or headers.get("Authorization") or ""
 
-    # POST / — создать долг
-    if method == "POST":
+    # POST / — создать долг (исключая action-роуты ниже)
+    if method == "POST" and not qs.get("action"):
         body = json.loads(event.get("body") or "{}")
         for f in ["title", "amount", "lender_name"]:
             if not body.get(f):
