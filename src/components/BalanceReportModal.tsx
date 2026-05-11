@@ -4,6 +4,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { type Debt } from "@/components/index/types";
 import { type PersonalLoan } from "@/components/PersonalLoanModal";
 
+interface NavItem { id: string; icon: string; label: string; }
 interface Props {
   onClose: () => void;
   lentDebts: Debt[];
@@ -12,6 +13,9 @@ interface Props {
   personalLoans: PersonalLoan[];
   totalRentalAmount: number;
   activeRentalCount: number;
+  navItems?: NavItem[];
+  currentSection?: string;
+  onNavigate?: (id: string) => void;
 }
 
 type ViewMode = "owed" | "owe";
@@ -37,7 +41,7 @@ interface Slice {
   icon: string;
 }
 
-export default function BalanceReportModal({ onClose, lentDebts, borrowedDebts, archiveDebts, personalLoans, totalRentalAmount, activeRentalCount }: Props) {
+export default function BalanceReportModal({ onClose, lentDebts, borrowedDebts, archiveDebts, personalLoans, totalRentalAmount, activeRentalCount, navItems, currentSection, onNavigate }: Props) {
   const [view, setView] = useState<ViewMode>("owed");
 
   const personalRemaining = useMemo(() => personalLoans.reduce((s, l) => {
@@ -76,9 +80,7 @@ export default function BalanceReportModal({ onClose, lentDebts, borrowedDebts, 
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full sm:max-w-md glass overflow-hidden flex flex-col sm:rounded-3xl animate-fade-in" style={{ background: "var(--app-bg)" }}>
         <div className="flex items-center justify-between px-4 py-4 border-b border-white/5">
-          <button onClick={onClose} className="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors">
-            <Icon name="ChevronLeft" size={18} />
-          </button>
+          <div className="w-9 h-9" />
           <p className="font-semibold text-foreground">Отчёт</p>
           <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(168,85,247,0.15)" }}>
             <Icon name="BarChart3" size={18} style={{ color: "#c084fc" }} />
@@ -202,6 +204,26 @@ export default function BalanceReportModal({ onClose, lentDebts, borrowedDebts, 
             </div>
           </div>
         </div>
+
+        {navItems && onNavigate && (
+          <nav className="px-2 pb-safe pt-2 border-t border-white/5">
+            <div className="glass rounded-2xl px-1 py-1.5 flex items-center justify-around" style={{ borderTop: "1px solid rgba(255,255,255,0.06)", backdropFilter: "blur(24px)" }}>
+              {navItems.map(item => {
+                const active = currentSection === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => { onNavigate(item.id); onClose(); }}
+                    className={`relative flex flex-col items-center gap-0.5 px-1 py-1 rounded-xl transition-all duration-200 min-w-0 flex-1 ${active ? "gradient-purple glow-purple" : "hover:bg-white/5"}`}
+                  >
+                    <Icon name={item.icon} size={18} className={active ? "text-white" : "text-muted-foreground"} />
+                    <span className={`text-[8px] font-medium leading-none truncate w-full text-center ${active ? "text-white" : "text-muted-foreground"}`}>{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </nav>
+        )}
       </div>
     </div>
   );

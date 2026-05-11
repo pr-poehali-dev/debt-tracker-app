@@ -626,6 +626,9 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
           personalLoans={personalLoans}
           totalRentalAmount={totalRentalAmount}
           activeRentalCount={activeRentalCount}
+          navItems={navItems}
+          currentSection={section}
+          onNavigate={(id) => setSection(id as Section)}
         />
       )}
       {activeChat && !isDemo && (
