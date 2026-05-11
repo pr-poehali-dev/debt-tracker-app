@@ -444,6 +444,49 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
     });
   }, [isDemo, token]);
 
+  // Открыть чат из URL (?openChat=debt|rental&id=...)
+  useEffect(() => {
+    function openChatFromUrl(search: string) {
+      const params = new URLSearchParams(search);
+      const kind = params.get("openChat");
+      const id = params.get("id");
+      if (!kind || !id) return false;
+      if (kind === "debt") {
+        const debt = [...lentDebts, ...borrowedDebts, ...archiveDebts].find(d => d.debtDbId === id);
+        setActiveChat({ debtId: id, title: debt?.title || "Чат по долгу" });
+      } else if (kind === "rental") {
+        const rental = rentals.find(r => String(r.id) === String(id));
+        setActiveChat({ rentalId: Number(id), title: rental?.title || "Чат по аренде" });
+      }
+      // очищаем параметры из URL
+      const url = new URL(window.location.href);
+      url.searchParams.delete("openChat");
+      url.searchParams.delete("id");
+      window.history.replaceState({}, "", url.toString());
+      return true;
+    }
+
+    // 1) при первой загрузке
+    openChatFromUrl(window.location.search);
+
+    // 2) при сообщениях от SW (клик по push)
+    function onSwMessage(e: MessageEvent) {
+      const data = e.data;
+      if (data && data.type === "NAVIGATE" && typeof data.url === "string") {
+        const qIndex = data.url.indexOf("?");
+        if (qIndex >= 0) openChatFromUrl(data.url.slice(qIndex));
+      }
+    }
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.addEventListener("message", onSwMessage);
+    }
+    return () => {
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.removeEventListener("message", onSwMessage);
+      }
+    };
+  }, [lentDebts, borrowedDebts, archiveDebts, rentals]);
+
   // Web Push: запрос разрешения при первом жесте пользователя
   useEffect(() => {
     if (isDemo) return;

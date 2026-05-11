@@ -1,4 +1,4 @@
-const CACHE_NAME = 'debtflow-v5';
+const CACHE_NAME = 'debtflow-v6';
 const STATIC_ASSETS = [
   '/manifest.json',
 ];
@@ -109,13 +109,16 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   if (event.action === 'close') return;
-  const url = event.notification.data?.url || '/';
+  const targetUrl = event.notification.data?.url || '/';
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
-        if (client.url === url && 'focus' in client) return client.focus();
+        if ('focus' in client) {
+          client.postMessage({ type: 'NAVIGATE', url: targetUrl });
+          return client.focus();
+        }
       }
-      if (clients.openWindow) return clients.openWindow(url);
+      if (clients.openWindow) return clients.openWindow(targetUrl);
     })
   );
 });

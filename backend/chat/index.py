@@ -45,7 +45,7 @@ def get_user_from_token(token_str, conn):
         row = cur.fetchone()
     return (row[0], row[1]) if row else (None, None)
 
-def send_push_notification(conn, recipient_user_id, title, body_text):
+def send_push_notification(conn, recipient_user_id, title, body_text, url=None, tag=None):
     try:
         from pywebpush import webpush, WebPushException
         vapid_private = os.environ.get("VAPID_PRIVATE_KEY", "")
@@ -58,11 +58,16 @@ def send_push_notification(conn, recipient_user_id, title, body_text):
                 (recipient_user_id,)
             )
             subs = cur.fetchall()
+        payload = {"title": title, "body": body_text}
+        if url:
+            payload["url"] = url
+        if tag:
+            payload["tag"] = tag
         for endpoint, p256dh, auth_key in subs:
             try:
                 webpush(
                     subscription_info={"endpoint": endpoint, "keys": {"p256dh": p256dh, "auth": auth_key}},
-                    data=json.dumps({"title": title, "body": body_text}),
+                    data=json.dumps(payload),
                     vapid_private_key=vapid_private,
                     vapid_claims={"sub": "mailto:noreply@debt-debt.ru"}
                 )
@@ -285,7 +290,17 @@ def handler(event: dict, context) -> dict:
 
             # Push-уведомление получателю
             if recipient_id:
-                send_push_notification(conn, recipient_id, f"Сообщение от {user_name}", text[:80])
+                if debt_id:
+                    chat_url = f"/?openChat=debt&id={debt_id}"
+                    chat_tag = f"chat-debt-{debt_id}"
+                else:
+                    chat_url = f"/?openChat=rental&id={rental_id}"
+                    chat_tag = f"chat-rental-{rental_id}"
+                send_push_notification(
+                    conn, recipient_id,
+                    f"Сообщение от {user_name}", text[:80],
+                    url=chat_url, tag=chat_tag,
+                )
 
         return json_resp({
             "id": r[0],
