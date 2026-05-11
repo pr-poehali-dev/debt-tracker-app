@@ -231,8 +231,10 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
       const unread: number = data.unread || 0;
       const newNotifs: Array<Record<string, unknown>> = (data.notifications || []).filter((n: Record<string, unknown>) => !n.is_read);
 
-      if (unread > lastKnownUnread) {
-        if (lastKnownUnread !== 0) playSound();
+      // Всегда мерджим новые непрочитанные уведомления, не только при увеличении счётчика
+      const grew = unread > lastKnownUnread;
+      if (grew && lastKnownUnread !== 0) playSound();
+      if (newNotifs.length > 0) {
         setNotifs(prev => {
           const existingIds = new Set(prev.map(n => n.id));
           const fresh: Notification[] = newNotifs
@@ -309,8 +311,18 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
     }
 
     poll();
-    const interval = setInterval(poll, 30000);
-    return () => clearInterval(interval);
+    const interval = setInterval(poll, 10000);
+    // Перезапрашиваем при возврате на вкладку
+    function onVisibility() {
+      if (document.visibilityState === "visible") poll();
+    }
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("focus", poll);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("focus", poll);
+    };
   }, [isDemo, token]);
 
   // Разблокировка AudioContext при первом касании
