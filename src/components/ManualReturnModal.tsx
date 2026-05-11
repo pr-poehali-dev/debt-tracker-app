@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Icon from "@/components/ui/icon";
 
 interface Props {
@@ -14,6 +14,25 @@ function fmt(n: number) {
   return n.toLocaleString("ru-RU") + " ₽";
 }
 
+function formatSize(bytes: number) {
+  if (bytes < 1024) return bytes + " Б";
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " КБ";
+  return (bytes / (1024 * 1024)).toFixed(1) + " МБ";
+}
+
+function readAsBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result || "");
+      const idx = result.indexOf(",");
+      resolve(idx >= 0 ? result.slice(idx + 1) : result);
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function ManualReturnModal({ debtId, debtTitle, defaultAmount, token, onClose, onSent }: Props) {
   const [amount, setAmount] = useState<string>("");
   const [note, setNote] = useState("");
@@ -22,6 +41,34 @@ export default function ManualReturnModal({ debtId, debtTitle, defaultAmount, to
   const [success, setSuccess] = useState(false);
   const [remaining, setRemaining] = useState<number>(Math.round(defaultAmount));
   const [loadingRemaining, setLoadingRemaining] = useState(true);
+  const [attachment, setAttachment] = useState<{ file: File; preview: string | null; isImage: boolean } | null>(null);
+  const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+
+  function pickFile(kind: "image" | "file") {
+    setShowAttachMenu(false);
+    if (kind === "image") imageInputRef.current?.click();
+    else fileInputRef.current?.click();
+  }
+
+  function onFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (file.size > 15 * 1024 * 1024) {
+      setError("Файл больше 15 МБ");
+      return;
+    }
+    const isImage = file.type.startsWith("image/");
+    const preview = isImage ? URL.createObjectURL(file) : null;
+    setAttachment({ file, preview, isImage });
+  }
+
+  function clearAttachment() {
+    if (attachment?.preview) URL.revokeObjectURL(attachment.preview);
+    setAttachment(null);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -64,16 +111,64 @@ export default function ManualReturnModal({ debtId, debtTitle, defaultAmount, to
     setError(null);
     try {
       const { default: urls } = await import("../../backend/func2url.json");
+
+      // 1) Загрузить вложение (если есть)
+      let uploaded: { url: string; type: string; name: string; size: number } | null = null;
+      if (attachment) {
+        const base64 = await readAsBase64(attachment.file);
+        const upRes = await fetch(`${urls["chat"]}?action=upload`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            file_base64: base64,
+            file_name: attachment.file.name,
+            content_type: attachment.file.type || "application/octet-stream",
+          }),
+        });
+        if (!upRes.ok) {
+          const data = await upRes.json().catch(() => ({}));
+          throw new Error(data.error || "Не удалось загрузить файл");
+        }
+        uploaded = await upRes.json();
+      }
+
+      // 2) Создать запрос возврата
+      const noteText = note.trim();
+      const noteForPayment = uploaded
+        ? (noteText ? `${noteText} (📎 ${uploaded.name})` : `📎 ${uploaded.name}`)
+        : (noteText || null);
       const res = await fetch(`${urls["debts"]}?action=pay`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ debt_id: debtId, amount: numAmount, note: note.trim() || null }),
+        body: JSON.stringify({ debt_id: debtId, amount: numAmount, note: noteForPayment }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || "Не удалось отправить запрос");
       }
+
+      // 3) Отправить вложение в чат долга, чтобы кредитор увидел файл
+      if (uploaded) {
+        try {
+          await fetch(urls["chat"], {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+              debt_id: debtId,
+              text: noteText
+                ? `Возврат ${fmt(numAmount)} — ${noteText}`
+                : `Возврат ${fmt(numAmount)}`,
+              attachment_url: uploaded.url,
+              attachment_type: uploaded.type,
+              attachment_name: uploaded.name,
+              attachment_size: uploaded.size,
+            }),
+          });
+        } catch { /* не критично */ }
+      }
+
       setSuccess(true);
+      clearAttachment();
       onSent?.();
       setTimeout(onClose, 1500);
     } catch (e) {
@@ -149,13 +244,77 @@ export default function ManualReturnModal({ debtId, debtTitle, defaultAmount, to
 
               <div>
                 <label className="text-xs text-muted-foreground mb-1.5 block">Комментарий (необязательно)</label>
-                <textarea
-                  value={note}
-                  onChange={e => setNote(e.target.value)}
-                  rows={2}
-                  className="w-full glass rounded-2xl px-4 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-green-500/50 transition-all resize-none"
-                  placeholder="Например: вернул наличкой при встрече"
-                />
+                <div className="relative">
+                  <textarea
+                    value={note}
+                    onChange={e => setNote(e.target.value)}
+                    rows={2}
+                    className="w-full glass rounded-2xl px-4 py-3 pr-12 text-sm text-foreground outline-none focus:ring-2 focus:ring-green-500/50 transition-all resize-none"
+                    placeholder="Например: вернул наличкой при встрече"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowAttachMenu(v => !v)}
+                    disabled={loading}
+                    className="absolute right-2 bottom-2 w-9 h-9 rounded-xl flex items-center justify-center bg-emerald-500/15 hover:bg-emerald-500/25 transition-colors disabled:opacity-40"
+                    aria-label="Прикрепить"
+                  >
+                    <Icon name="Paperclip" size={16} className="text-emerald-400" />
+                  </button>
+                  {showAttachMenu && (
+                    <>
+                      <div className="fixed inset-0 z-[101]" onClick={() => setShowAttachMenu(false)} />
+                      <div className="absolute right-2 bottom-12 z-[102] rounded-2xl border border-white/10 shadow-2xl overflow-hidden min-w-[170px]" style={{ background: "rgba(26,29,46,0.98)" }}>
+                        <button
+                          type="button"
+                          onClick={() => pickFile("image")}
+                          className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-white/5 transition-colors"
+                        >
+                          <div className="w-8 h-8 rounded-lg bg-emerald-500/15 flex items-center justify-center">
+                            <Icon name="Image" size={16} className="text-emerald-400" />
+                          </div>
+                          <span className="text-foreground">Фото</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => pickFile("file")}
+                          className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-white/5 transition-colors border-t border-white/5"
+                        >
+                          <div className="w-8 h-8 rounded-lg bg-sky-500/15 flex items-center justify-center">
+                            <Icon name="Paperclip" size={16} className="text-sky-400" />
+                          </div>
+                          <span className="text-foreground">Файл</span>
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+                <input ref={imageInputRef} type="file" accept="image/*" onChange={onFileSelected} className="hidden" />
+                <input ref={fileInputRef} type="file" onChange={onFileSelected} className="hidden" />
+
+                {attachment && (
+                  <div className="mt-2 flex items-center gap-3 p-2 rounded-2xl bg-white/5 border border-white/10">
+                    {attachment.isImage && attachment.preview ? (
+                      <img src={attachment.preview} alt="" className="w-12 h-12 rounded-lg object-cover flex-shrink-0" />
+                    ) : (
+                      <div className="w-12 h-12 rounded-lg bg-emerald-500/15 flex items-center justify-center flex-shrink-0">
+                        <Icon name="FileText" size={20} className="text-emerald-400" />
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-foreground truncate">{attachment.file.name}</p>
+                      <p className="text-[11px] text-muted-foreground">{formatSize(attachment.file.size)}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={clearAttachment}
+                      disabled={loading}
+                      className="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-white/10 disabled:opacity-40"
+                    >
+                      <Icon name="X" size={16} />
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div className="flex items-start gap-2 p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20">
