@@ -27,7 +27,14 @@ def handler(event: dict, context) -> dict:
         return {"statusCode": 200, "headers": {"Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS", "Access-Control-Allow-Headers": "Content-Type, X-Authorization", "Access-Control-Max-Age": "86400"}, "body": ""}
 
     method = event.get("httpMethod", "GET")
-    auth_header = event.get("headers", {}).get("X-Authorization", "")
+    headers = event.get("headers", {}) or {}
+    auth_header = (
+        headers.get("X-Authorization")
+        or headers.get("x-authorization")
+        or headers.get("Authorization")
+        or headers.get("authorization")
+        or ""
+    )
     qs = event.get("queryStringParameters") or {}
 
     with get_conn() as conn:

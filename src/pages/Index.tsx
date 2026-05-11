@@ -149,7 +149,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
     if (isDemo) return;
     import("../../backend/func2url.json").then(({ default: urls }) => {
       fetch(urls["notifications"], {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${token}`, "X-Authorization": `Bearer ${token}` },
       })
         .then(r => r.ok ? r.json() : { notifications: [] })
         .then(data => {
@@ -225,7 +225,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
 
     async function poll() {
       const urls = (await import("../../backend/func2url.json")).default;
-      const res = await fetch(urls["notifications"], { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(urls["notifications"], { headers: { Authorization: `Bearer ${token}`, "X-Authorization": `Bearer ${token}` } });
       if (!res.ok) return;
       const data = await res.json();
       const unread: number = data.unread || 0;
@@ -572,7 +572,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
       const urls = (await import("../../backend/func2url.json")).default;
       fetch(urls["notifications"], {
         method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, "X-Authorization": `Bearer ${token}` },
         body: JSON.stringify({}),
       });
     }
@@ -584,7 +584,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
       const urls = (await import("../../backend/func2url.json")).default;
       fetch(urls["notifications"], {
         method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, "X-Authorization": `Bearer ${token}` },
         body: JSON.stringify({ ids: [id - 1000000] }),
       });
     }
