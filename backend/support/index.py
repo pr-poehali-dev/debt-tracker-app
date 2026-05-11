@@ -53,7 +53,7 @@ def send_push(conn, recipient_user_id, title, body_text):
                 sent += 1
             except WebPushException as e:
                 status = getattr(getattr(e, "response", None), "status_code", None)
-                if status in (404, 410):
+                if status in (403, 404, 410):
                     dead_ids.append(sub_id)
                     removed += 1
                 else:

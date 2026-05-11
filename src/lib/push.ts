@@ -26,15 +26,34 @@ export async function ensurePushSubscription(token: string): Promise<"granted" |
     const reg = await navigator.serviceWorker.ready;
     let sub = await reg.pushManager.getSubscription();
 
-    if (!sub) {
-      const keyRes = await fetch(`${CHAT_URL}?action=vapid-key`);
-      if (!keyRes.ok) return "error";
-      const { public_key } = await keyRes.json();
-      if (!public_key) return "error";
+    const keyRes = await fetch(`${CHAT_URL}?action=vapid-key`);
+    if (!keyRes.ok) return "error";
+    const { public_key } = await keyRes.json();
+    if (!public_key) return "error";
+    const serverKey = urlBase64ToUint8Array(public_key);
 
+    if (sub) {
+      const existingKey = sub.options?.applicationServerKey;
+      let same = false;
+      if (existingKey) {
+        const a = new Uint8Array(existingKey as ArrayBuffer);
+        if (a.length === serverKey.length) {
+          same = true;
+          for (let i = 0; i < a.length; i++) {
+            if (a[i] !== serverKey[i]) { same = false; break; }
+          }
+        }
+      }
+      if (!same) {
+        try { await sub.unsubscribe(); } catch { /* ignore */ }
+        sub = null;
+      }
+    }
+
+    if (!sub) {
       sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(public_key),
+        applicationServerKey: serverKey,
       });
     }
 
