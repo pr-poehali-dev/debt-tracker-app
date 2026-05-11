@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 
 interface Props {
@@ -15,11 +15,39 @@ function fmt(n: number) {
 }
 
 export default function ManualReturnModal({ debtId, debtTitle, defaultAmount, token, onClose, onSent }: Props) {
-  const [amount, setAmount] = useState<string>(String(Math.round(defaultAmount)));
+  const [amount, setAmount] = useState<string>("");
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [remaining, setRemaining] = useState<number>(Math.round(defaultAmount));
+  const [loadingRemaining, setLoadingRemaining] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { default: urls } = await import("../../backend/func2url.json");
+        const res = await fetch(`${urls["debts"]}?action=pay&debt_id=${debtId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        const list: Array<{ amount: number; status: string }> = Array.isArray(data.requests) ? data.requests : [];
+        const paid = list.filter(p => p.status === "accepted").reduce((s, p) => s + p.amount, 0);
+        const rem = Math.max(0, Math.round(defaultAmount - paid));
+        if (!cancelled) {
+          setRemaining(rem);
+          setAmount(String(rem));
+        }
+      } catch {
+        if (!cancelled) setAmount(String(Math.round(defaultAmount)));
+      } finally {
+        if (!cancelled) setLoadingRemaining(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [debtId, token, defaultAmount]);
 
   const numAmount = parseFloat(amount.replace(/\s/g, "").replace(",", "."));
 
@@ -81,7 +109,18 @@ export default function ManualReturnModal({ debtId, debtTitle, defaultAmount, to
           ) : (
             <>
               <div>
-                <label className="text-xs text-muted-foreground mb-1.5 block">Сумма возврата</label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs text-muted-foreground">Сумма возврата</label>
+                  {!loadingRemaining && remaining > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => { setAmount(String(remaining)); setError(null); }}
+                      className="text-[11px] text-emerald-400 hover:text-emerald-300 font-medium"
+                    >
+                      Остаток: {fmt(remaining)}
+                    </button>
+                  )}
+                </div>
                 <div className="relative">
                   <input
                     type="text"
@@ -89,12 +128,18 @@ export default function ManualReturnModal({ debtId, debtTitle, defaultAmount, to
                     value={amount}
                     onChange={e => { setAmount(e.target.value); setError(null); }}
                     className="w-full glass rounded-2xl px-4 py-3 pr-12 text-lg font-bold font-heading text-foreground outline-none focus:ring-2 focus:ring-green-500/50 transition-all"
-                    placeholder="0"
+                    placeholder={loadingRemaining ? "Загрузка…" : "0"}
+                    disabled={loadingRemaining}
                   />
                   <span className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold">₽</span>
                 </div>
                 {numAmount > 0 && (
-                  <p className="text-xs text-muted-foreground mt-1.5">Будет отправлено: <span className="text-green-400 font-medium">{fmt(numAmount)}</span></p>
+                  <p className="text-xs text-muted-foreground mt-1.5">
+                    Будет отправлено: <span className="text-green-400 font-medium">{fmt(numAmount)}</span>
+                    {!loadingRemaining && numAmount > remaining && remaining > 0 && (
+                      <span className="text-amber-400 ml-2">больше остатка</span>
+                    )}
+                  </p>
                 )}
               </div>
 
