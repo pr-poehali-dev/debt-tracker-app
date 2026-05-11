@@ -152,16 +152,32 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
       })
         .then(r => r.ok ? r.json() : { notifications: [] })
         .then(data => {
-          const dbNotifs: Notification[] = (data.notifications || []).map((n: Record<string, unknown>) => ({
-            id: Number(n.id) + 1000000,
-            type: (n.type === "rental_decision"
-              ? (String((n.data as Record<string, unknown>)?.decision) === "accepted" ? "success" : "warning")
-              : "info") as Notification["type"],
-            title: String(n.title),
-            message: String(n.body || ""),
-            date: new Date(String(n.created_at)).toLocaleDateString("ru-RU"),
-            read: Boolean(n.is_read),
-          }));
+          const dbNotifs: Notification[] = (data.notifications || []).map((n: Record<string, unknown>) => {
+            const nd = (n.data as Record<string, unknown>) || {};
+            const ntype = String(n.type || "");
+            const notif: Notification = {
+              id: Number(n.id) + 1000000,
+              type: (ntype === "rental_decision" || ntype === "payment_response"
+                ? (String(nd.decision) === "accepted" ? "success" : "warning")
+                : "info") as Notification["type"],
+              title: String(n.title),
+              message: String(n.body || ""),
+              date: new Date(String(n.created_at)).toLocaleDateString("ru-RU"),
+              read: Boolean(n.is_read),
+            };
+            if (ntype === "payment_request" && nd.payment_request_id) {
+              notif.paymentRequestMeta = {
+                paymentRequestId: Number(nd.payment_request_id),
+                debtId: String(nd.debt_id || ""),
+                amount: Number(nd.amount || 0),
+                fromName: String(nd.from_name || ""),
+                debtTitle: String(nd.debt_title || ""),
+                note: nd.note ? String(nd.note) : null,
+                status: "pending",
+              };
+            }
+            return notif;
+          });
           if (dbNotifs.length > 0) setNotifs(prev => {
             const existingIds = new Set(prev.map(n => n.id));
             const fresh = dbNotifs.filter(n => !existingIds.has(n.id));
@@ -258,6 +274,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
                   amount: Number(data.amount || 0),
                   fromName: String(data.from_name || ""),
                   debtTitle: String(data.debt_title || ""),
+                  note: data.note ? String(data.note) : null,
                   status: "pending",
                 };
               }

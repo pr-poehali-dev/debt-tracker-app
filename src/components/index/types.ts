@@ -51,6 +51,7 @@ export interface PaymentRequestMeta {
   amount: number;
   fromName: string;
   debtTitle: string;
+  note?: string | null;
   status: "pending" | "accepted" | "rejected";
 }
 

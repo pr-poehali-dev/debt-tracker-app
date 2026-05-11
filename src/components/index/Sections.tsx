@@ -975,9 +975,20 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
                 }
                 return (
                   <div className="px-4 pb-3 border-t border-white/5">
-                    <p className="text-[11px] text-muted-foreground mt-3 mb-2">
-                      {/* TODO: i18n */}Сумма к подтверждению: <span className="text-foreground font-semibold">{n.paymentRequestMeta.amount.toLocaleString("ru-RU")} ₽</span>
-                    </p>
+                    <div className="mt-3 mb-2 rounded-xl p-3" style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)" }}>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[11px] text-muted-foreground">{/* TODO: i18n */}От {n.paymentRequestMeta.fromName || "должника"}</span>
+                        <span className="text-[11px] text-muted-foreground">«{n.paymentRequestMeta.debtTitle}»</span>
+                      </div>
+                      <div className="mt-1.5 text-lg font-bold" style={{ color: "#10b981" }}>
+                        {n.paymentRequestMeta.amount.toLocaleString("ru-RU")} ₽
+                      </div>
+                      {n.paymentRequestMeta.note && (
+                        <div className="mt-2 text-[12px] text-foreground/80 italic">
+                          «{n.paymentRequestMeta.note}»
+                        </div>
+                      )}
+                    </div>
                     <div className="flex gap-2">
                       <button
                         onClick={() => decidePayment(n, "rejected")}

@@ -345,7 +345,7 @@ def handler(event: dict, context) -> dict:
                     (lender_id,
                      f"💳 {borrower_name} отправил платёж",
                      f"«{title}» — {float(amount):,.0f} ₽".replace(",", " "),
-                     json.dumps({"payment_request_id": req_id, "debt_id": debt_id, "amount": float(amount), "from_name": borrower_name, "debt_title": title}))
+                     json.dumps({"payment_request_id": req_id, "debt_id": debt_id, "amount": float(amount), "from_name": borrower_name, "debt_title": title, "note": note or None}))
                 )
             send_push(conn, lender_id, f"💳 {borrower_name} отправил платёж", f"«{title}» — {float(amount):,.0f} ₽".replace(",", " "), "/?section=notifications")
             conn.commit()
