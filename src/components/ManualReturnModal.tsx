@@ -56,6 +56,10 @@ export default function ManualReturnModal({ debtId, debtTitle, defaultAmount, to
       setError("Введите сумму больше нуля");
       return;
     }
+    if (!loadingRemaining && remaining > 0 && numAmount > remaining) {
+      setError(`Сумма больше остатка (${fmt(remaining)})`);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -173,7 +177,7 @@ export default function ManualReturnModal({ debtId, debtTitle, defaultAmount, to
                 </button>
                 <button
                   onClick={send}
-                  disabled={loading || !numAmount}
+                  disabled={loading || !numAmount || loadingRemaining || (remaining > 0 && numAmount > remaining)}
                   className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-green-600 text-white font-semibold text-sm shadow-lg shadow-green-500/20 hover:opacity-90 transition-opacity disabled:opacity-50"
                 >
                   {loading ? (
