@@ -244,7 +244,7 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
                     <p className="text-xs text-muted-foreground">История платежей</p>
                     <p className="text-sm font-medium text-foreground">
                       {history.filter(h => h.status === "accepted").length > 0
-                        ? `Погашено: ${fmt(history.filter(h => h.status === "accepted").reduce((s, h) => s + h.amount, 0))}`
+                        ? `Остаток: ${fmt(Math.max(0, (total ?? debt.amount) - history.filter(h => h.status === "accepted").reduce((s, h) => s + h.amount, 0)))}`
                         : "Ещё нет платежей"}
                     </p>
                   </div>
