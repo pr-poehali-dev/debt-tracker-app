@@ -749,6 +749,82 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
     } finally { setSending(null); }
   }
 
+  // Скрытые треды (локально)
+  const [hiddenKeys, setHiddenKeys] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem("df-hidden-threads") || "[]"); } catch { return []; }
+  });
+  const [confirmDel, setConfirmDel] = useState<{ key: string; title: string } | null>(null);
+
+  function threadKey(n: Notification): string | null {
+    if (n.chatMeta) return `chat:${n.chatMeta.debtId || ""}:${n.chatMeta.rentalId || ""}`;
+    if (n.supportMeta) return `support:${n.supportMeta.ticketId}`;
+    return null;
+  }
+
+  function hideThread(key: string) {
+    const next = [...hiddenKeys, key];
+    setHiddenKeys(next);
+    localStorage.setItem("df-hidden-threads", JSON.stringify(next));
+    // помечаем все уведомления треда прочитанными
+    notifs.forEach(n => {
+      if (threadKey(n) === key && !n.read) onMarkRead(n.id);
+    });
+    setConfirmDel(null);
+  }
+
+  // Группируем чат- и support-уведомления в треды; остальные — оставляем как одиночные
+  type Thread = {
+    key: string;
+    kind: "chat" | "support" | "single";
+    title: string;
+    subtitle?: string;
+    lastNotif: Notification;
+    unreadCount: number;
+    totalCount: number;
+    ts: number;
+  };
+
+  const threads: Thread[] = (() => {
+    const map = new Map<string, Notification[]>();
+    const singles: Notification[] = [];
+    for (const n of notifs) {
+      const k = threadKey(n);
+      if (!k) { singles.push(n); continue; }
+      if (hiddenKeys.includes(k)) continue;
+      if (!map.has(k)) map.set(k, []);
+      map.get(k)!.push(n);
+    }
+    const result: Thread[] = [];
+    map.forEach((list, key) => {
+      const sorted = [...list].sort((a, b) => b.id - a.id);
+      const last = sorted[0];
+      const isChat = !!last.chatMeta;
+      result.push({
+        key,
+        kind: isChat ? "chat" : "support",
+        title: isChat ? (last.chatMeta!.chatTitle || last.title) : (last.supportMeta!.subject || `Тикет #${last.supportMeta!.ticketId}`),
+        subtitle: isChat ? (last.chatMeta!.senderName || "") : `Тикет #${last.supportMeta!.ticketId}`,
+        lastNotif: last,
+        unreadCount: list.filter(x => !x.read).length,
+        totalCount: list.length,
+        ts: last.id,
+      });
+    });
+    for (const n of singles) {
+      result.push({
+        key: `single:${n.id}`,
+        kind: "single",
+        title: n.title,
+        lastNotif: n,
+        unreadCount: n.read ? 0 : 1,
+        totalCount: 1,
+        ts: n.id,
+      });
+    }
+    result.sort((a, b) => b.ts - a.ts);
+    return result;
+  })();
+
   return (
     <div className="animate-fade-in">
       {unread > 0 && (
@@ -767,15 +843,81 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
           </div>
         </div>
       )}
-      {notifs.length === 0 && (
+      {threads.length === 0 && (
         <div className="glass rounded-2xl p-8 flex flex-col items-center text-center gap-3">
           <Icon name="Bell" size={32} className="text-purple-400" />
           <p className="font-semibold text-foreground">{t.noNotifications}</p>
           <p className="text-xs text-muted-foreground">{t.notificationsEmpty}</p>
         </div>
       )}
-      <div className="space-y-3">
-        {notifs.map((n, i) => {
+
+      {confirmDel && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4" onClick={() => setConfirmDel(null)}>
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+          <div className="relative glass rounded-2xl p-5 max-w-sm w-full" onClick={e => e.stopPropagation()} style={{ background: "var(--app-bg)" }}>
+            <p className="font-semibold text-foreground mb-1">Удалить переписку?</p>
+            <p className="text-xs text-muted-foreground mb-4">«{confirmDel.title}» будет скрыта из списка. Это действие нельзя отменить.</p>
+            <div className="flex gap-2">
+              <button onClick={() => setConfirmDel(null)} className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-white/5 hover:bg-white/10 transition-colors">Отмена</button>
+              <button onClick={() => hideThread(confirmDel.key)} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white" style={{ background: "linear-gradient(135deg, #ef4444, #dc2626)" }}>Удалить</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Треды-чаты */}
+      <div className="space-y-2">
+        {threads.filter(th => th.kind !== "single").map(th => {
+          const n = th.lastNotif;
+          const isChat = th.kind === "chat";
+          return (
+            <div key={th.key} className={`glass rounded-2xl overflow-hidden transition-all ${th.unreadCount > 0 ? "border border-white/10" : ""}`}>
+              <div
+                className="p-3 flex items-center gap-3 cursor-pointer hover:bg-white/[0.05]"
+                onClick={() => {
+                  if (isChat && onOpenChat && n.chatMeta) {
+                    onOpenChat(n.chatMeta.debtId, n.chatMeta.rentalId, n.chatMeta.chatTitle);
+                  } else if (!isChat && onOpenSupport && n.supportMeta) {
+                    onOpenSupport(n.supportMeta.ticketId);
+                  }
+                  notifs.forEach(x => { if (threadKey(x) === th.key && !x.read) onMarkRead(x.id); });
+                }}
+              >
+                <div className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: isChat ? "linear-gradient(135deg, rgba(168,85,247,0.25), rgba(99,102,241,0.25))" : "linear-gradient(135deg, rgba(56,189,248,0.25), rgba(99,102,241,0.25))" }}>
+                  <Icon name={isChat ? "MessageCircle" : "LifeBuoy"} size={20} className={isChat ? "text-purple-300" : "text-sky-300"} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-semibold text-sm text-foreground truncate">{th.title}</p>
+                    <p className="text-[11px] text-muted-foreground flex-shrink-0">{n.date}</p>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 mt-0.5">
+                    <p className={`text-xs truncate ${th.unreadCount > 0 ? "text-foreground" : "text-muted-foreground"}`}>{n.message}</p>
+                    {th.unreadCount > 0 && (
+                      <span className="flex-shrink-0 min-w-[18px] h-[18px] px-1.5 rounded-full text-[10px] font-bold text-white flex items-center justify-center" style={{ background: "linear-gradient(135deg, #a855f7, #6366f1)" }}>
+                        {th.unreadCount}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <button
+                  onClick={e => { e.stopPropagation(); setConfirmDel({ key: th.key, title: th.title }); }}
+                  className="flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center transition-all active:scale-95"
+                  style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)" }}
+                  title="Удалить переписку"
+                >
+                  <Icon name="Trash2" size={14} style={{ color: "#f87171" }} />
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Обычные уведомления и запросы возврата */}
+      <div className="space-y-3 mt-3">
+        {threads.filter(th => th.kind === "single").map((th, i) => {
+          const n = th.lastNotif;
           const isChat = !!n.chatMeta;
           const isSupport = !!n.supportMeta;
           const isPayReq = !!n.paymentRequestMeta;
