@@ -1,0 +1,56 @@
+import func2url from "../../backend/func2url.json";
+
+const CHAT_URL = func2url["chat"];
+
+function urlBase64ToUint8Array(base64: string): Uint8Array {
+  const padding = "=".repeat((4 - (base64.length % 4)) % 4);
+  const b64 = (base64 + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(b64);
+  const arr = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+  return arr;
+}
+
+export async function ensurePushSubscription(token: string): Promise<"granted" | "denied" | "default" | "unsupported" | "error"> {
+  try {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+      return "unsupported";
+    }
+
+    const permission = Notification.permission === "default"
+      ? await Notification.requestPermission()
+      : Notification.permission;
+
+    if (permission !== "granted") return permission;
+
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+
+    if (!sub) {
+      const keyRes = await fetch(`${CHAT_URL}?action=vapid-key`);
+      if (!keyRes.ok) return "error";
+      const { public_key } = await keyRes.json();
+      if (!public_key) return "error";
+
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(public_key),
+      });
+    }
+
+    const subJson = sub.toJSON() as { endpoint?: string; keys?: { p256dh?: string; auth?: string } };
+    await fetch(`${CHAT_URL}?action=subscribe`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        endpoint: subJson.endpoint,
+        p256dh: subJson.keys?.p256dh,
+        auth: subJson.keys?.auth,
+      }),
+    });
+
+    return "granted";
+  } catch {
+    return "error";
+  }
+}

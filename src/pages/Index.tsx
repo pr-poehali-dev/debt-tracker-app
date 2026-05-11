@@ -434,44 +434,42 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
     return () => clearInterval(iv);
   }, [isDemo, token]);
 
-  // Web Push подписка — запрашиваем разрешение и подписываемся
+  // Web Push: тихая попытка переподписки если разрешение уже дано
   useEffect(() => {
     if (isDemo) return;
-    async function subscribePush() {
-      if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
-      // Запрашиваем разрешение если ещё не дано
-      let permission = window.Notification.permission;
-      if (permission === "default") {
-        permission = await window.Notification.requestPermission();
-      }
-      if (permission !== "granted") return;
-      const urls = (await import("../../backend/func2url.json")).default;
-      const keyRes = await fetch(`${urls["chat"]}?action=vapid-key`);
-      if (!keyRes.ok) return;
-      const { public_key } = await keyRes.json();
-      if (!public_key) return;
-      const reg = await navigator.serviceWorker.ready;
-      // Проверяем есть ли уже подписка
-      const existing = await reg.pushManager.getSubscription();
-      const sub = existing || await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: public_key,
-      }).catch(() => null);
-      if (!sub) return;
-      const subJson = sub.toJSON();
-      await fetch(`${urls["chat"]}?action=subscribe`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          endpoint: subJson.endpoint,
-          p256dh: subJson.keys?.p256dh,
-          auth: subJson.keys?.auth,
-        }),
-      });
+    if (typeof window === "undefined" || !("Notification" in window)) return;
+    if (window.Notification.permission !== "granted") return;
+    import("@/lib/push").then(({ ensurePushSubscription }) => {
+      ensurePushSubscription(token).catch(() => {});
+    });
+  }, [isDemo, token]);
+
+  // Web Push: запрос разрешения при первом жесте пользователя
+  useEffect(() => {
+    if (isDemo) return;
+    if (typeof window === "undefined" || !("Notification" in window)) return;
+    if (window.Notification.permission !== "default") return;
+    if (localStorage.getItem("df-push-asked") === "1") return;
+
+    let done = false;
+    async function ask() {
+      if (done) return;
+      done = true;
+      localStorage.setItem("df-push-asked", "1");
+      const { ensurePushSubscription } = await import("@/lib/push");
+      await ensurePushSubscription(token).catch(() => {});
     }
-    // Небольшая задержка чтобы пользователь сначала увидел интерфейс
-    const t = setTimeout(() => subscribePush().catch(() => {}), 3000);
-    return () => clearTimeout(t);
+    function onGesture() {
+      setTimeout(ask, 1500);
+      document.removeEventListener("click", onGesture);
+      document.removeEventListener("touchend", onGesture);
+    }
+    document.addEventListener("click", onGesture, { once: true });
+    document.addEventListener("touchend", onGesture, { once: true });
+    return () => {
+      document.removeEventListener("click", onGesture);
+      document.removeEventListener("touchend", onGesture);
+    };
   }, [isDemo, token]);
 
   async function handleMarkAllRead() {
