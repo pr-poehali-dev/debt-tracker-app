@@ -8,6 +8,7 @@ import { type PersonalLoan } from "@/components/PersonalLoanModal";
 import ExtraPaymentModal from "@/components/ExtraPaymentModal";
 import { computeSchedule } from "@/lib/loanSchedule";
 import ManualReturnModal from "@/components/ManualReturnModal";
+import { ensurePushSubscription, getPushStatus, isSubscribedToPush, unsubscribeFromPush } from "@/lib/push";
 
 // ─── Section: DebtList ────────────────────────────────────────────────────────
 
@@ -1445,7 +1446,35 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
   const [local, setLocal] = useState(profile);
   const [saved, setSaved] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(() => localStorage.getItem("df-sound-notif") !== "off");
+  const [pushStatus, setPushStatus] = useState<"granted" | "denied" | "default" | "unsupported" | "loading">("loading");
+  const [pushSubbed, setPushSubbed] = useState(false);
+  const [pushBusy, setPushBusy] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const st = await getPushStatus();
+      setPushStatus(st);
+      if (st === "granted") setPushSubbed(await isSubscribedToPush());
+    })();
+  }, []);
+
+  async function togglePush() {
+    if (!token) return;
+    setPushBusy(true);
+    try {
+      if (pushSubbed) {
+        await unsubscribeFromPush(token);
+        setPushSubbed(false);
+      } else {
+        const res = await ensurePushSubscription(token);
+        setPushStatus(res === "error" ? "default" : res);
+        setPushSubbed(res === "granted");
+      }
+    } finally {
+      setPushBusy(false);
+    }
+  }
   const [deletePin, setDeletePin] = useState("");
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -1708,6 +1737,80 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
               style={{ left: soundEnabled ? "calc(100% - 22px)" : "2px" }} />
           </button>
         </div>
+      </div>
+
+      {/* Push-уведомления */}
+      <div className="glass rounded-2xl p-5">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{
+            background: pushSubbed && pushStatus === "granted" ? "rgba(168,85,247,0.2)" : "rgba(255,255,255,0.06)"
+          }}>
+            <Icon name={pushSubbed && pushStatus === "granted" ? "BellRing" : "Bell"} size={18}
+              className={pushSubbed && pushStatus === "granted" ? "text-purple-400" : "text-muted-foreground"} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-foreground">{/* TODO: i18n */}Push-уведомления</p>
+            <p className="text-xs text-muted-foreground">
+              {pushStatus === "loading" && "Проверяем настройки…"}
+              {pushStatus === "unsupported" && "Браузер не поддерживает push"}
+              {pushStatus === "denied" && "Разрешения заблокированы в браузере"}
+              {pushStatus === "default" && "Уведомления не включены"}
+              {pushStatus === "granted" && pushSubbed && "Включены — придут даже когда приложение закрыто"}
+              {pushStatus === "granted" && !pushSubbed && "Разрешение есть, но подписка отключена"}
+            </p>
+          </div>
+          <span className="text-[10px] font-bold px-2 py-1 rounded-full flex-shrink-0" style={{
+            background: pushSubbed && pushStatus === "granted" ? "rgba(34,197,94,0.18)" : pushStatus === "denied" ? "rgba(239,68,68,0.18)" : "rgba(148,163,184,0.18)",
+            color: pushSubbed && pushStatus === "granted" ? "#4ade80" : pushStatus === "denied" ? "#f87171" : "#94a3b8",
+          }}>
+            {pushStatus === "loading" ? "..." :
+              pushStatus === "unsupported" ? "—" :
+              pushStatus === "denied" ? "Заблокированы" :
+              pushSubbed && pushStatus === "granted" ? "Включены" : "Выключены"}
+          </span>
+        </div>
+
+        {pushStatus === "denied" ? (
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            Чтобы включить — откройте настройки сайта в браузере и разрешите уведомления вручную.
+          </p>
+        ) : pushStatus !== "loading" && pushStatus !== "unsupported" && (
+          <button
+            onClick={togglePush}
+            disabled={pushBusy}
+            className="w-full py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+            style={{
+              background: pushSubbed && pushStatus === "granted"
+                ? "rgba(239,68,68,0.12)" : "linear-gradient(135deg, #a855f7, #6366f1)",
+              color: pushSubbed && pushStatus === "granted" ? "#f87171" : "#fff",
+              border: pushSubbed && pushStatus === "granted" ? "1px solid rgba(239,68,68,0.3)" : "none",
+            }}
+          >
+            {pushBusy ? (
+              <Icon name="Loader2" size={14} className="animate-spin" />
+            ) : pushSubbed && pushStatus === "granted" ? (
+              <><Icon name="BellOff" size={14} /> Отключить уведомления</>
+            ) : (
+              <><Icon name="BellRing" size={14} /> Включить уведомления</>
+            )}
+          </button>
+        )}
+
+        {pushStatus === "granted" && pushSubbed && (
+          <div className="mt-3 grid grid-cols-2 gap-2 text-[10px]">
+            {[
+              { icon: "MessageCircle", label: "Сообщения" },
+              { icon: "HandCoins", label: "Возвраты" },
+              { icon: "CheckCircle2", label: "Подтверждения" },
+              { icon: "CalendarClock", label: "Напоминания" },
+            ].map(b => (
+              <div key={b.label} className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg" style={{ background: "rgba(168,85,247,0.08)", border: "1px solid rgba(168,85,247,0.15)" }}>
+                <Icon name={b.icon} size={11} className="text-purple-400" />
+                <span className="text-foreground/80">{b.label}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="glass rounded-2xl p-5 space-y-3">

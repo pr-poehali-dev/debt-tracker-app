@@ -361,4 +361,26 @@ def handler(event: dict, context) -> dict:
             conn.commit()
         return json_resp({"ok": True})
 
+    # POST ?action=unsubscribe — удалить push-подписку
+    if method == "POST" and qs.get("action") == "unsubscribe":
+        body = json.loads(event.get("body") or "{}")
+        endpoint = body.get("endpoint", "")
+        with get_conn() as conn:
+            user_id, _ = get_user_from_token(auth, conn)
+            if not user_id:
+                return err("Не авторизован", 401)
+            with conn.cursor() as cur:
+                if endpoint:
+                    cur.execute(
+                        f"DELETE FROM {SCHEMA}.push_subscriptions WHERE user_id = %s AND endpoint = %s",
+                        (user_id, endpoint)
+                    )
+                else:
+                    cur.execute(
+                        f"DELETE FROM {SCHEMA}.push_subscriptions WHERE user_id = %s",
+                        (user_id,)
+                    )
+            conn.commit()
+        return json_resp({"ok": True})
+
     return err("Неизвестный маршрут", 404)

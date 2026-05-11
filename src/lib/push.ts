@@ -54,3 +54,40 @@ export async function ensurePushSubscription(token: string): Promise<"granted" |
     return "error";
   }
 }
+
+export async function getPushStatus(): Promise<"granted" | "denied" | "default" | "unsupported"> {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+    return "unsupported";
+  }
+  return Notification.permission;
+}
+
+export async function isSubscribedToPush(): Promise<boolean> {
+  try {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return false;
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    return !!sub;
+  } catch {
+    return false;
+  }
+}
+
+export async function unsubscribeFromPush(token: string): Promise<boolean> {
+  try {
+    if (!("serviceWorker" in navigator)) return false;
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if (!sub) return true;
+    const endpoint = sub.endpoint;
+    await sub.unsubscribe();
+    await fetch(`${CHAT_URL}?action=unsubscribe`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ endpoint }),
+    }).catch(() => {});
+    return true;
+  } catch {
+    return false;
+  }
+}
