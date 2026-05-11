@@ -884,6 +884,15 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
           const dt = Date.now() - start.t;
           (window as unknown as { __swipeStart?: unknown }).__swipeStart = undefined;
           if (dt > 600) return;
+
+          // Свайп снизу-вверх — возврат назад из подразделов (не входящих в nav)
+          const isSubsection = navItems.findIndex(n => n.id === section) === -1;
+          if (isSubsection && dy < -80 && Math.abs(dy) > Math.abs(dx) * 1.5) {
+            setSwipeDir(null);
+            setSection("dashboard");
+            return;
+          }
+
           if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
           const idx = navItems.findIndex(n => n.id === section);
           if (idx === -1) return;
