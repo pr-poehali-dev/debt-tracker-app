@@ -43,6 +43,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
   const [showSupport, setShowSupport] = useState(false);
   const [supportTicketId, setSupportTicketId] = useState<number | null>(null);
   const [showReport, setShowReport] = useState(false);
+  const [swipeDir, setSwipeDir] = useState<"left" | "right" | null>(null);
   const [notifs, setNotifs] = useState<Notification[]>([]);
   const audioCtxRef = { current: null as AudioContext | null };
   const [unreadMessages, setUnreadMessages] = useState(0);
@@ -715,10 +716,11 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
           if (idx === -1) return;
           const nextIdx = dx < 0 ? idx + 1 : idx - 1;
           if (nextIdx < 0 || nextIdx >= navItems.length) return;
+          setSwipeDir(dx < 0 ? "left" : "right");
           setSection(navItems[nextIdx].id);
         }}
       >
-        <div className="max-w-lg mx-auto">
+        <div key={section} className={`max-w-lg mx-auto ${swipeDir === "left" ? "animate-slide-in-right" : swipeDir === "right" ? "animate-slide-in-left" : ""}`}>
           {section === "dashboard"     && <Dashboard onNav={setSection} contacts={contacts} t={t} lentDebts={lentDebts} borrowedDebts={borrowedDebts} activeRentalCount={activeRentalCount} totalRentalAmount={totalRentalAmount} personalLoans={personalLoans} onOpenReport={() => setShowReport(true)} />}
           {section === "lent"          && <DebtList debts={lentDebts} dir="lent" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => setActiveChat({ debtId: id, title })} onMarkPaid={handleMarkPaid} onDeleteDebt={handleDeleteDebt} onAddNew={() => setShowNewDebt(true)} token={token} />}
           {section === "borrowed"      && <DebtList debts={borrowedDebts} dir="borrowed" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => setActiveChat({ debtId: id, title })} onMarkPaid={handleMarkPaid} onDeleteDebt={handleDeleteDebt} onAddNew={() => setShowPersonalLoan(true)} personalLoans={personalLoans} onPersonalLoanUpdate={(loans) => { setPersonalLoans(loans); localStorage.setItem("df-personal-loans", JSON.stringify(loans)); }} token={token} />}
@@ -739,7 +741,13 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
               return (
                 <button
                   key={item.id}
-                  onClick={() => setSection(item.id)}
+                  onClick={() => {
+                    if (item.id === section) return;
+                    const curIdx = navItems.findIndex(n => n.id === section);
+                    const newIdx = navItems.findIndex(n => n.id === item.id);
+                    setSwipeDir(newIdx > curIdx ? "left" : "right");
+                    setSection(item.id);
+                  }}
                   className={`relative flex flex-col items-center gap-0.5 px-1 py-1 rounded-xl transition-all duration-200 min-w-0 flex-1 ${active ? "gradient-purple glow-purple" : "hover:bg-white/5"}`}
                 >
                   <div className="relative">
