@@ -14,6 +14,7 @@ interface Debt {
   borrowerDecision?: string;
   interestRate?: number;
   interestType?: "simple" | "compound";
+  counterpartyName?: string;
 }
 
 interface Props {
@@ -159,6 +160,11 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
         <div className="px-5 pb-6 space-y-3">
           <div className="text-center mb-4">
             <p className="font-semibold text-foreground text-lg">{debt.name}</p>
+            {debt.counterpartyName && (
+              <p className="text-sm text-muted-foreground mt-1">
+                {dir === "lent" ? "Должник" : "Кредитор"}: <span className="text-foreground font-medium">{debt.counterpartyName}</span>
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">

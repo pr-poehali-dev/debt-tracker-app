@@ -180,6 +180,12 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-foreground break-words leading-snug">{d.name}</p>
+                  {d.counterpartyName && (
+                    <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                      <Icon name={dir === "lent" ? "ArrowUpRight" : "ArrowDownLeft"} size={10} className="inline mr-0.5 align-[-1px]" />
+                      {d.counterpartyName}
+                    </p>
+                  )}
                   <div className="flex items-center gap-2 mt-1 flex-wrap">
                     <StatusBadge status={d.status} t={t} />
                     {dir === "lent" && d.debtDbId && (

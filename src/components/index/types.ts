@@ -30,6 +30,7 @@ export interface Debt {
   deletedByLenderName?: string;
   borrowerDismissed?: boolean;
   pendingPaymentsCount?: number;
+  counterpartyName?: string;
 }
 
 export interface ChatMeta {
@@ -105,18 +106,18 @@ export const DEMO_CONTACTS: Contact[] = [
 ];
 
 export const DEMO_LENT: Debt[] = [
-  { id: 1, contactId: 1, name: "На ремонт машины", amount: 15000, dueDate: "2026-06-01", status: "active", avatar: "АС", note: "Вернёт частями" },
-  { id: 2, contactId: 3, name: "Займ до зарплаты", amount: 12000, dueDate: "2026-04-15", status: "overdue", avatar: "ДН" },
-  { id: 3, contactId: 3, name: "На отпуск", amount: 20000, dueDate: "2026-07-10", status: "active", avatar: "ДН", note: "Лето" },
+  { id: 1, contactId: 1, name: "На ремонт машины", amount: 15000, dueDate: "2026-06-01", status: "active", avatar: "АС", note: "Вернёт частями", counterpartyName: "Алексей Смирнов" },
+  { id: 2, contactId: 3, name: "Займ до зарплаты", amount: 12000, dueDate: "2026-04-15", status: "overdue", avatar: "ДН", counterpartyName: "Дмитрий Новиков" },
+  { id: 3, contactId: 3, name: "На отпуск", amount: 20000, dueDate: "2026-07-10", status: "active", avatar: "ДН", note: "Лето", counterpartyName: "Дмитрий Новиков" },
 ];
 
 export const DEMO_BORROWED: Debt[] = [
-  { id: 4, contactId: 2, name: "За ужин в ресторане", amount: 8500, dueDate: "2026-05-20", status: "active", avatar: "МК" },
-  { id: 5, contactId: 4, name: "Мелкий долг", amount: 5000, dueDate: "2026-05-10", status: "overdue", avatar: "ОП", note: "Срочно" },
+  { id: 4, contactId: 2, name: "За ужин в ресторане", amount: 8500, dueDate: "2026-05-20", status: "active", avatar: "МК", counterpartyName: "Мария Козлова" },
+  { id: 5, contactId: 4, name: "Мелкий долг", amount: 5000, dueDate: "2026-05-10", status: "overdue", avatar: "ОП", note: "Срочно", counterpartyName: "Ольга Петрова" },
 ];
 
 export const DEMO_ARCHIVE: Debt[] = [
-  { id: 6, contactId: 1, name: "Прошлый займ", amount: 3000, dueDate: "2025-12-01", status: "paid", avatar: "АС" },
+  { id: 6, contactId: 1, name: "Прошлый займ", amount: 3000, dueDate: "2025-12-01", status: "paid", avatar: "АС", counterpartyName: "Алексей Смирнов" },
 ];
 
 export const INIT_CONTACTS: Contact[] = [];
