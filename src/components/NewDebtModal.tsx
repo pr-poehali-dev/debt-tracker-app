@@ -2,9 +2,16 @@ import { useState, useEffect, useRef } from "react";
 import QRCodeLib from "qrcode";
 import Icon from "@/components/ui/icon";
 import func2url from "../../backend/func2url.json";
+import { getT, type Lang } from "@/i18n";
 
 const API_URL = func2url["debts"];
 const AUTH_URL = func2url["auth"];
+
+function useT() {
+  const saved = (typeof window !== "undefined" ? localStorage.getItem("df-lang") : null) as Lang | null;
+  const lang: Lang = saved === "en" ? "en" : "ru";
+  return { t: getT(lang), lang };
+}
 
 // ─── QR через canvas (локально, без внешних сервисов) ────────────────────────
 function QRCode({ value, size = 200 }: { value: string; size?: number }) {
@@ -45,6 +52,7 @@ function phoneToE164Local(formatted: string): string {
 }
 
 export function SharedDebtView({ token }: { token: string }) {
+  const { t, lang } = useT();
   const [debt, setDebt] = useState<Record<string, string | number | null> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -67,7 +75,7 @@ export function SharedDebtView({ token }: { token: string }) {
   const [devCode, setDevCode] = useState<string | null>(null);
   const codeRefs = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)];
 
-  function fmt(n: number) { return n.toLocaleString("ru-RU") + " ₽"; }
+  function fmt(n: number) { return n.toLocaleString(lang === "en" ? "en-US" : "ru-RU") + " ₽"; }
 
   // При загрузке — проверяем есть ли уже токен
   useEffect(() => {
@@ -96,12 +104,12 @@ export function SharedDebtView({ token }: { token: string }) {
         if (tok) setStep("decision");
         else setStep("phone");
       })
-      .catch(() => { setError("Ошибка загрузки"); setLoading(false); });
+      .catch(() => { setError(t.loadError); setLoading(false); });
   }
 
   async function checkPhoneStep() {
     const e164 = phoneToE164Local(phone);
-    if (!e164) { setAuthError("Введите номер полностью"); return; }
+    if (!e164) { setAuthError(t.phoneIncomplete); return; }
     setAuthLoading(true); setAuthError("");
     try {
       const res = await fetch(`${AUTH_URL}?action=check-phone`, {
@@ -109,7 +117,7 @@ export function SharedDebtView({ token }: { token: string }) {
         body: JSON.stringify({ phone: e164 }),
       });
       const data = await res.json();
-      if (!res.ok) { setAuthError(data.error || "Ошибка"); return; }
+      if (!res.ok) { setAuthError(data.error || t.error); return; }
       if (!data.exists) {
         setIsNewUser(true);
         setStep("register");
@@ -138,13 +146,13 @@ export function SharedDebtView({ token }: { token: string }) {
     }
     if (!res.ok) {
       const d = await res.json();
-      setAuthError(d.error || "Ошибка отправки SMS");
+      setAuthError(d.error || t.smsSendError);
       throw new Error(d.error);
     }
   }
 
   async function sendCodeForRegister() {
-    if (!fullName.trim()) { setAuthError("Введите ФИО"); return; }
+    if (!fullName.trim()) { setAuthError(t.enterFullName); return; }
     setAuthLoading(true); setAuthError("");
     try {
       await sendSmsCode();
@@ -167,7 +175,7 @@ export function SharedDebtView({ token }: { token: string }) {
         setPinStage("first"); setPin(""); setPinFirst("");
         setStep("set_pin");
       } else {
-        setAuthError(data.error || "Неверный код");
+        setAuthError(data.error || t.wrongCode);
         setCode(["", "", "", ""]);
         codeRefs[0].current?.focus();
       }
@@ -182,7 +190,7 @@ export function SharedDebtView({ token }: { token: string }) {
       return;
     }
     if (value !== pinFirst) {
-      setAuthError("PIN не совпадает, попробуйте ещё раз");
+      setAuthError(t.pinMismatch);
       setPinStage("first"); setPinFirst(""); setPin("");
       return;
     }
@@ -206,7 +214,7 @@ export function SharedDebtView({ token }: { token: string }) {
       setUserName(data.user.full_name);
       setStep("decision");
     } else {
-      setAuthError(data.error || "Ошибка");
+      setAuthError(data.error || t.error);
       setStep("code");
       setCode(["", "", "", ""]);
     }
@@ -227,7 +235,7 @@ export function SharedDebtView({ token }: { token: string }) {
       setUserName(data.user.full_name);
       setStep("decision");
     } else {
-      setAuthError(data.error || "Неверный PIN");
+      setAuthError(data.error || t.wrongPin);
       setPin("");
     }
   }
@@ -266,7 +274,7 @@ export function SharedDebtView({ token }: { token: string }) {
       <div className="glass rounded-2xl p-6 text-center max-w-sm w-full">
         <Icon name="AlertCircle" size={40} className="text-red-400 mx-auto mb-3" />
         <p className="text-red-400 font-semibold">{error}</p>
-        <p className="text-muted-foreground text-sm mt-1">Проверьте ссылку или попросите кредитора отправить заново</p>
+        <p className="text-muted-foreground text-sm mt-1">{t.loadingErrorCheck}</p>
       </div>
     </div>
   );
@@ -296,13 +304,13 @@ export function SharedDebtView({ token }: { token: string }) {
   const DebtCard = () => (
     <div className="glass rounded-3xl p-5 mb-4" style={{ border: "1px solid rgba(168,85,247,0.3)" }}>
       <p className="text-muted-foreground text-xs mb-1 uppercase tracking-wider">
-        {interestRate ? "Итого к возврату" : "Сумма долга"}
+        {interestRate ? t.summaryReturn : t.debtAmount}
       </p>
       <p className="text-4xl font-black font-heading text-gradient-purple mb-1">{fmt(totalAmount)}</p>
       {interestRate && interestAmount > 0 && (
         <div className="flex gap-3 mb-4">
-          <span className="text-xs text-muted-foreground">Тело: {fmt(baseAmount)}</span>
-          <span className="text-xs text-violet-400">+ проценты: {fmt(interestAmount)}</span>
+          <span className="text-xs text-muted-foreground">{t.body}: {fmt(baseAmount)}</span>
+          <span className="text-xs text-violet-400">{t.plusInterest}: {fmt(interestAmount)}</span>
         </div>
       )}
       {!interestRate && <div className="mb-4" />}
@@ -312,7 +320,7 @@ export function SharedDebtView({ token }: { token: string }) {
             <Icon name="TrendingUp" size={16} className="text-white" />
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">Кредитор</p>
+            <p className="text-xs text-muted-foreground">{t.creditor}</p>
             <p className="font-semibold text-foreground">{String(debt!.lender_name)}</p>
           </div>
         </div>
@@ -322,8 +330,8 @@ export function SharedDebtView({ token }: { token: string }) {
               <Icon name="Percent" size={16} className="text-violet-400" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Процентная ставка</p>
-              <p className="font-semibold text-foreground">{interestRate}% ({interestType === "compound" ? "сложные" : "простые"})</p>
+              <p className="text-xs text-muted-foreground">{t.interestRateLabel}</p>
+              <p className="font-semibold text-foreground">{interestRate}% ({interestType === "compound" ? t.compoundShort : t.simpleShort})</p>
             </div>
           </div>
         )}
@@ -333,9 +341,9 @@ export function SharedDebtView({ token }: { token: string }) {
               <Icon name="Calendar" size={16} className="text-emerald-400" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Срок возврата</p>
+              <p className="text-xs text-muted-foreground">{t.dueDate}</p>
               <p className="font-semibold text-foreground">
-                {new Date(String(debt!.due_date)).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })}
+                {new Date(String(debt!.due_date)).toLocaleDateString(lang === "en" ? "en-US" : "ru-RU", { day: "numeric", month: "long", year: "numeric" })}
               </p>
             </div>
           </div>
@@ -356,7 +364,7 @@ export function SharedDebtView({ token }: { token: string }) {
             <Icon name="Handshake" size={28} className="text-white" />
           </div>
           <h1 className="text-2xl font-black font-heading text-gradient-purple">Debt-Debt</h1>
-          <p className="text-muted-foreground text-sm">Вас пригласили подтвердить долг</p>
+          <p className="text-muted-foreground text-sm">{t.invitedToConfirm}</p>
         </div>
 
         <DebtCard />
@@ -365,8 +373,8 @@ export function SharedDebtView({ token }: { token: string }) {
         {step === "phone" && (
           <div className="glass rounded-2xl p-5 space-y-3">
             <div>
-              <p className="font-semibold text-foreground mb-1">Войдите или зарегистрируйтесь</p>
-              <p className="text-xs text-muted-foreground">Чтобы принять или отклонить долг, нужен аккаунт</p>
+              <p className="font-semibold text-foreground mb-1">{t.loginOrSignup}</p>
+              <p className="text-xs text-muted-foreground">{t.loginOrSignupHint}</p>
             </div>
             <input value={phone}
               onChange={e => { setPhone(formatPhoneInput(e.target.value)); setAuthError(""); }}
@@ -375,7 +383,7 @@ export function SharedDebtView({ token }: { token: string }) {
               className={inputCls} onKeyDown={e => e.key === "Enter" && checkPhoneStep()} />
             {authError && <p className="text-xs text-red-400">{authError}</p>}
             <button onClick={checkPhoneStep} disabled={authLoading} className={btnCls} style={{ background: "linear-gradient(135deg, #a855f7, #6366f1)" }}>
-              {authLoading ? "Проверяем..." : "Продолжить"}
+              {authLoading ? t.checking : t.continueBtn}
             </button>
           </div>
         )}
@@ -388,17 +396,17 @@ export function SharedDebtView({ token }: { token: string }) {
                 <Icon name="ChevronLeft" size={16} />
               </button>
               <div>
-                <p className="font-semibold text-foreground">Регистрация</p>
+                <p className="font-semibold text-foreground">{t.signupTitle}</p>
                 <p className="text-xs text-muted-foreground">{phone}</p>
               </div>
             </div>
             <input value={fullName}
               onChange={e => { setFullName(e.target.value); setAuthError(""); }}
-              placeholder="ФИО" autoFocus className={inputCls}
+              placeholder={t.fullNamePlaceholder} autoFocus className={inputCls}
               onKeyDown={e => e.key === "Enter" && sendCodeForRegister()} />
             {authError && <p className="text-xs text-red-400">{authError}</p>}
             <button onClick={sendCodeForRegister} disabled={authLoading} className={btnCls} style={{ background: "linear-gradient(135deg, #a855f7, #6366f1)" }}>
-              {authLoading ? "Отправляем SMS..." : "Получить код в SMS"}
+              {authLoading ? t.sendingSms : t.getSmsCode}
             </button>
           </div>
         )}
@@ -407,12 +415,12 @@ export function SharedDebtView({ token }: { token: string }) {
         {step === "code" && (
           <div className="glass rounded-2xl p-5 space-y-4">
             <div>
-              <p className="font-semibold text-foreground mb-1">Введите код из SMS</p>
-              <p className="text-xs text-muted-foreground">Отправили на {phone}</p>
+              <p className="font-semibold text-foreground mb-1">{t.enterSmsCode}</p>
+              <p className="text-xs text-muted-foreground">{t.smsSentTo.replace("{phone}", phone)}</p>
             </div>
             {devCode && (
               <div className="rounded-2xl px-4 py-3 text-center" style={{ background: "rgba(168,85,247,0.12)", border: "1px solid rgba(168,85,247,0.4)" }}>
-                <p className="text-xs text-muted-foreground mb-1">Ваш код:</p>
+                <p className="text-xs text-muted-foreground mb-1">{t.yourCode}</p>
                 <p className="font-black text-3xl tracking-[8px] text-purple-300" style={{ textShadow: "0 0 12px rgba(168,85,247,0.5)" }}>{devCode}</p>
               </div>
             )}
@@ -443,7 +451,7 @@ export function SharedDebtView({ token }: { token: string }) {
                 <Icon name="ChevronLeft" size={16} />
               </button>
               <div>
-                <p className="font-semibold text-foreground">Введите PIN</p>
+                <p className="font-semibold text-foreground">{t.enterPin}</p>
                 <p className="text-xs text-muted-foreground">{phone}</p>
               </div>
             </div>
@@ -464,7 +472,7 @@ export function SharedDebtView({ token }: { token: string }) {
               try { await sendSmsCode(); setStep("code"); setPin(""); } catch { /* */ }
               finally { setAuthLoading(false); }
             }} className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors py-1">
-              Забыли PIN? Сбросить через SMS
+              {t.forgotPin}
             </button>
           </div>
         )}
@@ -474,10 +482,10 @@ export function SharedDebtView({ token }: { token: string }) {
           <div className="glass rounded-2xl p-5 space-y-4">
             <div>
               <p className="font-semibold text-foreground mb-1">
-                {pinStage === "first" ? "Придумайте PIN" : "Повторите PIN"}
+                {pinStage === "first" ? t.createPin : t.repeatPin}
               </p>
               <p className="text-xs text-muted-foreground">
-                {pinStage === "first" ? "4 цифры — запомните его, нужен будет для входа" : "Введите тот же PIN ещё раз"}
+                {pinStage === "first" ? t.pinHint : t.pinRepeatHint}
               </p>
             </div>
             <input
@@ -503,8 +511,8 @@ export function SharedDebtView({ token }: { token: string }) {
         {step === "decision" && (
           <div className="glass rounded-2xl p-5 space-y-3">
             <div>
-              <p className="font-semibold text-foreground mb-1">Привет, {userName}!</p>
-              <p className="text-sm text-muted-foreground">Вы хотите принять этот долг?</p>
+              <p className="font-semibold text-foreground mb-1">{t.helloName.replace("{name}", userName)}</p>
+              <p className="text-sm text-muted-foreground">{t.acceptDebtQuestion}</p>
             </div>
             <button
               onClick={() => makeDecision("accepted")}
@@ -512,14 +520,14 @@ export function SharedDebtView({ token }: { token: string }) {
               className={btnCls}
               style={{ background: "linear-gradient(135deg, #22c55e, #16a34a)" }}
             >
-              {saving ? "Сохраняем..." : "Принять долг"}
+              {saving ? t.saving : t.acceptDebt}
             </button>
             <button
               onClick={() => makeDecision("rejected")}
               disabled={saving}
               className="w-full py-3 rounded-xl font-semibold text-sm glass border border-red-500/20 text-red-400 hover:bg-red-500/10 transition-all"
             >
-              Отклонить
+              {t.rejectBtn}
             </button>
           </div>
         )}
@@ -528,10 +536,10 @@ export function SharedDebtView({ token }: { token: string }) {
         {step === "done" && (
           <div className="glass rounded-2xl p-5 text-center border border-green-500/20">
             <Icon name="CheckCircle2" size={36} className="text-green-400 mx-auto mb-3" />
-            <p className="font-bold text-green-400 text-lg">Долг принят!</p>
-            <p className="text-xs text-muted-foreground mt-1 mb-4">Войдите в приложение, чтобы написать кредитору</p>
+            <p className="font-bold text-green-400 text-lg">{t.debtAccepted}</p>
+            <p className="text-xs text-muted-foreground mt-1 mb-4">{t.debtAcceptedHint}</p>
             <a href="/" className="block w-full py-3 rounded-xl font-semibold text-white text-sm text-center" style={{ background: "linear-gradient(135deg, #a855f7, #6366f1)" }}>
-              Открыть приложение
+              {t.openApp}
             </a>
           </div>
         )}
@@ -540,10 +548,10 @@ export function SharedDebtView({ token }: { token: string }) {
         {step === "rejected" && (
           <div className="glass rounded-2xl p-5 text-center border border-red-500/20">
             <Icon name="XCircle" size={36} className="text-red-400 mx-auto mb-3" />
-            <p className="font-bold text-red-400 text-lg">Долг отклонён</p>
-            <p className="text-xs text-muted-foreground mt-1 mb-4">Кредитор будет уведомлён. Долг останется у него со статусом «Отклонён».</p>
+            <p className="font-bold text-red-400 text-lg">{t.debtRejected}</p>
+            <p className="text-xs text-muted-foreground mt-1 mb-4">{t.debtRejectedHint}</p>
             <a href="/" className="block w-full py-3 rounded-xl font-semibold text-sm text-center glass border border-white/10 text-muted-foreground">
-              Перейти в приложение
+              {t.goToApp}
             </a>
           </div>
         )}
@@ -563,6 +571,7 @@ interface Props {
 }
 
 export default function NewDebtModal({ open, onClose, myName = "", myPhone = "", onCreated }: Props) {
+  const { t, lang } = useT();
   const [step, setStep] = useState<"form" | "qr">("form");
   const [loading, setLoading] = useState(false);
   const [createdDebt, setCreatedDebt] = useState<Record<string, string | number | null> | null>(null);
@@ -580,7 +589,7 @@ export default function NewDebtModal({ open, onClose, myName = "", myPhone = "",
 
   function set(k: string, v: string) { setForm(f => ({ ...f, [k]: v })); }
 
-  function fmt(n: number) { return n.toLocaleString("ru-RU") + " ₽"; }
+  function fmt(n: number) { return n.toLocaleString(lang === "en" ? "en-US" : "ru-RU") + " ₽"; }
 
   function calcReturn(): { total: number; interest: number; days: number } | null {
     const amount = parseFloat(form.amount.replace(/\s/g, ""));
@@ -651,7 +660,7 @@ export default function NewDebtModal({ open, onClose, myName = "", myPhone = "",
 
   async function shareNative() {
     if (navigator.share) {
-      await navigator.share({ title: `Долг: ${createdDebt?.title}`, text: `Сумма: ${fmt(Number(createdDebt?.amount))}`, url: shareUrl() });
+      await navigator.share({ title: `${t.newDebt}: ${createdDebt?.title}`, text: `${t.amountSummary}: ${fmt(Number(createdDebt?.amount))}`, url: shareUrl() });
     } else copyLink();
   }
 
@@ -674,10 +683,10 @@ export default function NewDebtModal({ open, onClose, myName = "", myPhone = "",
             )}
             <div>
               <h2 className="font-heading font-bold text-lg">
-                {step === "form" ? "Новый займ" : "QR-код долга"}
+                {step === "form" ? t.newDebt : t.qrCodeTitle}
               </h2>
               <p className="text-xs text-muted-foreground">
-                {step === "form" ? "Заполните детали займа" : "Отправьте должнику для подтверждения"}
+                {step === "form" ? t.fillDetails : t.sendToBorrower}
               </p>
             </div>
           </div>
@@ -697,37 +706,37 @@ export default function NewDebtModal({ open, onClose, myName = "", myPhone = "",
                   <Icon name="User" size={15} className="text-white" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground">Кредитор (вы)</p>
+                  <p className="text-xs text-muted-foreground">{t.lender}</p>
                   <p className="text-sm font-semibold text-foreground truncate">{myName}{myPhone ? ` · ${myPhone}` : ""}</p>
                 </div>
               </div>
             ) : (
               <div className="flex items-center gap-3 rounded-xl px-4 py-3" style={{ background: "rgba(234,179,8,0.08)", border: "1px solid rgba(234,179,8,0.2)" }}>
                 <Icon name="AlertCircle" size={16} className="text-yellow-400 flex-shrink-0" />
-                <p className="text-xs text-yellow-300">Заполните профиль в <strong>Настройках</strong>, чтобы ваше имя подставлялось автоматически</p>
+                <p className="text-xs text-yellow-300">{t.fillProfile} <strong>{t.fillProfileSettings}</strong>{t.fillProfileSuffix}</p>
               </div>
             )}
 
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Название / описание *</label>
-              <input value={form.title} onChange={e => set("title", e.target.value)} placeholder="Займ на ремонт" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-purple-500/50 transition-colors" />
+              <label className="text-xs text-muted-foreground mb-1 block">{t.debtTitleLabel}</label>
+              <input value={form.title} onChange={e => set("title", e.target.value)} placeholder={t.debtTitlePlaceholderRu} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-purple-500/50 transition-colors" />
             </div>
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Сумма (₽) *</label>
-              <input value={form.amount} onChange={e => set("amount", e.target.value)} placeholder="10 000" type="number" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-purple-500/50 transition-colors" />
+              <label className="text-xs text-muted-foreground mb-1 block">{t.amountLabel}</label>
+              <input value={form.amount} onChange={e => set("amount", e.target.value)} placeholder={t.amountPlaceholder} type="number" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-purple-500/50 transition-colors" />
             </div>
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Имя должника (необязательно)</label>
-              <input value={form.borrower_name} onChange={e => set("borrower_name", e.target.value)} placeholder="Пётр Петров" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-purple-500/50 transition-colors" />
+              <label className="text-xs text-muted-foreground mb-1 block">{t.borrowerNameLabel}</label>
+              <input value={form.borrower_name} onChange={e => set("borrower_name", e.target.value)} placeholder={t.borrowerPlaceholderRu} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-purple-500/50 transition-colors" />
             </div>
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Срок возврата</label>
+              <label className="text-xs text-muted-foreground mb-1 block">{t.dueDateLabel}</label>
               <input value={form.due_date} onChange={e => set("due_date", e.target.value)} type="date" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-foreground outline-none focus:border-purple-500/50 transition-colors" style={{ colorScheme: "dark" }} />
             </div>
 
             {/* Процентная ставка */}
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Процентная ставка (% годовых)</label>
+              <label className="text-xs text-muted-foreground mb-1 block">{t.interestRate}</label>
               <div className="flex gap-2">
                 <div className="relative flex-1">
                   <input
@@ -746,13 +755,13 @@ export default function NewDebtModal({ open, onClose, myName = "", myPhone = "",
                   type="button"
                   onClick={() => set("interest_type", form.interest_type === "simple" ? "compound" : "simple")}
                   className="px-3 py-2.5 rounded-xl text-xs font-medium glass border border-white/10 hover:bg-white/10 transition-colors whitespace-nowrap"
-                  title="Тип начисления"
+                  title={t.interestTypeTitle}
                 >
-                  {form.interest_type === "simple" ? "Простые" : "Сложные"}
+                  {form.interest_type === "simple" ? t.simpleLabel : t.compoundLabel}
                 </button>
               </div>
               <p className="text-[10px] text-muted-foreground mt-1">
-                {form.interest_type === "simple" ? "Простые проценты — начисляются только на основную сумму" : "Сложные проценты — начисляются на сумму с процентами"}
+                {form.interest_type === "simple" ? t.simpleDesc : t.compoundDesc}
               </p>
             </div>
 
@@ -761,26 +770,26 @@ export default function NewDebtModal({ open, onClose, myName = "", myPhone = "",
               <div className="rounded-xl p-3.5 space-y-2" style={{ background: "rgba(168,85,247,0.08)", border: "1px solid rgba(168,85,247,0.25)" }}>
                 <div className="flex items-center gap-2 mb-1">
                   <Icon name="Calculator" size={14} className="text-purple-400" />
-                  <span className="text-xs font-semibold text-purple-300">Итого к возврату</span>
+                  <span className="text-xs font-semibold text-purple-300">{t.summaryReturn}</span>
                 </div>
                 <div className="flex items-end justify-between">
                   <div>
                     <div className="text-2xl font-black font-heading text-gradient-purple">{fmt(returnCalc.total)}</div>
                     <div className="text-xs text-muted-foreground mt-0.5">
-                      Основной долг: {fmt(parseFloat(form.amount.replace(/\s/g, "")))}
+                      {t.principalLabel}: {fmt(parseFloat(form.amount.replace(/\s/g, "")))}
                     </div>
                   </div>
                   <div className="text-right">
                     <div className="text-sm font-semibold text-emerald-400">+{fmt(returnCalc.interest)}</div>
-                    <div className="text-[10px] text-muted-foreground">за {returnCalc.days} дн.</div>
+                    <div className="text-[10px] text-muted-foreground">{t.forDaysCount.replace("{n}", String(returnCalc.days))}</div>
                   </div>
                 </div>
               </div>
             )}
 
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Заметка</label>
-              <textarea value={form.note} onChange={e => set("note", e.target.value)} placeholder="Дополнительные условия..." rows={2} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-purple-500/50 transition-colors resize-none" />
+              <label className="text-xs text-muted-foreground mb-1 block">{t.noteLabel}</label>
+              <textarea value={form.note} onChange={e => set("note", e.target.value)} placeholder={t.notePlaceholderRu} rows={2} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-purple-500/50 transition-colors resize-none" />
             </div>
 
             <button
@@ -789,7 +798,7 @@ export default function NewDebtModal({ open, onClose, myName = "", myPhone = "",
               className="w-full py-3.5 rounded-xl font-semibold text-white disabled:opacity-40 transition-all mt-2"
               style={{ background: "linear-gradient(135deg, #a855f7, #6366f1)" }}
             >
-              {loading ? "Создаю долг..." : "Создать и получить QR-код"}
+              {loading ? t.creatingDebt : t.createAndQr}
             </button>
           </div>
         )}
@@ -800,21 +809,21 @@ export default function NewDebtModal({ open, onClose, myName = "", myPhone = "",
             {/* Summary */}
             <div className="glass rounded-2xl p-4 mb-4" style={{ border: "1px solid rgba(168,85,247,0.25)" }}>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-muted-foreground text-xs">Сумма</span>
+                <span className="text-muted-foreground text-xs">{t.amountSummary}</span>
                 <span className="font-bold font-heading text-gradient-purple text-xl">{fmt(Number(createdDebt.amount))}</span>
               </div>
               <div className="flex items-center justify-between mb-1">
-                <span className="text-muted-foreground text-xs">Кредитор</span>
+                <span className="text-muted-foreground text-xs">{t.creditor}</span>
                 <span className="text-sm font-medium">{String(createdDebt.lender_name)}</span>
               </div>
               {createdDebt.due_date && (
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground text-xs">Срок</span>
-                  <span className="text-sm font-medium">{new Date(String(createdDebt.due_date)).toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}</span>
+                  <span className="text-muted-foreground text-xs">{t.term}</span>
+                  <span className="text-sm font-medium">{new Date(String(createdDebt.due_date)).toLocaleDateString(lang === "en" ? "en-US" : "ru-RU", { day: "numeric", month: "long" })}</span>
                 </div>
               )}
               <div className="mt-2 pt-2 border-t border-white/10 flex items-center justify-between">
-                <span className="text-muted-foreground text-xs">Токен</span>
+                <span className="text-muted-foreground text-xs">{t.tokenLabel}</span>
                 <span className="font-mono text-purple-400 font-bold tracking-widest">{String(createdDebt.share_token)}</span>
               </div>
             </div>
@@ -824,7 +833,7 @@ export default function NewDebtModal({ open, onClose, myName = "", myPhone = "",
               <div className="p-4 rounded-2xl mb-3" style={{ background: "rgba(168,85,247,0.1)", border: "1px solid rgba(168,85,247,0.25)" }}>
                 <QRCode value={shareUrl()} size={200} />
               </div>
-              <p className="text-xs text-muted-foreground text-center">Должник сканирует QR-код и подтверждает долг</p>
+              <p className="text-xs text-muted-foreground text-center">{t.qrHelp}</p>
             </div>
 
             {/* Actions */}
@@ -835,14 +844,14 @@ export default function NewDebtModal({ open, onClose, myName = "", myPhone = "",
                 style={{ background: "linear-gradient(135deg, #a855f7, #6366f1)" }}
               >
                 <Icon name="Share2" size={18} />
-                Поделиться ссылкой
+                {t.shareLink}
               </button>
               <button
                 onClick={copyLink}
                 className="w-full py-3 rounded-xl font-medium glass hover:bg-white/10 transition-colors flex items-center justify-center gap-2"
               >
                 <Icon name={copied ? "Check" : "Copy"} size={18} className={copied ? "text-green-400" : ""} />
-                {copied ? "Ссылка скопирована!" : "Скопировать ссылку"}
+                {copied ? t.linkCopied : t.copyLink}
               </button>
             </div>
           </div>
