@@ -242,7 +242,19 @@ def handler(event: dict, context) -> dict:
                     (uid, uid, uid)
                 )
                 rows = cur.fetchall()
-        return json_resp([row_to_debt(r) for r in rows])
+                cur.execute(
+                    f"""SELECT debt_id, COUNT(*) FROM {SCHEMA}.payment_requests
+                        WHERE status = 'pending' AND (from_user_id = %s OR to_user_id = %s)
+                        GROUP BY debt_id""",
+                    (uid, uid)
+                )
+                pending_map = {str(r[0]): int(r[1]) for r in cur.fetchall()}
+        result = []
+        for r in rows:
+            d = row_to_debt(r)
+            d["pending_payments_count"] = pending_map.get(d["id"], 0)
+            result.append(d)
+        return json_resp(result)
 
     # PUT ?token=XXX — обновить долг (решение должника, смена статуса)
     if method == "PUT" and qs.get("token"):

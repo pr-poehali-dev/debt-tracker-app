@@ -86,6 +86,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
               deletedByLender: isDeleted && !isLender ? true : undefined,
               deletedByLenderName: isDeleted && !isLender ? String(d.lender_name || "Кредитор") : undefined,
               borrowerDismissed: isLender && d.borrower_dismissed ? true : undefined,
+              pendingPaymentsCount: d.pending_payments_count != null ? Number(d.pending_payments_count) : 0,
             };
 
             if (status === "archived") {
@@ -230,8 +231,8 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
       const unread: number = data.unread || 0;
       const newNotifs: Array<Record<string, unknown>> = (data.notifications || []).filter((n: Record<string, unknown>) => !n.is_read);
 
-      if (unread > lastKnownUnread && lastKnownUnread !== 0) {
-        playSound();
+      if (unread > lastKnownUnread) {
+        if (lastKnownUnread !== 0) playSound();
         setNotifs(prev => {
           const existingIds = new Set(prev.map(n => n.id));
           const fresh: Notification[] = newNotifs
@@ -666,15 +667,15 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
     if (fullyPaid) {
       const debt = [...lentDebts, ...borrowedDebts].find(d => d.debtDbId === debtDbId);
       if (debt) {
-        const updated = { ...debt, amount: 0, status: "paid" as const };
+        const updated = { ...debt, amount: 0, status: "paid" as const, pendingPaymentsCount: 0 };
         setLentDebts(prev => prev.filter(d => d.debtDbId !== debtDbId));
         setBorrowedDebts(prev => prev.filter(d => d.debtDbId !== debtDbId));
         setArchiveDebts(prev => [updated, ...prev]);
       }
       return;
     }
-    setLentDebts(prev => prev.map(d => d.debtDbId === debtDbId ? { ...d, amount: newAmount } : d));
-    setBorrowedDebts(prev => prev.map(d => d.debtDbId === debtDbId ? { ...d, amount: newAmount } : d));
+    setLentDebts(prev => prev.map(d => d.debtDbId === debtDbId ? { ...d, amount: newAmount, pendingPaymentsCount: Math.max(0, (d.pendingPaymentsCount || 1) - 1) } : d));
+    setBorrowedDebts(prev => prev.map(d => d.debtDbId === debtDbId ? { ...d, amount: newAmount, pendingPaymentsCount: Math.max(0, (d.pendingPaymentsCount || 1) - 1) } : d));
   }
 
   async function handleDeleteDebt(debtDbId: string) {

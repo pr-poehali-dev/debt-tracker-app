@@ -29,6 +29,7 @@ export interface Debt {
   deletedByLender?: boolean;
   deletedByLenderName?: string;
   borrowerDismissed?: boolean;
+  pendingPaymentsCount?: number;
 }
 
 export interface ChatMeta {

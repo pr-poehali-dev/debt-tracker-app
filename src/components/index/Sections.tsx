@@ -196,6 +196,12 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                         </span>
                       )
                     )}
+                    {dir === "lent" && (d.pendingPaymentsCount || 0) > 0 && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold animate-pulse" style={{ background: "linear-gradient(135deg, #10b981, #059669)", color: "#fff", boxShadow: "0 0 12px rgba(16,185,129,0.5)" }}>
+                        <Icon name="BellRing" size={10} />
+                        {d.pendingPaymentsCount === 1 ? "Запрос на возврат" : `${d.pendingPaymentsCount} запроса`}
+                      </span>
+                    )}
                   </div>
                   {d.note && <p className="text-xs text-muted-foreground mt-1 break-words">{d.note}</p>}
                   {d.deletedByLender && (
