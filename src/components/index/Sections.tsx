@@ -165,33 +165,20 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
               <div
                 key={d.id}
                 onClick={() => setSelectedDebt(d)}
-                className="glass rounded-2xl p-4 flex items-center gap-4 hover:bg-white/[0.06] transition-all duration-200 cursor-pointer group"
+                className="glass rounded-2xl p-4 flex items-start gap-4 hover:bg-white/[0.06] transition-all duration-200 cursor-pointer group"
                 style={{ animationDelay: `${i * 0.05}s`, borderLeft: col ? `3px solid ${col.hex}` : undefined }}
               >
-                <Avatar initials={d.avatar} color={contact?.color} />
+                <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
+                  <Avatar initials={d.avatar} color={contact?.color} />
+                  <p className="text-[10px] text-muted-foreground flex items-center gap-0.5 whitespace-nowrap">
+                    <Icon name="Calendar" size={10} />
+                    {new Date(d.dueDate).toLocaleDateString(locale, { day: "numeric", month: "short" })}
+                  </p>
+                </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                    <span className="font-semibold text-foreground truncate">{d.name}</span>
+                  <p className="font-semibold text-foreground break-words leading-snug">{d.name}</p>
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
                     <StatusBadge status={d.status} t={t} />
-                  </div>
-                  {d.note && <p className="text-xs text-muted-foreground truncate">{d.note}</p>}
-                  {d.deletedByLender && (
-                    <p className="text-[11px] mt-1 flex items-center gap-1" style={{ color: "#f87171" }}>
-                      <Icon name="Trash2" size={11} />
-                      <span className="truncate">{t.debtDeletedByLender}</span>
-                    </p>
-                  )}
-                  {dir === "lent" && d.borrowerDismissed && (
-                    <p className="text-[11px] mt-1 flex items-center gap-1" style={{ color: "#fb923c" }}>
-                      <Icon name="EyeOff" size={11} />
-                      <span className="truncate">{t.debtDeletedByBorrower}</span>
-                    </p>
-                  )}
-                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                    <p className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Icon name="Calendar" size={11} />
-                      {new Date(d.dueDate).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" })}
-                    </p>
                     {dir === "lent" && d.debtDbId && (
                       d.borrowerDecision === "accepted" ? (
                         <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium" style={{ background: "rgba(34,197,94,0.15)", color: "#4ade80" }}>
@@ -208,6 +195,19 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                       )
                     )}
                   </div>
+                  {d.note && <p className="text-xs text-muted-foreground mt-1 break-words">{d.note}</p>}
+                  {d.deletedByLender && (
+                    <p className="text-[11px] mt-1 flex items-center gap-1" style={{ color: "#f87171" }}>
+                      <Icon name="Trash2" size={11} />
+                      <span>{t.debtDeletedByLender}</span>
+                    </p>
+                  )}
+                  {dir === "lent" && d.borrowerDismissed && (
+                    <p className="text-[11px] mt-1 flex items-center gap-1" style={{ color: "#fb923c" }}>
+                      <Icon name="EyeOff" size={11} />
+                      <span>{t.debtDeletedByBorrower}</span>
+                    </p>
+                  )}
                 </div>
                 <div className="text-right flex-shrink-0 flex flex-col items-end gap-1">
                   {(() => {
