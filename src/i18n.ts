@@ -185,6 +185,22 @@ const translations = {
     retry: "Повторить",
     profileFillName: "Введите имя",
     profileFillPhone: "Введите телефон",
+    // Settings bottom buttons
+    adminPanel: "Админ-панель",
+    paymentsHistory: "История платежей",
+    signOut: "Выйти из аккаунта",
+    deleteAccount: "Удалить аккаунт",
+    register: "Зарегистрироваться",
+    deleteAccountTitle: "Удалить аккаунт?",
+    deleteAccountDesc: "Все ваши долги, аренды, чаты, уведомления и платежи будут безвозвратно удалены.",
+    deleteAccountWarning: "Это действие нельзя отменить.",
+    deleteAccountPinLabel: "Введите PIN-код для подтверждения",
+    // Settings extras
+    soundNotifications: "Звуковые уведомления",
+    soundOn: "Звук при получении оплаты",
+    soundOff: "Звук отключён",
+    profilePlaceholderName: "Иван Иванов",
+    networkUnavailable: "Сеть недоступна. Попробуйте ещё раз",
   },
 
   en: {
@@ -366,6 +382,22 @@ const translations = {
     retry: "Retry",
     profileFillName: "Enter your name",
     profileFillPhone: "Enter phone number",
+    // Settings bottom buttons
+    adminPanel: "Admin panel",
+    paymentsHistory: "Payment history",
+    signOut: "Sign out",
+    deleteAccount: "Delete account",
+    register: "Sign up",
+    deleteAccountTitle: "Delete account?",
+    deleteAccountDesc: "All your debts, rentals, chats, notifications and payments will be permanently deleted.",
+    deleteAccountWarning: "This action cannot be undone.",
+    deleteAccountPinLabel: "Enter PIN code to confirm",
+    // Settings extras
+    soundNotifications: "Sound notifications",
+    soundOn: "Sound on incoming payments",
+    soundOff: "Sound is off",
+    profilePlaceholderName: "John Smith",
+    networkUnavailable: "Network unavailable. Please try again",
   },
 } as const;
 

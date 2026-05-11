@@ -1398,7 +1398,7 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
           return;
         }
       } catch {
-        setProfileError("Сеть недоступна. Попробуйте ещё раз");
+        setProfileError(t.networkUnavailable);
         setSavingProfile(false);
         return;
       }
@@ -1457,7 +1457,7 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
             <input
               value={local.name}
               onChange={e => setLocal(l => ({ ...l, name: e.target.value }))}
-              placeholder="Иван Иванов"
+              placeholder={t.profilePlaceholderName}
               className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-purple-500/50 transition-colors"
             />
           </div>
@@ -1564,8 +1564,8 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
               <Icon name={soundEnabled ? "Volume2" : "VolumeX"} size={18} className={soundEnabled ? "text-teal-400" : "text-muted-foreground"} />
             </div>
             <div>
-              <p className="font-semibold text-foreground">Звуковые уведомления</p>
-              <p className="text-xs text-muted-foreground">{soundEnabled ? "Звук при получении оплаты" : "Звук отключён"}</p>
+              <p className="font-semibold text-foreground">{t.soundNotifications}</p>
+              <p className="text-xs text-muted-foreground">{soundEnabled ? t.soundOn : t.soundOff}</p>
             </div>
           </div>
           <button onClick={toggleSound}
@@ -1591,7 +1591,7 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
             { label: t.appNameLabel, value: "Debt-Debt" },
             { label: t.version, value: "1.0.0" },
             { label: t.platform, value: "PWA (iOS / Android)" },
-            ...(profile.phone ? [{ label: "Телефон", value: profile.phone }] : []),
+            ...(profile.phone ? [{ label: t.phone, value: profile.phone }] : []),
           ].map(row => (
             <div key={row.label} className="flex items-center justify-between py-1.5 border-b border-white/5 last:border-0">
               <span className="text-muted-foreground">{row.label}</span>
@@ -1607,7 +1607,7 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
           className="w-full py-3 rounded-2xl glass border border-purple-500/20 text-purple-400 hover:bg-purple-500/10 transition-all font-medium flex items-center justify-center gap-2"
         >
           <Icon name="ShieldCheck" size={16} />
-          Админ-панель
+          {t.adminPanel}
         </button>
       )}
 
@@ -1617,7 +1617,7 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
           className="w-full py-3 rounded-2xl glass border border-amber-500/20 text-amber-400 hover:bg-amber-500/10 transition-all font-medium flex items-center justify-center gap-2"
         >
           <Icon name="Receipt" size={16} />
-          История платежей
+          {t.paymentsHistory}
         </button>
       )}
 
@@ -1627,7 +1627,7 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
           className="w-full py-3 rounded-2xl glass border border-sky-500/20 text-sky-400 hover:bg-sky-500/10 transition-all font-medium flex items-center justify-center gap-2"
         >
           <Icon name="LifeBuoy" size={16} />
-          Поддержка
+          {t.support}
         </button>
       )}
 
@@ -1638,7 +1638,7 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
           style={{ background: "linear-gradient(135deg, #a855f7, #6366f1)" }}
         >
           <Icon name="UserPlus" size={16} className="text-white" />
-          Зарегистрироваться
+          {t.register}
         </button>
       ) : (
         <>
@@ -1647,7 +1647,7 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
             className="w-full py-3 rounded-2xl glass border border-red-500/20 text-red-400 hover:bg-red-500/10 transition-all font-medium flex items-center justify-center gap-2"
           >
             <Icon name="LogOut" size={16} />
-            Выйти из аккаунта
+            {t.signOut}
           </button>
 
           {token && authUrl && (
@@ -1656,7 +1656,7 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
               className="w-full py-3 rounded-2xl glass border border-red-500/30 text-red-500 hover:bg-red-500/10 transition-all font-medium flex items-center justify-center gap-2"
             >
               <Icon name="UserX" size={16} />
-              Удалить аккаунт
+              {t.deleteAccount}
             </button>
           )}
         </>
@@ -1676,16 +1676,16 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
               <div className="w-14 h-14 rounded-full bg-red-500/15 flex items-center justify-center">
                 <Icon name="TriangleAlert" size={26} className="text-red-400" />
               </div>
-              <p className="font-semibold text-foreground text-lg">Удалить аккаунт?</p>
+              <p className="font-semibold text-foreground text-lg">{t.deleteAccountTitle}</p>
               <p className="text-sm text-muted-foreground">
-                Все ваши долги, аренды, чаты, уведомления и платежи будут безвозвратно удалены.
+                {t.deleteAccountDesc}
               </p>
               <p className="text-xs text-red-400 font-medium">
-                Это действие нельзя отменить.
+                {t.deleteAccountWarning}
               </p>
               <div className="w-full pt-2">
                 <label className="text-xs text-muted-foreground mb-2 block text-left">
-                  Введите PIN-код для подтверждения
+                  {t.deleteAccountPinLabel}
                 </label>
                 <input
                   type="password"
@@ -1709,14 +1709,14 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
                 disabled={deleting}
                 className="flex-1 py-3 rounded-2xl bg-white/5 text-foreground font-medium text-sm border border-white/10 hover:bg-white/10 transition-colors disabled:opacity-50"
               >
-                Отмена
+                {t.cancel}
               </button>
               <button
                 onClick={handleDeleteAccount}
                 disabled={deleting || deletePin.length !== 4}
                 className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-gradient-to-r from-red-500 to-rose-600 text-white font-semibold text-sm shadow-lg shadow-red-500/20 hover:opacity-90 transition-opacity disabled:opacity-50"
               >
-                {deleting ? <Icon name="Loader2" size={16} className="animate-spin" /> : <><Icon name="Trash2" size={16} />Удалить</>}
+                {deleting ? <Icon name="Loader2" size={16} className="animate-spin" /> : <><Icon name="Trash2" size={16} />{t.delete}</>}
               </button>
             </div>
           </div>
