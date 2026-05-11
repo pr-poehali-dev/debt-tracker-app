@@ -146,7 +146,7 @@ const translations = {
     // Debt actions
     markReturned: "Возвращён",
     openChat: "Открыть чат",
-    returnedOutside: "Возврат вне приложения",
+    returnedOutside: "Оплатил",
     // Statuses (extra)
     statusReturned: "Возвращён",
     statusPending: "Ожидает",
@@ -469,7 +469,7 @@ const translations = {
     // Debt actions
     markReturned: "Returned",
     openChat: "Open chat",
-    returnedOutside: "Returned outside the app",
+    returnedOutside: "Paid",
     // Statuses (extra)
     statusReturned: "Returned",
     statusPending: "Pending",
