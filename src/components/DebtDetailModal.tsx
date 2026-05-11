@@ -234,7 +234,13 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
               </div>
             )}
 
-            {debt.debtDbId && (
+            {debt.debtDbId && (() => {
+              const paidTotal = history.filter(h => h.status === "accepted").reduce((s, h) => s + h.amount, 0);
+              const totalAmount = total ?? debt.amount;
+              const remaining = Math.max(0, totalAmount - paidTotal);
+              const progress = totalAmount > 0 ? Math.min(100, (paidTotal / totalAmount) * 100) : 0;
+              const hasPayments = history.filter(h => h.status === "accepted").length > 0;
+              return (
               <div className="glass rounded-2xl px-4 py-3">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-8 h-8 rounded-xl bg-emerald-500/15 flex items-center justify-center flex-shrink-0">
@@ -243,12 +249,24 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
                   <div className="flex-1">
                     <p className="text-xs text-muted-foreground">История платежей</p>
                     <p className="text-sm font-medium text-foreground">
-                      {history.filter(h => h.status === "accepted").length > 0
-                        ? `Остаток: ${fmt(Math.max(0, (total ?? debt.amount) - history.filter(h => h.status === "accepted").reduce((s, h) => s + h.amount, 0)))}`
-                        : "Ещё нет платежей"}
+                      {hasPayments ? `Остаток: ${fmt(remaining)}` : "Ещё нет платежей"}
                     </p>
                   </div>
                 </div>
+                {hasPayments && (
+                  <div className="mb-2">
+                    <div className="h-2 rounded-full bg-emerald-500/10 overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-500"
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between mt-1 text-[10px] text-muted-foreground">
+                      <span>Оплачено: {fmt(paidTotal)}</span>
+                      <span>{progress.toFixed(0)}%</span>
+                    </div>
+                  </div>
+                )}
                 {loadingHistory && history.length === 0 ? (
                   <p className="text-xs text-muted-foreground text-center py-2">Загрузка…</p>
                 ) : history.length === 0 ? (
@@ -312,7 +330,8 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
                   </div>
                 )}
               </div>
-            )}
+              );
+            })()}
           </div>
 
           {/* Actions */}
