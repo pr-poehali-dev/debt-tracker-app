@@ -1,10 +1,8 @@
-export type Lang = "ru" | "en" | "zh" | "fr";
+export type Lang = "ru" | "zh";
 
 export const LANGUAGES: { id: Lang; label: string; flag: string }[] = [
-  { id: "ru", label: "Русский",   flag: "🇷🇺" },
-  { id: "en", label: "English",   flag: "🇬🇧" },
-  { id: "zh", label: "中文",       flag: "🇨🇳" },
-  { id: "fr", label: "Français",  flag: "🇫🇷" },
+  { id: "ru", label: "Русский", flag: "🇷🇺" },
+  { id: "zh", label: "中文",     flag: "🇨🇳" },
 ];
 
 const translations = {
