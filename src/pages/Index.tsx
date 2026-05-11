@@ -521,7 +521,8 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
   });
 
   const [lang, setLang] = useState<Lang>(() => {
-    return (localStorage.getItem("df-lang") as Lang) || "ru";
+    const saved = localStorage.getItem("df-lang");
+    return saved === "en" || saved === "ru" ? saved : "ru";
   });
 
   function handleLangChange(l: Lang) {
@@ -530,20 +531,20 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
   }
 
   const t = getT(lang);
-  const locale = lang === "zh" ? "zh-CN" : lang === "fr" ? "fr-FR" : lang === "en" ? "en-US" : "ru-RU";
+  const locale = lang === "en" ? "en-US" : "ru-RU";
 
   const navItems = [
     { id: "dashboard" as Section,     icon: "LayoutDashboard", label: t.navDashboard },
     { id: "lent" as Section,          icon: "TrendingUp",       label: t.navLent },
     { id: "borrowed" as Section,      icon: "TrendingDown",     label: t.navBorrowed },
-    { id: "rental" as Section,        icon: "Home",             label: "Аренда" },
+    { id: "rental" as Section,        icon: "Home",             label: t.navRental },
     { id: "calendar" as Section,      icon: "CalendarDays",     label: t.navCalendar },
     { id: "archive" as Section,       icon: "Archive",          label: t.navArchive },
   ];
 
   const sectionTitles: Record<Section, string> = {
     dashboard: t.appName, lent: t.titleLent, borrowed: t.titleBorrowed,
-    rental: "Аренда",
+    rental: t.titleRental,
     calendar: t.titleCalendar, notifications: t.titleNotifications,
     archive: t.titleArchive, contacts: t.titleContacts, settings: t.navSettings,
   };
