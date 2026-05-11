@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import Icon from "@/components/ui/icon";
 
 interface Debt {
@@ -22,6 +23,16 @@ interface Props {
   onClose: () => void;
   onOpenChat?: (debtId: string, title: string) => void;
   onMarkPaid?: (debtId: string) => void;
+  token?: string;
+}
+
+interface PaymentItem {
+  id: number;
+  amount: number;
+  note: string | null;
+  status: "pending" | "accepted" | "rejected";
+  created_at: string;
+  from_name: string;
 }
 
 function fmt(n: number) {
@@ -38,7 +49,33 @@ function calcTotalWithInterest(amount: number, rate: number, type: string, dueDa
   return Math.round(amount * (1 + (rate / 100) * years));
 }
 
-export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat, onMarkPaid }: Props) {
+export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat, onMarkPaid, token }: Props) {
+  const [history, setHistory] = useState<PaymentItem[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
+  const debtDbId = debt?.debtDbId;
+  useEffect(() => {
+    if (!debtDbId) { setHistory([]); return; }
+    const t = token || localStorage.getItem("df-token") || "";
+    if (!t) return;
+    let cancelled = false;
+    setLoadingHistory(true);
+    (async () => {
+      try {
+        const { default: urls } = await import("../../backend/func2url.json");
+        const res = await fetch(`${urls["debts"]}?action=pay&debt_id=${debtDbId}`, {
+          headers: { Authorization: `Bearer ${t}` },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled) setHistory(Array.isArray(data.requests) ? data.requests : []);
+      } finally {
+        if (!cancelled) setLoadingHistory(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [debtDbId, token]);
+
   if (!debt) return null;
 
   const statusMap = {
@@ -148,6 +185,60 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
                     {debt.borrowerDecision === "accepted" ? "Должник принял долг" : "Должник отклонил долг"}
                   </p>
                 </div>
+              </div>
+            )}
+
+            {debt.debtDbId && (
+              <div className="glass rounded-2xl px-4 py-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-500/15 flex items-center justify-center flex-shrink-0">
+                    <Icon name="History" size={16} className="text-emerald-400" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs text-muted-foreground">История платежей</p>
+                    <p className="text-sm font-medium text-foreground">
+                      {history.filter(h => h.status === "accepted").length > 0
+                        ? `Погашено: ${fmt(history.filter(h => h.status === "accepted").reduce((s, h) => s + h.amount, 0))}`
+                        : "Ещё нет платежей"}
+                    </p>
+                  </div>
+                </div>
+                {loadingHistory && history.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-2">Загрузка…</p>
+                ) : history.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-2">Платежей пока нет</p>
+                ) : (
+                  <div className="space-y-1.5 mt-1">
+                    {history.map(p => {
+                      const isAcc = p.status === "accepted";
+                      const isRej = p.status === "rejected";
+                      const isPend = p.status === "pending";
+                      const color = isAcc ? "#34d399" : isRej ? "#f87171" : "#fbbf24";
+                      const bg = isAcc ? "rgba(52,211,153,0.1)" : isRej ? "rgba(248,113,113,0.1)" : "rgba(251,191,36,0.1)";
+                      const border = isAcc ? "rgba(52,211,153,0.25)" : isRej ? "rgba(248,113,113,0.25)" : "rgba(251,191,36,0.25)";
+                      const iconName = isAcc ? "CheckCircle2" : isRej ? "XCircle" : "Clock";
+                      const statusLabel = isAcc ? "подтверждён" : isRej ? "отклонён" : "ожидает";
+                      const d = new Date(p.created_at);
+                      const dateStr = d.toLocaleDateString(locale, { day: "numeric", month: "short" }) + ", " + d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
+                      return (
+                        <div key={p.id} className="rounded-xl px-3 py-2 flex items-start gap-2" style={{ background: bg, border: `1px solid ${border}` }}>
+                          <Icon name={iconName} size={14} style={{ color, marginTop: 2 }} />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-sm font-semibold" style={{ color }}>{fmt(p.amount)}</span>
+                              <span className="text-[10px] text-muted-foreground">{dateStr}</span>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground">
+                              {p.from_name} • {statusLabel}
+                            </p>
+                            {p.note && <p className="text-[11px] text-foreground/80 mt-0.5 italic">«{p.note}»</p>}
+                            {isPend && <p className="text-[10px] mt-0.5" style={{ color: "#fbbf24" }}>Ждёт подтверждения кредитора</p>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
           </div>

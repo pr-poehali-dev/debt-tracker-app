@@ -66,6 +66,7 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
         onClose={() => setSelectedDebt(null)}
         onOpenChat={onOpenChat}
         onMarkPaid={onMarkPaid ? markPaidWithFeedback : undefined}
+        token={token}
       />
       {manualReturn && manualReturn.debtDbId && (
         <ManualReturnModal
