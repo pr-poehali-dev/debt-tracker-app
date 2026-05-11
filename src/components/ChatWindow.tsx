@@ -100,8 +100,20 @@ export default function ChatWindow({ debtId, rentalId, title, token, onClose }: 
 
   useEffect(() => {
     loadMessages();
-    const interval = setInterval(() => loadMessages(true), 4000);
-    return () => clearInterval(interval);
+    const interval = setInterval(() => loadMessages(true), 15000);
+    function onRealtimeMessage(e: Event) {
+      const detail = (e as CustomEvent).detail as Array<{ debt_id?: string | null; rental_id?: number | null }>;
+      const match = detail?.some(m =>
+        (debtId && m.debt_id === debtId) ||
+        (rentalId && m.rental_id === rentalId)
+      );
+      if (match) loadMessages(true);
+    }
+    window.addEventListener("realtime:message", onRealtimeMessage);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("realtime:message", onRealtimeMessage);
+    };
   }, [debtId, rentalId]);
 
   useEffect(() => {

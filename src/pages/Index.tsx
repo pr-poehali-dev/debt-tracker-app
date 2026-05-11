@@ -311,7 +311,50 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
     }
 
     poll();
-    const interval = setInterval(poll, 10000);
+    const interval = setInterval(poll, 30000);
+
+    // Real-time long-polling канал
+    let cancelled = false;
+    let since = new Date().toISOString();
+    async function realtimeLoop() {
+      const urls = (await import("../../backend/func2url.json")).default;
+      while (!cancelled) {
+        try {
+          const ctrl = new AbortController();
+          const timeoutId = setTimeout(() => ctrl.abort(), 30000);
+          const res = await fetch(`${urls["realtime"]}?since=${encodeURIComponent(since)}`, {
+            headers: { Authorization: `Bearer ${token}`, "X-Authorization": `Bearer ${token}` },
+            signal: ctrl.signal,
+          });
+          clearTimeout(timeoutId);
+          if (cancelled) break;
+          if (!res.ok) {
+            await new Promise(r => setTimeout(r, 3000));
+            continue;
+          }
+          const data = await res.json();
+          if (data.now) since = data.now;
+          const events: Array<{ kind: string }> = data.events || [];
+          if (events.length > 0) {
+            // Уведомления и платежи — заставляем перечитать стандартный endpoint
+            const hasNotif = events.some(e => e.kind === "notification" || e.kind === "payment_request");
+            if (hasNotif) {
+              poll();
+            }
+            // Сообщения — кидаем кастомное событие, ChatWindow его слушает
+            const msgEvents = events.filter(e => e.kind === "message");
+            if (msgEvents.length > 0) {
+              window.dispatchEvent(new CustomEvent("realtime:message", { detail: msgEvents }));
+            }
+          }
+        } catch {
+          if (cancelled) break;
+          await new Promise(r => setTimeout(r, 2000));
+        }
+      }
+    }
+    realtimeLoop();
+
     // Перезапрашиваем при возврате на вкладку
     function onVisibility() {
       if (document.visibilityState === "visible") poll();
@@ -319,6 +362,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("focus", poll);
     return () => {
+      cancelled = true;
       clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("focus", poll);
