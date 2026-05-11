@@ -668,7 +668,7 @@ export function CalendarSection({ contacts, t, debts, rentals = [], userId = 0 }
 }
 
 // ─── Section: Notifications ───────────────────────────────────────────────────
-export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, token = "", onOpenChat, onOpenSupport }: {
+export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, token = "", onOpenChat, onOpenSupport, onPaymentAccepted }: {
   notifs: Notification[];
   onMarkAllRead: () => void;
   onMarkRead: (id: number) => void;
@@ -676,6 +676,7 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
   token?: string;
   onOpenChat?: (debtId: string | undefined, rentalId: number | undefined, title: string) => void;
   onOpenSupport?: (ticketId: number) => void;
+  onPaymentAccepted?: (debtId: string, newAmount: number, fullyPaid: boolean) => void;
 }) {
   const [replyText, setReplyText] = useState<Record<number, string>>({});
   const [sending, setSending] = useState<number | null>(null);
@@ -694,8 +695,16 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
         body: JSON.stringify({ payment_request_id: n.paymentRequestMeta.paymentRequestId, decision }),
       });
       if (res.ok) {
+        const data = await res.json().catch(() => ({}));
         setDecidedPay(prev => ({ ...prev, [n.id]: decision }));
         onMarkRead(n.id);
+        if (decision === "accepted" && onPaymentAccepted && n.paymentRequestMeta) {
+          onPaymentAccepted(
+            n.paymentRequestMeta.debtId,
+            typeof data.new_amount === "number" ? data.new_amount : 0,
+            Boolean(data.fully_paid),
+          );
+        }
       }
     } finally { setDecidingPay(null); }
   }

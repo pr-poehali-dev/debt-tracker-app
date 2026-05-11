@@ -380,24 +380,55 @@ def handler(event: dict, context) -> dict:
                 lender_name = (cur.fetchone() or ["Кредитор"])[0]
                 emoji = "✅" if decision == "accepted" else "❌"
                 status_text = "принял" if decision == "accepted" else "отклонил"
+                notif_data_payload = {"debt_id": str(debt_id), "decision": decision, "amount": float(amount)}
+                # Если кредитор подтвердил возврат — частичное или полное погашение
+                new_amount = None
+                fully_paid = False
+                if decision == "accepted":
+                    cur.execute(
+                        f"SELECT amount FROM {SCHEMA}.debts WHERE id = %s AND lender_user_id = %s",
+                        (debt_id, user_id)
+                    )
+                    cur_row = cur.fetchone()
+                    if cur_row:
+                        current_amount = float(cur_row[0])
+                        remaining = round(current_amount - float(amount), 2)
+                        if remaining <= 0.009:
+                            fully_paid = True
+                            cur.execute(
+                                f"""UPDATE {SCHEMA}.debts SET status = 'archived', updated_at = NOW()
+                                    WHERE id = %s AND lender_user_id = %s""",
+                                (debt_id, user_id)
+                            )
+                            new_amount = 0.0
+                        else:
+                            cur.execute(
+                                f"""UPDATE {SCHEMA}.debts SET amount = %s, updated_at = NOW()
+                                    WHERE id = %s AND lender_user_id = %s""",
+                                (remaining, debt_id, user_id)
+                            )
+                            new_amount = remaining
+                if new_amount is not None:
+                    notif_data_payload["new_amount"] = new_amount
+                    notif_data_payload["fully_paid"] = fully_paid
+                if decision == "accepted":
+                    if fully_paid:
+                        body_text = f"«{title}» — погашен полностью ({float(amount):,.0f} ₽)".replace(",", " ")
+                    else:
+                        body_text = f"«{title}» — {float(amount):,.0f} ₽, остаток {new_amount:,.0f} ₽".replace(",", " ")
+                else:
+                    body_text = f"«{title}» — {float(amount):,.0f} ₽".replace(",", " ")
                 cur.execute(
                     f"""INSERT INTO {SCHEMA}.notifications (user_id, type, title, body, data)
                         VALUES (%s, 'payment_response', %s, %s, %s)""",
                     (from_user_id,
                      f"{emoji} {lender_name} {status_text} платёж",
-                     f"«{title}» — {float(amount):,.0f} ₽".replace(",", " "),
-                     json.dumps({"debt_id": str(debt_id), "decision": decision, "amount": float(amount)}))
+                     body_text,
+                     json.dumps(notif_data_payload))
                 )
-                # Если кредитор подтвердил возврат — архивируем долг
-                if decision == "accepted":
-                    cur.execute(
-                        f"""UPDATE {SCHEMA}.debts SET status = 'archived', updated_at = NOW()
-                            WHERE id = %s AND lender_user_id = %s""",
-                        (debt_id, user_id)
-                    )
-            send_push(conn, from_user_id, f"{emoji} {lender_name} {status_text} платёж", f"«{title}» — {float(amount):,.0f} ₽".replace(",", " "), "/?section=notifications")
+            send_push(conn, from_user_id, f"{emoji} {lender_name} {status_text} платёж", body_text, "/?section=notifications")
             conn.commit()
-        return json_resp({"ok": True})
+        return json_resp({"ok": True, "new_amount": new_amount, "fully_paid": fully_paid})
 
     # GET ?action=pay&debt_id=UUID — запросы на оплату по долгу
     if method == "GET" and qs.get("action") == "pay":

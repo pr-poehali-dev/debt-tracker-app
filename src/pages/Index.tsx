@@ -242,6 +242,27 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
               let resolvedType: Notification["type"] = "info";
               if (ntype === "rental_decision" || ntype === "payment_response") {
                 resolvedType = String(data.decision) === "accepted" ? "success" : "warning";
+                if (ntype === "payment_response" && String(data.decision) === "accepted") {
+                  const pDebtId = String(data.debt_id || "");
+                  const newAmt = Number(data.new_amount);
+                  const fully = Boolean(data.fully_paid);
+                  if (pDebtId) {
+                    if (fully) {
+                      setBorrowedDebts(prev => {
+                        const debt = prev.find(d => d.debtDbId === pDebtId);
+                        if (debt) {
+                          const updated = { ...debt, amount: 0, status: "paid" as const };
+                          setArchiveDebts(a => [updated, ...a]);
+                        }
+                        return prev.filter(d => d.debtDbId !== pDebtId);
+                      });
+                      setLentDebts(prev => prev.filter(d => d.debtDbId !== pDebtId));
+                    } else if (!Number.isNaN(newAmt)) {
+                      setBorrowedDebts(prev => prev.map(d => d.debtDbId === pDebtId ? { ...d, amount: newAmt } : d));
+                      setLentDebts(prev => prev.map(d => d.debtDbId === pDebtId ? { ...d, amount: newAmt } : d));
+                    }
+                  }
+                }
               } else if (ntype === "payment_request") {
                 resolvedType = "info";
               } else if (ntype === "debt_deleted") {
@@ -641,6 +662,21 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
     });
   }
 
+  function handlePaymentAccepted(debtDbId: string, newAmount: number, fullyPaid: boolean) {
+    if (fullyPaid) {
+      const debt = [...lentDebts, ...borrowedDebts].find(d => d.debtDbId === debtDbId);
+      if (debt) {
+        const updated = { ...debt, amount: 0, status: "paid" as const };
+        setLentDebts(prev => prev.filter(d => d.debtDbId !== debtDbId));
+        setBorrowedDebts(prev => prev.filter(d => d.debtDbId !== debtDbId));
+        setArchiveDebts(prev => [updated, ...prev]);
+      }
+      return;
+    }
+    setLentDebts(prev => prev.map(d => d.debtDbId === debtDbId ? { ...d, amount: newAmount } : d));
+    setBorrowedDebts(prev => prev.map(d => d.debtDbId === debtDbId ? { ...d, amount: newAmount } : d));
+  }
+
   async function handleDeleteDebt(debtDbId: string) {
     const { default: urls } = await import("../../backend/func2url.json");
     const debt = [...lentDebts, ...borrowedDebts].find(d => d.debtDbId === debtDbId);
@@ -805,7 +841,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
           {section === "lent"          && <DebtList debts={lentDebts} dir="lent" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => setActiveChat({ debtId: id, title })} onMarkPaid={handleMarkPaid} onDeleteDebt={handleDeleteDebt} onAddNew={() => setShowNewDebt(true)} token={token} />}
           {section === "borrowed"      && <DebtList debts={borrowedDebts} dir="borrowed" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => setActiveChat({ debtId: id, title })} onMarkPaid={handleMarkPaid} onDeleteDebt={handleDeleteDebt} onAddNew={() => setShowPersonalLoan(true)} personalLoans={personalLoans} onPersonalLoanUpdate={(loans) => { setPersonalLoans(loans); localStorage.setItem("df-personal-loans", JSON.stringify(loans)); }} token={token} />}
           {section === "calendar"      && <CalendarSection contacts={contacts} t={t} debts={[...lentDebts, ...borrowedDebts]} rentals={rentals} userId={user.id} />}
-          {section === "notifications" && <NotificationsSection notifs={notifs} onMarkAllRead={handleMarkAllRead} onMarkRead={handleMarkRead} t={t} token={token} onOpenChat={(debtId, rentalId, title) => setActiveChat({ debtId: debtId || undefined, rentalId: rentalId || undefined, title })} onOpenSupport={(ticketId) => { setSupportTicketId(ticketId); setShowSupport(true); }} />}
+          {section === "notifications" && <NotificationsSection notifs={notifs} onMarkAllRead={handleMarkAllRead} onMarkRead={handleMarkRead} t={t} token={token} onOpenChat={(debtId, rentalId, title) => setActiveChat({ debtId: debtId || undefined, rentalId: rentalId || undefined, title })} onOpenSupport={(ticketId) => { setSupportTicketId(ticketId); setShowSupport(true); }} onPaymentAccepted={handlePaymentAccepted} />}
           {section === "archive"       && <ArchiveSection contacts={contacts} t={t} locale={locale} archiveDebts={archiveDebts} />}
           {section === "rental"        && <RentalSection userId={user.id} token={token} myName={profile.name} isDemo={isDemo} openNew={showNewRental} onNewClose={() => setShowNewRental(false)} t={t} />}
           {section === "contacts"      && <ContactsSection contacts={contacts} onColorChange={handleColorChange} t={t} />}
