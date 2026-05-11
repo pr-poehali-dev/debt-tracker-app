@@ -50,31 +50,59 @@ def send_push_notification(conn, recipient_user_id, title, body_text, url=None, 
         from pywebpush import webpush, WebPushException
         vapid_private = os.environ.get("VAPID_PRIVATE_KEY", "")
         vapid_public = os.environ.get("VAPID_PUBLIC_KEY", "")
-        if not vapid_private or not vapid_public:
+        if not vapid_private or not vapid_public or not recipient_user_id:
+            print(f"[push] skip: no vapid keys or user_id (user={recipient_user_id})")
             return
         with conn.cursor() as cur:
             cur.execute(
-                f"SELECT endpoint, p256dh, auth_key FROM {SCHEMA}.push_subscriptions WHERE user_id = %s",
+                f"SELECT id, endpoint, p256dh, auth_key FROM {SCHEMA}.push_subscriptions WHERE user_id = %s",
                 (recipient_user_id,)
             )
             subs = cur.fetchall()
+        if not subs:
+            print(f"[push] no subscriptions for user_id={recipient_user_id}")
+            return
         payload = {"title": title, "body": body_text}
         if url:
             payload["url"] = url
         if tag:
             payload["tag"] = tag
-        for endpoint, p256dh, auth_key in subs:
+        sent, removed, failed = 0, 0, 0
+        dead_ids = []
+        for sub_id, endpoint, p256dh, auth_key in subs:
             try:
                 webpush(
                     subscription_info={"endpoint": endpoint, "keys": {"p256dh": p256dh, "auth": auth_key}},
-                    data=json.dumps(payload),
+                    data=json.dumps(payload, ensure_ascii=False),
                     vapid_private_key=vapid_private,
-                    vapid_claims={"sub": "mailto:noreply@debt-debt.ru"}
+                    vapid_claims={"sub": "mailto:noreply@debt-debt.ru"},
+                    timeout=10,
                 )
-            except WebPushException:
-                pass
-    except Exception:
-        pass
+                sent += 1
+            except WebPushException as e:
+                status = getattr(getattr(e, "response", None), "status_code", None)
+                if status in (404, 410):
+                    dead_ids.append(sub_id)
+                    removed += 1
+                else:
+                    failed += 1
+                    print(f"[push] WebPushException user={recipient_user_id} sub={sub_id} status={status}: {e}")
+            except Exception as e:
+                failed += 1
+                print(f"[push] error user={recipient_user_id} sub={sub_id}: {e}")
+        if dead_ids:
+            try:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        f"DELETE FROM {SCHEMA}.push_subscriptions WHERE id = ANY(%s)",
+                        (dead_ids,)
+                    )
+                conn.commit()
+            except Exception as e:
+                print(f"[push] failed to remove dead subs: {e}")
+        print(f"[push] user={recipient_user_id} sent={sent} removed={removed} failed={failed}")
+    except Exception as e:
+        print(f"[push] fatal: {e}")
 
 def handler(event: dict, context) -> dict:
     if event.get("httpMethod") == "OPTIONS":

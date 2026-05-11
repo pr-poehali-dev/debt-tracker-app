@@ -22,30 +22,57 @@ def cors_headers():
 
 def send_push(conn, user_id, title, body_text, url="/"):
     try:
-        from pywebpush import webpush
+        from pywebpush import webpush, WebPushException
         vapid_private = os.environ.get("VAPID_PRIVATE_KEY", "")
         if not vapid_private or not user_id:
+            print(f"[push] skip: no vapid or user_id (user={user_id})")
             return False
         with conn.cursor() as cur:
             cur.execute(
-                f"SELECT endpoint, p256dh, auth_key FROM {SCHEMA}.push_subscriptions WHERE user_id = %s",
+                f"SELECT id, endpoint, p256dh, auth_key FROM {SCHEMA}.push_subscriptions WHERE user_id = %s",
                 (int(user_id),)
             )
             subs = cur.fetchall()
-        ok = False
-        for endpoint, p256dh, auth_key in subs:
+        if not subs:
+            print(f"[push] no subscriptions for user_id={user_id}")
+            return False
+        sent, removed, failed = 0, 0, 0
+        dead_ids = []
+        for sub_id, endpoint, p256dh, auth_key in subs:
             try:
                 webpush(
                     subscription_info={"endpoint": endpoint, "keys": {"p256dh": p256dh, "auth": auth_key}},
                     data=json.dumps({"title": title, "body": body_text, "url": url}, ensure_ascii=False),
                     vapid_private_key=vapid_private,
-                    vapid_claims={"sub": "mailto:noreply@debt-debt.ru"}
+                    vapid_claims={"sub": "mailto:noreply@debt-debt.ru"},
+                    timeout=10,
                 )
-                ok = True
-            except Exception:
-                pass
-        return ok
-    except Exception:
+                sent += 1
+            except WebPushException as e:
+                status = getattr(getattr(e, "response", None), "status_code", None)
+                if status in (404, 410):
+                    dead_ids.append(sub_id)
+                    removed += 1
+                else:
+                    failed += 1
+                    print(f"[push] WebPushException user={user_id} sub={sub_id} status={status}: {e}")
+            except Exception as e:
+                failed += 1
+                print(f"[push] error user={user_id} sub={sub_id}: {e}")
+        if dead_ids:
+            try:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        f"DELETE FROM {SCHEMA}.push_subscriptions WHERE id = ANY(%s)",
+                        (dead_ids,)
+                    )
+                conn.commit()
+            except Exception as e:
+                print(f"[push] failed to remove dead subs: {e}")
+        print(f"[push] user={user_id} sent={sent} removed={removed} failed={failed}")
+        return sent > 0
+    except Exception as e:
+        print(f"[push] fatal: {e}")
         return False
 
 
