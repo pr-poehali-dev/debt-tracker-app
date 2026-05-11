@@ -1393,7 +1393,7 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
         });
         const data = await r.json();
         if (!r.ok) {
-          setProfileError(data.error || "Не удалось сохранить");
+          setProfileError(data.error || t.profileSaveError);
           setSavingProfile(false);
           return;
         }

@@ -201,6 +201,7 @@ const translations = {
     soundOff: "Звук отключён",
     profilePlaceholderName: "Иван Иванов",
     networkUnavailable: "Сеть недоступна. Попробуйте ещё раз",
+    profileSaveError: "Не удалось сохранить",
     // NewDebtModal — карточка/общее
     qrCodeTitle: "QR-код долга",
     sendToBorrower: "Отправьте должнику для подтверждения",
@@ -474,6 +475,7 @@ const translations = {
     soundOff: "Sound is off",
     profilePlaceholderName: "John Smith",
     networkUnavailable: "Network unavailable. Please try again",
+    profileSaveError: "Couldn't save",
     // NewDebtModal — card/general
     qrCodeTitle: "Debt QR code",
     sendToBorrower: "Send it to the borrower for confirmation",
