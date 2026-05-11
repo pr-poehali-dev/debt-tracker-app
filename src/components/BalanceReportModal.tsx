@@ -79,16 +79,25 @@ export default function BalanceReportModal({ onClose, lentDebts, borrowedDebts, 
   const dragStartY = useRef<number | null>(null);
   const [dragY, setDragY] = useState(0);
 
+  const dragStartT = useRef<number>(0);
   function handleTouchStart(e: React.TouchEvent) {
     dragStartY.current = e.touches[0].clientY;
+    dragStartT.current = Date.now();
   }
   function handleTouchMove(e: React.TouchEvent) {
     if (dragStartY.current === null) return;
     const delta = e.touches[0].clientY - dragStartY.current;
     if (delta > 0) setDragY(delta);
   }
-  function handleTouchEnd() {
+  function handleTouchEnd(e: React.TouchEvent) {
+    const startY = dragStartY.current;
+    const endY = e.changedTouches[0]?.clientY ?? 0;
+    const dy = startY === null ? 0 : endY - startY;
+    const dt = Date.now() - dragStartT.current;
     if (dragY > 120) {
+      onClose();
+    } else if (dy < -70 && dt < 600) {
+      // свайп снизу-вверх — закрыть
       onClose();
     } else {
       setDragY(0);
@@ -102,6 +111,9 @@ export default function BalanceReportModal({ onClose, lentDebts, borrowedDebts, 
       <div
         ref={sheetRef}
         className="relative w-full sm:max-w-md glass overflow-hidden flex flex-col sm:rounded-3xl animate-fade-in"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
         style={{
           background: "var(--app-bg)",
           transform: dragY > 0 ? `translateY(${dragY}px)` : undefined,
@@ -109,10 +121,7 @@ export default function BalanceReportModal({ onClose, lentDebts, borrowedDebts, 
         }}
       >
         <div
-          className="flex items-center justify-between px-4 py-4 border-b border-white/5 touch-none"
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
+          className="flex items-center justify-between px-4 py-4 border-b border-white/5"
         >
           <div className="absolute top-1.5 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full bg-white/20" />
           <div className="w-9 h-9" />
