@@ -4,7 +4,6 @@ import QRCode from "qrcode";
 import Icon from "@/components/ui/icon";
 import { fmt } from "@/components/index/types";
 import ChatWindow from "@/components/ChatWindow";
-import PayButton from "@/components/PayButton";
 import { type getT } from "@/i18n";
 import func2url from "../../backend/func2url.json";
 
@@ -293,17 +292,6 @@ function RentalCard({ rental, userId, token, onUpdate, onDelete, t }: { rental: 
               </span>
             </button>
           </div>
-          {!isLandlord && rental.tenant_decision === "accepted" && token && (
-            <PayButton
-              token={token}
-              amount={rental.amount}
-              description={`Аренда: ${rental.title}`}
-              targetType="rental"
-              targetId={rental.id}
-              targetMonth={new Date().toISOString().slice(0, 7)}
-              label={`${t?.pay ?? "Оплатить"} ${fmt(rental.amount)}`}
-            />
-          )}
           <button
             onClick={() => setConfirmPay(true)}
             className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all flex items-center justify-center gap-2"

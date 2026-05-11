@@ -5,7 +5,6 @@ import ChatWindow from "@/components/ChatWindow";
 import RentalSection, { RentalInviteModal } from "@/components/RentalSection";
 import PersonalLoanModal, { type PersonalLoan } from "@/components/PersonalLoanModal";
 import SupportModal from "@/components/SupportModal";
-import PaymentsHistory from "@/components/PaymentsHistory";
 import BalanceReportModal from "@/components/BalanceReportModal";
 import { type Lang, getT } from "@/i18n";
 import {
@@ -43,7 +42,6 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
   const [activeChat, setActiveChat] = useState<{ debtId?: string; rentalId?: number; title: string } | null>(null);
   const [showSupport, setShowSupport] = useState(false);
   const [supportTicketId, setSupportTicketId] = useState<number | null>(null);
-  const [showPayments, setShowPayments] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [notifs, setNotifs] = useState<Notification[]>([]);
   const audioCtxRef = { current: null as AudioContext | null };
@@ -413,35 +411,6 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
     return () => clearInterval(iv);
   }, [isDemo, token]);
 
-  // Возврат с Robokassa — показываем уведомление и чистим URL
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const status = params.get("payment");
-    if (!status) return;
-    if (status === "success") {
-      setNotifs(prev => [{
-        id: Date.now() + Math.random(),
-        type: "success" as const,
-        title: "💳 Платёж прошёл",
-        message: "Оплата зачислена. Долг обновится после подтверждения банка (1–2 минуты).",
-        date: new Date().toLocaleDateString("ru-RU"),
-        read: false,
-      }, ...prev]);
-    } else if (status === "fail") {
-      setNotifs(prev => [{
-        id: Date.now() + Math.random(),
-        type: "danger" as const,
-        title: "Платёж не прошёл",
-        message: "Попробуйте оплатить ещё раз.",
-        date: new Date().toLocaleDateString("ru-RU"),
-        read: false,
-      }, ...prev]);
-    }
-    params.delete("payment");
-    const newUrl = window.location.pathname + (params.toString() ? "?" + params.toString() : "");
-    window.history.replaceState({}, "", newUrl);
-  }, []);
-
   // Web Push подписка — запрашиваем разрешение и подписываемся
   useEffect(() => {
     if (isDemo) return;
@@ -648,7 +617,6 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
         }} />
       )}
       {showSupport && !isDemo && <SupportModal token={token} isAdmin={user.phone.replace(/\D/g, "") === "79680066666"} initialTicketId={supportTicketId ?? undefined} onClose={() => { setShowSupport(false); setSupportTicketId(null); }} />}
-      {showPayments && !isDemo && <PaymentsHistory token={token} onClose={() => setShowPayments(false)} />}
       {showReport && (
         <BalanceReportModal
           onClose={() => setShowReport(false)}
@@ -734,7 +702,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
           {section === "archive"       && <ArchiveSection contacts={contacts} t={t} locale={locale} archiveDebts={archiveDebts} />}
           {section === "rental"        && <RentalSection userId={user.id} token={token} myName={profile.name} isDemo={isDemo} openNew={showNewRental} onNewClose={() => setShowNewRental(false)} t={t} />}
           {section === "contacts"      && <ContactsSection contacts={contacts} onColorChange={handleColorChange} t={t} />}
-          {section === "settings"      && <SettingsSection theme={theme} onThemeChange={setTheme} profile={profile} onProfileChange={handleProfileChange} t={t} lang={lang} onLangChange={handleLangChange} onLogout={onLogout} isDemo={isDemo} onOpenSupport={() => setShowSupport(true)} onOpenPayments={() => setShowPayments(true)} token={token} authUrl={func2url.auth} />}
+          {section === "settings"      && <SettingsSection theme={theme} onThemeChange={setTheme} profile={profile} onProfileChange={handleProfileChange} t={t} lang={lang} onLangChange={handleLangChange} onLogout={onLogout} isDemo={isDemo} onOpenSupport={() => setShowSupport(true)} token={token} authUrl={func2url.auth} />}
         </div>
       </main>
 

@@ -187,7 +187,6 @@ const translations = {
     profileFillPhone: "Введите телефон",
     // Settings bottom buttons
     adminPanel: "Админ-панель",
-    paymentsHistory: "История платежей",
     signOut: "Выйти из аккаунта",
     deleteAccount: "Удалить аккаунт",
     register: "Зарегистрироваться",
@@ -328,11 +327,6 @@ const translations = {
     archiveSearchPlaceholder: "Поиск по имени или названию займа",
     archiveDeletedTab: "Удалённые",
     archiveReturnedTab: "Возвращённые",
-    // PayButton
-    payNotConnected: "Оплата ещё не подключена",
-    payCreateError: "Не удалось создать платёж",
-    payLinkMissing: "Платёжная ссылка не получена",
-    payError: "Ошибка платежа",
   },
 
   en: {
@@ -516,7 +510,6 @@ const translations = {
     profileFillPhone: "Enter phone number",
     // Settings bottom buttons
     adminPanel: "Admin panel",
-    paymentsHistory: "Payment history",
     signOut: "Sign out",
     deleteAccount: "Delete account",
     register: "Sign up",
@@ -657,11 +650,6 @@ const translations = {
     archiveSearchPlaceholder: "Search by name or loan title",
     archiveDeletedTab: "Deleted",
     archiveReturnedTab: "Returned",
-    // PayButton
-    payNotConnected: "Payments are not connected yet",
-    payCreateError: "Couldn't create payment",
-    payLinkMissing: "Payment link not received",
-    payError: "Payment error",
   },
 } as const;
 

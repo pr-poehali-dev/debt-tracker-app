@@ -7,7 +7,6 @@ import { Avatar, ColorPicker, StatusBadge, NotifIcon } from "./SharedComponents"
 import { type PersonalLoan } from "@/components/PersonalLoanModal";
 import ExtraPaymentModal from "@/components/ExtraPaymentModal";
 import { computeSchedule } from "@/lib/loanSchedule";
-import PayButton from "@/components/PayButton";
 import ManualReturnModal from "@/components/ManualReturnModal";
 
 // ─── Section: DebtList ────────────────────────────────────────────────────────
@@ -257,10 +256,11 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                       <button
                         onClick={e => { e.stopPropagation(); setManualReturn(d); }}
                         title={t.returnedOutside}
-                        className="inline-flex items-center justify-center w-8 h-8 rounded-lg transition-all active:scale-95"
-                        style={{ background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.3)" }}
+                        className="inline-flex items-center justify-center gap-1.5 h-8 px-3 rounded-lg transition-all active:scale-95 text-xs font-medium"
+                        style={{ background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.3)", color: "#4ade80" }}
                       >
-                        <Icon name="HandCoins" size={14} style={{ color: "#4ade80" }} />
+                        <Icon name="HandCoins" size={14} />
+                        <span className="whitespace-nowrap">{t.returnedOutside}</span>
                       </button>
                     )}
                     {dir === "lent" && d.debtDbId && d.status !== "paid" && onDeleteDebt && (
@@ -283,19 +283,7 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                         <Icon name="Trash2" size={14} style={{ color: "#f87171" }} />
                       </button>
                     )}
-                    {dir === "borrowed" && d.debtDbId && d.status !== "paid" && token && (
-                      <div onClick={e => e.stopPropagation()}>
-                        <PayButton
-                          token={token}
-                          amount={d.interestRate ? calcTotalWithInterest(d.amount, d.interestRate, d.interestType || "simple", d.dueDate) : d.amount}
-                          description={`Возврат долга: ${d.name}` /* TODO: i18n */}
-                          targetType="debt"
-                          targetId={d.debtDbId}
-                          size="sm"
-                          label={t.pay}
-                        />
-                      </div>
-                    )}
+
                   </div>
                 </div>
               </div>
@@ -373,26 +361,13 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                   </div>
                 </div>
 
-                {/* Кнопки оплаты */}
-                <div className="grid grid-cols-2 gap-2">
-                  <button onClick={() => setExtraLoan(loan)}
-                    className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
-                    style={{ background: "linear-gradient(135deg, #38bdf8, #0ea5e9)" }}>
-                    <Icon name="Wallet" size={16} />
-                    {t.deposit}
-                  </button>
-                  {token && sched.currentMonthly > 0 && (
-                    <PayButton
-                      token={token}
-                      amount={sched.currentMonthly}
-                      description={`Платёж по займу: ${loan.title}` /* TODO: i18n */}
-                      targetType="loan"
-                      targetId={loan.id}
-                      label={`${t.pay} ${sched.currentMonthly.toLocaleString("ru-RU")} ₽`}
-                      className="w-full"
-                    />
-                  )}
-                </div>
+                {/* Кнопка досрочного платежа */}
+                <button onClick={() => setExtraLoan(loan)}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
+                  style={{ background: "linear-gradient(135deg, #38bdf8, #0ea5e9)" }}>
+                  <Icon name="Wallet" size={16} />
+                  {t.deposit}
+                </button>
 
                 {/* Список досрочных платежей */}
                 {extras.length > 0 && (
@@ -1294,7 +1269,7 @@ export function Dashboard({ onNav, contacts, t, lentDebts, borrowedDebts, active
 }
 
 // ─── Section: Settings ────────────────────────────────────────────────────────
-export function SettingsSection({ theme, onThemeChange, profile, onProfileChange, t, lang, onLangChange, onLogout, isDemo, onOpenSupport, onOpenPayments, token, authUrl }: {
+export function SettingsSection({ theme, onThemeChange, profile, onProfileChange, t, lang, onLangChange, onLogout, isDemo, onOpenSupport, token, authUrl }: {
   theme: Theme;
   onThemeChange: (t: Theme) => void;
   profile: { name: string; phone: string; email: string };
@@ -1305,7 +1280,6 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
   onLogout: () => void;
   isDemo?: boolean;
   onOpenSupport?: () => void;
-  onOpenPayments?: () => void;
   token?: string;
   authUrl?: string;
 }) {
@@ -1608,16 +1582,6 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
         >
           <Icon name="ShieldCheck" size={16} />
           {t.adminPanel}
-        </button>
-      )}
-
-      {!isDemo && onOpenPayments && (
-        <button
-          onClick={onOpenPayments}
-          className="w-full py-3 rounded-2xl glass border border-amber-500/20 text-amber-400 hover:bg-amber-500/10 transition-all font-medium flex items-center justify-center gap-2"
-        >
-          <Icon name="Receipt" size={16} />
-          {t.paymentsHistory}
         </button>
       )}
 
