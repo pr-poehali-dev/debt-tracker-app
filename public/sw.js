@@ -1,4 +1,4 @@
-const CACHE_NAME = 'debtflow-v6';
+const CACHE_NAME = 'debtflow-v7';
 const STATIC_ASSETS = [
   '/manifest.json',
 ];
