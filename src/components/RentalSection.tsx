@@ -342,12 +342,14 @@ function RentalCard({ rental, userId, token, onUpdate, onDelete, t }: { rental: 
             </>
           )}
         </div>
-        <button onClick={() => setConfirmDelete(true)}
-          className="w-9 h-9 rounded-xl flex items-center justify-center transition-all hover:opacity-70"
-          style={{ background: "rgba(244,63,94,0.1)", border: "1px solid rgba(244,63,94,0.2)" }}
-          title={isLandlord ? "Удалить аренду" : "Покинуть"}>
-          <Icon name={isLandlord ? "Trash2" : "LogOut"} size={14} style={{ color: "#fb7185" }} />
-        </button>
+        {isLandlord && (
+          <button onClick={() => setConfirmDelete(true)}
+            className="w-9 h-9 rounded-xl flex items-center justify-center transition-all hover:opacity-70"
+            style={{ background: "rgba(244,63,94,0.1)", border: "1px solid rgba(244,63,94,0.2)" }}
+            title="Удалить аренду">
+            <Icon name="Trash2" size={14} style={{ color: "#fb7185" }} />
+          </button>
+        )}
       </div>
 
       {showChat && (
@@ -359,10 +361,10 @@ function RentalCard({ rental, userId, token, onUpdate, onDelete, t }: { rental: 
         />
       )}
 
-      {confirmDelete ? (
+      {confirmDelete && isLandlord ? (
         <div className="rounded-xl p-3 space-y-2" style={{ background: "rgba(244,63,94,0.08)", border: "1px solid rgba(244,63,94,0.2)" }}>
           <p className="text-xs text-center text-muted-foreground">
-            {isLandlord ? "Удалить аренду безвозвратно?" : "Покинуть эту аренду?"}
+            Удалить аренду безвозвратно?
           </p>
           <div className="flex gap-2">
             <button onClick={() => setConfirmDelete(false)}
@@ -373,7 +375,7 @@ function RentalCard({ rental, userId, token, onUpdate, onDelete, t }: { rental: 
             <button onClick={() => onDelete(rental.share_token)}
               className="flex-1 py-1.5 rounded-lg text-xs font-medium text-white"
               style={{ background: "#f43f5e" }}>
-              {isLandlord ? "Удалить" : "Покинуть"}
+              Удалить
             </button>
           </div>
         </div>
