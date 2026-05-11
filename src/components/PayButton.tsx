@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
+import { getT, type Lang } from "@/i18n";
 
 interface Props {
   token: string;
@@ -12,6 +13,12 @@ interface Props {
   size?: "sm" | "md";
   label?: string;
   onSuccess?: () => void;
+}
+
+function currentT() {
+  const saved = localStorage.getItem("df-lang");
+  const lang: Lang = saved === "en" ? "en" : "ru";
+  return { t: getT(lang), lang };
 }
 
 export default function PayButton({
@@ -28,6 +35,7 @@ export default function PayButton({
 }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { t, lang } = currentT();
 
   async function pay() {
     setLoading(true);
@@ -35,7 +43,7 @@ export default function PayButton({
     try {
       const urls = (await import("../../backend/func2url.json")).default as Record<string, string>;
       if (!urls["payments"]) {
-        setError("Оплата ещё не подключена");
+        setError(t.payNotConnected);
         return;
       }
       const origin = window.location.origin;
@@ -53,8 +61,8 @@ export default function PayButton({
         }),
       });
       if (!res.ok) {
-        const t = await res.text();
-        setError(t || "Не удалось создать платёж");
+        const msg = await res.text();
+        setError(msg || t.payCreateError);
         return;
       }
       const data = await res.json();
@@ -62,10 +70,10 @@ export default function PayButton({
         onSuccess?.();
         window.location.href = data.payment_url;
       } else {
-        setError("Платёжная ссылка не получена");
+        setError(t.payLinkMissing);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Ошибка платежа");
+      setError(e instanceof Error ? e.message : t.payError);
     } finally {
       setLoading(false);
     }
@@ -85,7 +93,7 @@ export default function PayButton({
           ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
           : <Icon name="CreditCard" size={size === "sm" ? 12 : 14} />
         }
-        {label || `Оплатить ${amount.toLocaleString("ru-RU")} ₽`}
+        {label || `${t.pay} ${amount.toLocaleString(lang === "en" ? "en-US" : "ru-RU")} ₽`}
       </button>
       {error && <p className="text-[11px] text-red-400">{error}</p>}
     </div>

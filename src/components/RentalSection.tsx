@@ -5,6 +5,7 @@ import Icon from "@/components/ui/icon";
 import { fmt } from "@/components/index/types";
 import ChatWindow from "@/components/ChatWindow";
 import PayButton from "@/components/PayButton";
+import { type getT } from "@/i18n";
 import func2url from "../../backend/func2url.json";
 
 const CHAT_URL = func2url["chat"];
@@ -38,6 +39,7 @@ interface Props {
   isDemo: boolean;
   openNew?: boolean;
   onNewClose?: () => void;
+  t?: ReturnType<typeof getT>;
 }
 
 const DEMO_RENTALS: Rental[] = [
@@ -139,7 +141,7 @@ function PaymentCalendar({ rental, token, userId }: { rental: Rental; token: str
   );
 }
 
-function RentalCard({ rental, userId, token, onUpdate, onDelete }: { rental: Rental; userId: number; token: string; onUpdate: (token: string, body: Record<string, unknown>) => void; onDelete: (token: string) => void }) {
+function RentalCard({ rental, userId, token, onUpdate, onDelete, t }: { rental: Rental; userId: number; token: string; onUpdate: (token: string, body: Record<string, unknown>) => void; onDelete: (token: string) => void; t?: ReturnType<typeof getT> }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmPay, setConfirmPay] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
@@ -192,19 +194,19 @@ function RentalCard({ rental, userId, token, onUpdate, onDelete }: { rental: Ren
             </div>
             <span className="absolute -bottom-1 -right-1 text-[8px] font-bold px-1 py-0.5 rounded-full leading-none"
               style={{ background: roleColor.badge, color: roleColor.badgeText, border: `1px solid ${roleColor.border}` }}>
-              {isLandlord ? "сдаю" : "снимаю"}
+              {isLandlord ? (t?.rentalAsLandlord ?? "Сдаю") : (t?.rentalAsTenant ?? "Снимаю")}
             </span>
           </div>
           <div className="min-w-0">
             <p className="font-semibold text-foreground truncate">{rental.title}</p>
             <p className="text-xs text-muted-foreground">
-              {isLandlord ? `Арендатор: ${rental.tenant_name || "—"}` : `Арендодатель: ${rental.landlord_name}`}
+              {isLandlord ? `${t?.rentalTenantLabel ?? "Арендатор"}: ${rental.tenant_name || "—"}` : `${t?.rentalLandlord ?? "Арендодатель"}: ${rental.landlord_name}`}
             </p>
           </div>
         </div>
         <div className="text-right flex-shrink-0">
           <p className="text-lg font-bold font-heading" style={{ color: roleColor.amount }}>{fmt(rental.amount)}</p>
-          <p className="text-xs text-muted-foreground">в месяц</p>
+          <p className="text-xs text-muted-foreground">{t?.perMonth ?? "в месяц"}</p>
         </div>
       </div>
 
@@ -253,11 +255,11 @@ function RentalCard({ rental, userId, token, onUpdate, onDelete }: { rental: Ren
               <Icon name="Check" size={16} style={{ color: "#4ade80" }} />
             </div>
             <div>
-              <p className="text-sm font-semibold" style={{ color: "#4ade80" }}>Оплачено в этом месяце</p>
+              <p className="text-sm font-semibold" style={{ color: "#4ade80" }}>{t?.paidThisMonth ?? "Оплачено в этом месяце"}</p>
             </div>
           </div>
           <button onClick={() => setShowCalendar(true)} className="text-[11px] text-teal-400 hover:opacity-70">
-            История
+            {t?.historyShort ?? "История"}
           </button>
         </div>
       ) : confirmPay ? (
@@ -299,7 +301,7 @@ function RentalCard({ rental, userId, token, onUpdate, onDelete }: { rental: Ren
               targetType="rental"
               targetId={rental.id}
               targetMonth={new Date().toISOString().slice(0, 7)}
-              label={`Оплатить картой ${fmt(rental.amount)}`}
+              label={`${t?.pay ?? "Оплатить"} ${fmt(rental.amount)}`}
             />
           )}
           <button
@@ -724,7 +726,7 @@ function checkAndNotify(rentals: Rental[], myName: string) {
   });
 }
 
-export default function RentalSection({ userId, token, myName, isDemo, openNew, onNewClose }: Props) {
+export default function RentalSection({ userId, token, myName, isDemo, openNew, onNewClose, t }: Props) {
   const [rentals, setRentals] = useState<Rental[]>(isDemo ? DEMO_RENTALS : []);
   const [showNew, setShowNew] = useState(false);
   const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">(
@@ -820,7 +822,7 @@ export default function RentalSection({ userId, token, myName, isDemo, openNew, 
         </div>
         <div className="space-y-3">
           {list.map(r => (
-            <RentalCard key={r.id} rental={r} userId={userId} token={token} onUpdate={handleUpdate} onDelete={handleDelete} />
+            <RentalCard key={r.id} rental={r} userId={userId} token={token} onUpdate={handleUpdate} onDelete={handleDelete} t={t} />
           ))}
         </div>
       </div>
@@ -868,8 +870,8 @@ export default function RentalSection({ userId, token, myName, isDemo, openNew, 
         </div>
       ) : (
         <div className="space-y-5">
-          <RentalGroup list={lendingOut} label="Сдаю" color="#c084fc" icon="KeyRound" />
-          <RentalGroup list={renting} label="Снимаю" color="#7dd3fc" icon="Home" />
+          <RentalGroup list={lendingOut} label={t?.rentalAsLandlord ?? "Сдаю"} color="#c084fc" icon="KeyRound" />
+          <RentalGroup list={renting} label={t?.rentalAsTenant ?? "Снимаю"} color="#7dd3fc" icon="Home" />
         </div>
       )}
 
@@ -877,7 +879,7 @@ export default function RentalSection({ userId, token, myName, isDemo, openNew, 
         <div className="space-y-2">
           <p className="text-xs text-muted-foreground font-medium px-1">Архив</p>
           {archived.map(r => (
-            <RentalCard key={r.id} rental={r} userId={userId} token={token} onUpdate={handleUpdate} onDelete={handleDelete} />
+            <RentalCard key={r.id} rental={r} userId={userId} token={token} onUpdate={handleUpdate} onDelete={handleDelete} t={t} />
           ))}
         </div>
       )}

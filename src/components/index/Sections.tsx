@@ -179,13 +179,13 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                   {d.deletedByLender && (
                     <p className="text-[11px] mt-1 flex items-center gap-1" style={{ color: "#f87171" }}>
                       <Icon name="Trash2" size={11} />
-                      <span className="truncate">{d.deletedByLenderName} удалил долг{/* TODO: i18n */}</span>
+                      <span className="truncate">{t.debtDeletedByLender}</span>
                     </p>
                   )}
                   {dir === "lent" && d.borrowerDismissed && (
                     <p className="text-[11px] mt-1 flex items-center gap-1" style={{ color: "#fb923c" }}>
                       <Icon name="EyeOff" size={11} />
-                      <span className="truncate">Должник удалил долг у себя{/* TODO: i18n */}</span>
+                      <span className="truncate">{t.debtDeletedByBorrower}</span>
                     </p>
                   )}
                   <div className="flex items-center gap-2 mt-0.5 flex-wrap">
@@ -196,15 +196,15 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                     {dir === "lent" && d.debtDbId && (
                       d.borrowerDecision === "accepted" ? (
                         <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium" style={{ background: "rgba(34,197,94,0.15)", color: "#4ade80" }}>
-                          <Icon name="CheckCircle" size={9} /> Подтверждено{/* TODO: i18n */}
+                          <Icon name="CheckCircle" size={9} /> {t.debtConfirmed}
                         </span>
                       ) : d.borrowerDecision === "rejected" ? (
                         <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium" style={{ background: "rgba(244,63,94,0.15)", color: "#fb7185" }}>
-                          <Icon name="XCircle" size={9} /> Отклонено{/* TODO: i18n */}
+                          <Icon name="XCircle" size={9} /> {t.debtDismissed}
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium" style={{ background: "rgba(245,158,11,0.15)", color: "#fbbf24" }}>
-                          <Icon name="Clock" size={9} /> Ожидает{/* TODO: i18n */}
+                          <Icon name="Clock" size={9} /> {t.debtAwaiting}
                         </span>
                       )
                     )}
@@ -227,17 +227,17 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                   {d.debtDbId && d.status !== "paid" && (() => {
                     const dec = d.borrowerDecision;
                     if (dec === "accepted") return (
-                      <span title="Подтверждён заёмщиком"/* TODO: i18n */ className="inline-flex items-center justify-center w-5 h-5 rounded-full" style={{ background: "rgba(34,197,94,0.15)", color: "#4ade80" }}>
+                      <span title={t.debtConfirmedTitle} className="inline-flex items-center justify-center w-5 h-5 rounded-full" style={{ background: "rgba(34,197,94,0.15)", color: "#4ade80" }}>
                         <Icon name="Check" size={12} />
                       </span>
                     );
                     if (dec === "rejected") return (
-                      <span title="Отклонён заёмщиком"/* TODO: i18n */ className="inline-flex items-center justify-center w-5 h-5 rounded-full" style={{ background: "rgba(239,68,68,0.15)", color: "#f87171" }}>
+                      <span title={t.debtRejectedTitle} className="inline-flex items-center justify-center w-5 h-5 rounded-full" style={{ background: "rgba(239,68,68,0.15)", color: "#f87171" }}>
                         <Icon name="X" size={12} />
                       </span>
                     );
                     return (
-                      <span title="Ожидает подтверждения"/* TODO: i18n */ className="inline-flex items-center justify-center w-5 h-5 rounded-full" style={{ background: "rgba(251,146,60,0.15)", color: "#fb923c" }}>
+                      <span title={t.debtAwaitingTitle} className="inline-flex items-center justify-center w-5 h-5 rounded-full" style={{ background: "rgba(251,146,60,0.15)", color: "#fb923c" }}>
                         <Icon name="Clock" size={11} />
                       </span>
                     );
@@ -292,7 +292,7 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                           targetType="debt"
                           targetId={d.debtDbId}
                           size="sm"
-                          label={"Оплатить"/* TODO: i18n */}
+                          label={t.pay}
                         />
                       </div>
                     )}
@@ -307,7 +307,7 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
       {/* Личные займы (только в разделе "Взятые") */}
       {dir === "borrowed" && personalLoans.length > 0 && (
         <div className="mt-4 space-y-3">
-          <p className="text-xs font-semibold text-muted-foreground px-1 uppercase tracking-wider">Личные займы{/* TODO: i18n */}</p>
+          <p className="text-xs font-semibold text-muted-foreground px-1 uppercase tracking-wider">{t.personalLoansTitle}</p>
           {personalLoans.map(loan => {
             const sched = computeSchedule(loan);
             const monthCount = sched.monthCount;
@@ -346,26 +346,26 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-foreground truncate">{loan.title}</p>
                     <p className="text-xs text-muted-foreground">
-                      {/* TODO: i18n */}Личный займ · {loan.notifyDay}-е число
+                      {t.personalLoan} · {t.loanPaidOnDay.replace("{day}", String(loan.notifyDay))}
                       {loan.interestRate ? ` · ${loan.interestRate}%` : ""}
                     </p>
                   </div>
                   <div className="text-right">
                     <p className="text-lg font-bold font-heading" style={{ color: "#7dd3fc" }}>{fmt(remaining > 0 ? remaining : 0)}</p>
-                    <p className="text-xs text-muted-foreground">осталось{/* TODO: i18n */}</p>
+                    <p className="text-xs text-muted-foreground">{t.remaining}</p>
                   </div>
                 </div>
 
                 {/* Платёж сейчас */}
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">Платёж в месяц{/* TODO: i18n */}</span>
+                  <span className="text-muted-foreground">{t.monthlyPayment}</span>
                   <span className="font-semibold text-foreground">{fmt(sched.currentMonthly)}</span>
                 </div>
 
                 {/* Прогресс */}
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>{/* TODO: i18n */}Оплачено {paid} из {monthCount} платежей</span>
+                    <span>{t.paidOfTotal.replace("{n}", String(paid)).replace("{total}", String(monthCount))}</span>
                     <span>{Math.round(paid / Math.max(1, monthCount) * 100)}%</span>
                   </div>
                   <div className="h-1.5 rounded-full bg-white/10">
@@ -379,7 +379,7 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                     className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
                     style={{ background: "linear-gradient(135deg, #38bdf8, #0ea5e9)" }}>
                     <Icon name="Wallet" size={16} />
-                    {/* TODO: i18n */}Внести
+                    {t.deposit}
                   </button>
                   {token && sched.currentMonthly > 0 && (
                     <PayButton
@@ -388,7 +388,7 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                       description={`Платёж по займу: ${loan.title}` /* TODO: i18n */}
                       targetType="loan"
                       targetId={loan.id}
-                      label={`Оплатить ${sched.currentMonthly.toLocaleString("ru-RU")} ₽` /* TODO: i18n */}
+                      label={`${t.pay} ${sched.currentMonthly.toLocaleString("ru-RU")} ₽`}
                       className="w-full"
                     />
                   )}
@@ -397,7 +397,7 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                 {/* Список досрочных платежей */}
                 {extras.length > 0 && (
                   <div className="space-y-1.5">
-                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Досрочные платежи{/* TODO: i18n */}</p>
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{t.extraPaymentsTitle}</p>
                     {extras.map(ex => {
                       const [y, m] = ex.date.split("-");
                       return (
@@ -407,7 +407,7 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                             <Icon name="ArrowDownCircle" size={14} className="text-green-400" />
                             <span className="text-xs text-foreground">{t.monthsShort[parseInt(m) - 1]} {y}</span>
                             <span className="text-[10px] text-muted-foreground">
-                              {ex.mode === "reducePayment" ? "↓ платёж" : "↓ срок"/* TODO: i18n */}
+                              {ex.mode === "reducePayment" ? t.extraPaymentReducePayment : t.extraPaymentReduceTerm}
                             </span>
                           </div>
                           <div className="flex items-center gap-2">
@@ -425,7 +425,7 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                 {/* График */}
                 <button onClick={() => setExpandedLoan(isExpanded ? null : loan.id)}
                   className="w-full flex items-center justify-between text-xs text-muted-foreground hover:text-foreground transition-colors">
-                  <span>График платежей{/* TODO: i18n */}</span>
+                  <span>{t.paymentSchedule}</span>
                   <Icon name={isExpanded ? "ChevronUp" : "ChevronDown"} size={14} />
                 </button>
 
@@ -603,9 +603,9 @@ export function CalendarSection({ contacts, t, debts, rentals = [], userId = 0 }
         {/* Легенда */}
         {(upcomingDebts.length > 0 || rentalEvents.length > 0) && (
           <div className="flex gap-3 mb-3 flex-wrap">
-            {upcomingDebts.length > 0 && <span className="flex items-center gap-1 text-[10px] text-muted-foreground"><span className="w-2 h-2 rounded-full inline-block" style={{ background: "#a855f7" }} />{/* TODO: i18n */}Займы</span>}
+            {upcomingDebts.length > 0 && <span className="flex items-center gap-1 text-[10px] text-muted-foreground"><span className="w-2 h-2 rounded-full inline-block" style={{ background: "#a855f7" }} />{t.legendLoans}</span>}
             {rentalEvents.some(r => r.landlord_user_id === userId) && <span className="flex items-center gap-1 text-[10px] text-muted-foreground"><span className="w-2 h-2 rounded-full inline-block" style={{ background: "#c084fc" }} />{t.rentalLandlord}</span>}
-            {rentalEvents.some(r => r.tenant_user_id === userId) && <span className="flex items-center gap-1 text-[10px] text-muted-foreground"><span className="w-2 h-2 rounded-full inline-block" style={{ background: "#7dd3fc" }} />{t.rentalTenant}</span>}
+            {rentalEvents.some(r => r.tenant_user_id === userId) && <span className="flex items-center gap-1 text-[10px] text-muted-foreground"><span className="w-2 h-2 rounded-full inline-block" style={{ background: "#7dd3fc" }} />{t.legendRental}</span>}
           </div>
         )}
 
@@ -663,7 +663,7 @@ export function CalendarSection({ contacts, t, debts, rentals = [], userId = 0 }
                   <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: col.hex }} />
                   <p className="font-medium text-foreground">{d.name}</p>
                 </div>
-                <p className="text-xs text-muted-foreground">{t.pay}</p>
+                <p className="text-xs text-muted-foreground">{t.eventPay}</p>
               </div>
               <div className="font-bold font-heading text-base flex-shrink-0" style={{ color: col.text }}>
                 {fmt(d.amount)}
@@ -690,7 +690,7 @@ export function CalendarSection({ contacts, t, debts, rentals = [], userId = 0 }
                   <Icon name={isLandlord ? "KeyRound" : "Home"} size={12} style={{ color }} />
                   <p className="font-medium text-foreground">{r.title}</p>
                 </div>
-                <p className="text-xs text-muted-foreground">{isLandlord ? t.receive : t.pay}</p>
+                <p className="text-xs text-muted-foreground">{isLandlord ? t.receive : t.eventPay}</p>
               </div>
               <div className="font-bold font-heading text-base flex-shrink-0" style={{ color }}>
                 {fmt(r.amount)}
@@ -963,7 +963,7 @@ export function ArchiveSection({ contacts, t, locale, archiveDebts }: { contacts
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Поиск по имени или названию займа"/* TODO: i18n */
+            placeholder={t.archiveSearchPlaceholder}
             className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
           />
           {search && (
@@ -984,7 +984,7 @@ export function ArchiveSection({ contacts, t, locale, archiveDebts }: { contacts
             }
           >
             <Icon name="CheckCircle2" size={13} />
-            {t.statusReturned}
+            {t.archiveReturnedTab}
             <span className="text-[10px] opacity-70">{returnedDebts.length}</span>
           </button>
           <button
@@ -996,7 +996,7 @@ export function ArchiveSection({ contacts, t, locale, archiveDebts }: { contacts
             }
           >
             <Icon name="Trash2" size={13} />
-            {/* TODO: i18n */}Удалённые
+            {t.archiveDeletedTab}
             <span className="text-[10px] opacity-70">{deletedDebts.length}</span>
           </button>
         </div>

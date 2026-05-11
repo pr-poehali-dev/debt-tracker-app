@@ -41,7 +41,7 @@ const translations = {
     // Calendar
     upcomingPayments: "Предстоящие платежи",
     receive: "получить",
-    pay: "отдать",
+    pay: "Оплатить",
     // Notifications
     unreadNotifs: "непрочитанных уведомления",
     needAttention: "Требуют вашего внимания",
@@ -278,6 +278,61 @@ const translations = {
     notePlaceholderRu: "Дополнительные условия...",
     createAndQr: "Создать и получить QR-код",
     creatingDebt: "Создаю долг...",
+    // DebtList — статусы и метки
+    debtConfirmed: "Подтверждено",
+    debtDismissed: "Отклонено",
+    debtAwaiting: "Ожидает",
+    debtConfirmedTitle: "Подтверждён заёмщиком",
+    debtRejectedTitle: "Отклонён заёмщиком",
+    debtAwaitingTitle: "Ожидает подтверждения",
+    debtDeletedByBorrower: "Должник удалил долг у себя",
+    debtDeletedByLender: "Кредитор удалил долг",
+    debtDismissedByBorrower: "Должник отклонил долг",
+    debtAcceptedByBorrower: "Должник принял долг",
+    // DebtDetailModal labels
+    youGaveLoan: "Вы дали в долг",
+    youTookLoan: "Вы взяли в долг",
+    amountBreakdown: "Разбивка суммы",
+    bodyLabel: "Тело",
+    interestLabelShort: "Проценты",
+    decisionLabel: "Решение",
+    dueDateField: "Срок возврата",
+    noteField: "Заметка",
+    daysShort: "дн.",
+    daysAgoSuffix: "дн. назад",
+    // Borrowed экран
+    noConditions: "Без условий",
+    // Personal loans
+    personalLoansTitle: "ЛИЧНЫЕ ЗАЙМЫ",
+    loanPaidOnDay: "{day}-е число",
+    remaining: "осталось",
+    monthlyPayment: "Платёж в месяц",
+    paidOfTotal: "Оплачено {n} из {total} платежей",
+    deposit: "Внести",
+    extraPaymentsTitle: "ДОСРОЧНЫЕ ПЛАТЕЖИ",
+    extraPaymentReducePayment: "↓ платёж",
+    extraPaymentReduceTerm: "↓ срок",
+    paymentSchedule: "График платежей",
+    // Calendar
+    legendLoans: "Займы",
+    legendRental: "Аренда",
+    eventPay: "выплата",
+    // Rental
+    rentalAsTenant: "Снимаю",
+    rentalAsLandlord: "Сдаю",
+    rentalTenantLabel: "Арендатор",
+    perMonth: "в месяц",
+    paidThisMonth: "Оплачено в этом месяце",
+    historyShort: "История",
+    // Archive
+    archiveSearchPlaceholder: "Поиск по имени или названию займа",
+    archiveDeletedTab: "Удалённые",
+    archiveReturnedTab: "Возвращённые",
+    // PayButton
+    payNotConnected: "Оплата ещё не подключена",
+    payCreateError: "Не удалось создать платёж",
+    payLinkMissing: "Платёжная ссылка не получена",
+    payError: "Ошибка платежа",
   },
 
   en: {
@@ -315,7 +370,7 @@ const translations = {
     // Calendar
     upcomingPayments: "Upcoming payments",
     receive: "receive",
-    pay: "pay",
+    pay: "Pay",
     // Notifications
     unreadNotifs: "unread notifications",
     needAttention: "Need your attention",
@@ -552,6 +607,61 @@ const translations = {
     notePlaceholderRu: "Additional terms...",
     createAndQr: "Create & get QR code",
     creatingDebt: "Creating debt...",
+    // DebtList — statuses and labels
+    debtConfirmed: "Confirmed",
+    debtDismissed: "Rejected",
+    debtAwaiting: "Pending",
+    debtConfirmedTitle: "Confirmed by borrower",
+    debtRejectedTitle: "Rejected by borrower",
+    debtAwaitingTitle: "Awaiting confirmation",
+    debtDeletedByBorrower: "Borrower deleted this loan",
+    debtDeletedByLender: "Lender deleted this loan",
+    debtDismissedByBorrower: "Borrower dismissed the loan",
+    debtAcceptedByBorrower: "Borrower accepted the loan",
+    // DebtDetailModal labels
+    youGaveLoan: "You lent",
+    youTookLoan: "You borrowed",
+    amountBreakdown: "Amount breakdown",
+    bodyLabel: "Principal",
+    interestLabelShort: "Interest",
+    decisionLabel: "Decision",
+    dueDateField: "Due date",
+    noteField: "Note",
+    daysShort: "days",
+    daysAgoSuffix: "days ago",
+    // Borrowed screen
+    noConditions: "No conditions",
+    // Personal loans
+    personalLoansTitle: "PERSONAL LOANS",
+    loanPaidOnDay: "Day {day}",
+    remaining: "remaining",
+    monthlyPayment: "Monthly payment",
+    paidOfTotal: "Paid {n} of {total} payments",
+    deposit: "Deposit",
+    extraPaymentsTitle: "EXTRA PAYMENTS",
+    extraPaymentReducePayment: "↓ payment",
+    extraPaymentReduceTerm: "↓ term",
+    paymentSchedule: "Payment schedule",
+    // Calendar
+    legendLoans: "Loans",
+    legendRental: "Rental",
+    eventPay: "payment",
+    // Rental
+    rentalAsTenant: "Renting",
+    rentalAsLandlord: "Letting out",
+    rentalTenantLabel: "Tenant",
+    perMonth: "per month",
+    paidThisMonth: "Paid this month",
+    historyShort: "History",
+    // Archive
+    archiveSearchPlaceholder: "Search by name or loan title",
+    archiveDeletedTab: "Deleted",
+    archiveReturnedTab: "Returned",
+    // PayButton
+    payNotConnected: "Payments are not connected yet",
+    payCreateError: "Couldn't create payment",
+    payLinkMissing: "Payment link not received",
+    payError: "Payment error",
   },
 } as const;
 
