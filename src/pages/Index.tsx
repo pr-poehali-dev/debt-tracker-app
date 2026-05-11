@@ -358,9 +358,35 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
       setUnreadMessages(count);
     }
 
-    pollUnreadMessages();
-    const iv = setInterval(pollUnreadMessages, 10000);
-    return () => clearInterval(iv);
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let delay = 3000;
+
+    async function loop() {
+      if (stopped) return;
+      try {
+        await pollUnreadMessages();
+        delay = 3000;
+      } catch {
+        delay = Math.min(delay * 2, 30000);
+      }
+      if (!stopped) timer = setTimeout(loop, delay);
+    }
+
+    function onVisible() {
+      if (document.visibilityState === "visible") {
+        if (timer) clearTimeout(timer);
+        loop();
+      }
+    }
+    document.addEventListener("visibilitychange", onVisible);
+
+    loop();
+    return () => {
+      stopped = true;
+      if (timer) clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [isDemo, token]);
 
   // Polling сообщений из поддержки → колокольчик
