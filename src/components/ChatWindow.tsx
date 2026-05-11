@@ -13,6 +13,10 @@ interface Message {
   created_at: string;
   is_mine: boolean;
   is_read: boolean;
+  attachment_url?: string | null;
+  attachment_type?: string | null;
+  attachment_name?: string | null;
+  attachment_size?: number | null;
 }
 
 interface Props {
@@ -49,8 +53,18 @@ export default function ChatWindow({ debtId, rentalId, title, token, onClose }: 
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [attachment, setAttachment] = useState<{
+    file: File;
+    preview: string | null;
+    isImage: boolean;
+  } | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const [showAttachMenu, setShowAttachMenu] = useState(false);
   const dragStartY = useRef<number | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -120,15 +134,94 @@ export default function ChatWindow({ debtId, rentalId, title, token, onClose }: 
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  function readAsBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = String(reader.result || "");
+        const idx = result.indexOf(",");
+        resolve(idx >= 0 ? result.slice(idx + 1) : result);
+      };
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function onPickFile(kind: "image" | "file") {
+    setShowAttachMenu(false);
+    if (kind === "image") imageInputRef.current?.click();
+    else fileInputRef.current?.click();
+  }
+
+  function onFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (file.size > 15 * 1024 * 1024) {
+      alert("Файл больше 15 МБ");
+      return;
+    }
+    const isImage = file.type.startsWith("image/");
+    const preview = isImage ? URL.createObjectURL(file) : null;
+    setAttachment({ file, preview, isImage });
+  }
+
+  function clearAttachment() {
+    if (attachment?.preview) URL.revokeObjectURL(attachment.preview);
+    setAttachment(null);
+  }
+
   async function send() {
     const t = text.trim();
-    if (!t || sending) return;
+    if ((!t && !attachment) || sending || uploading) return;
+
     setSending(true);
+
+    let uploaded: { url: string; type: string; name: string; size: number } | null = null;
+    if (attachment) {
+      setUploading(true);
+      try {
+        const base64 = await readAsBase64(attachment.file);
+        const upRes = await fetch(`${CHAT_URL}?action=upload`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            file_base64: base64,
+            file_name: attachment.file.name,
+            content_type: attachment.file.type || "application/octet-stream",
+          }),
+        });
+        if (!upRes.ok) {
+          const errData = await upRes.json().catch(() => ({}));
+          alert(errData.error || "Не удалось загрузить файл");
+          setUploading(false);
+          setSending(false);
+          return;
+        }
+        uploaded = await upRes.json();
+      } catch (_e) {
+        alert("Ошибка загрузки");
+        setUploading(false);
+        setSending(false);
+        return;
+      }
+      setUploading(false);
+    }
+
     setText("");
     if (textareaRef.current) textareaRef.current.style.height = "auto";
+    const wasAttachment = attachment;
+    clearAttachment();
+
     const body: Record<string, unknown> = { text: t };
     if (debtId) body.debt_id = debtId;
     if (rentalId) body.rental_id = rentalId;
+    if (uploaded) {
+      body.attachment_url = uploaded.url;
+      body.attachment_type = uploaded.type;
+      body.attachment_name = uploaded.name;
+      body.attachment_size = uploaded.size;
+    }
     const res = await fetch(CHAT_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -137,8 +230,18 @@ export default function ChatWindow({ debtId, rentalId, title, token, onClose }: 
     if (res.ok) {
       const msg = await res.json();
       setMessages(prev => [...prev, msg]);
+    } else {
+      if (wasAttachment) setAttachment(wasAttachment);
+      setText(t);
     }
     setSending(false);
+  }
+
+  function formatSize(bytes?: number | null) {
+    if (!bytes) return "";
+    if (bytes < 1024) return bytes + " Б";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " КБ";
+    return (bytes / (1024 * 1024)).toFixed(1) + " МБ";
   }
 
   function handleTextInput(e: React.ChangeEvent<HTMLTextAreaElement>) {
@@ -244,13 +347,48 @@ export default function ChatWindow({ debtId, rentalId, title, token, onClose }: 
                             <p className="text-[10px] text-purple-400 px-1 font-medium">{m.sender_name}</p>
                           )}
                           <div
-                            className="rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed"
+                            className="rounded-2xl text-sm leading-relaxed overflow-hidden"
                             style={m.is_mine
                               ? { background: "linear-gradient(135deg, #a855f7, #6366f1)", color: "white", borderBottomRightRadius: 5 }
                               : { background: "rgba(255,255,255,0.08)", color: "var(--foreground)", borderBottomLeftRadius: 5 }
                             }
                           >
-                            {m.text}
+                            {m.attachment_url && m.attachment_type === "image" && (
+                              <button
+                                type="button"
+                                onClick={() => setPreviewImage(m.attachment_url || null)}
+                                className="block w-full"
+                              >
+                                <img
+                                  src={m.attachment_url}
+                                  alt={m.attachment_name || "Фото"}
+                                  className="max-h-72 w-full object-cover"
+                                  style={{ display: "block" }}
+                                />
+                              </button>
+                            )}
+                            {m.attachment_url && m.attachment_type !== "image" && (
+                              <a
+                                href={m.attachment_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                download={m.attachment_name || undefined}
+                                className="flex items-center gap-3 px-3.5 py-2.5 hover:opacity-90 transition-opacity"
+                                style={{ background: m.is_mine ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.04)" }}
+                              >
+                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${m.is_mine ? "bg-white/20" : "bg-white/10"}`}>
+                                  <Icon name="FileText" size={18} className={m.is_mine ? "text-white" : "text-purple-400"} />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate text-sm font-medium">{m.attachment_name || "Файл"}</p>
+                                  <p className={`text-[10px] ${m.is_mine ? "text-white/70" : "text-muted-foreground"}`}>{formatSize(m.attachment_size)}</p>
+                                </div>
+                                <Icon name="Download" size={16} className={m.is_mine ? "text-white/80" : "text-muted-foreground"} />
+                              </a>
+                            )}
+                            {m.text && (
+                              <div className="px-3.5 py-2.5 whitespace-pre-wrap break-words">{m.text}</div>
+                            )}
                           </div>
                           <div className="flex items-center gap-1 px-1">
                             <p className="text-[10px] text-muted-foreground">{formatTime(m.created_at)}</p>
@@ -274,7 +412,78 @@ export default function ChatWindow({ debtId, rentalId, title, token, onClose }: 
 
       {/* Input */}
       <div className="relative z-10 px-4 pb-safe-6 pt-2 border-t border-white/5" style={{ paddingBottom: "max(24px, env(safe-area-inset-bottom))" }}>
+        {attachment && (
+          <div className="mb-2 flex items-center gap-3 p-2 rounded-2xl bg-white/5 border border-white/10">
+            {attachment.isImage && attachment.preview ? (
+              <img src={attachment.preview} alt="" className="w-12 h-12 rounded-lg object-cover flex-shrink-0" />
+            ) : (
+              <div className="w-12 h-12 rounded-lg bg-purple-500/15 flex items-center justify-center flex-shrink-0">
+                <Icon name="FileText" size={20} className="text-purple-400" />
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-foreground truncate">{attachment.file.name}</p>
+              <p className="text-[11px] text-muted-foreground">{formatSize(attachment.file.size)}{uploading ? " · загрузка…" : ""}</p>
+            </div>
+            <button
+              onClick={clearAttachment}
+              disabled={uploading}
+              className="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-white/10 disabled:opacity-40"
+            >
+              <Icon name="X" size={16} />
+            </button>
+          </div>
+        )}
+
+        {showAttachMenu && (
+          <>
+            <div className="fixed inset-0 z-[10000]" onClick={() => setShowAttachMenu(false)} />
+            <div className="absolute bottom-[calc(100%+8px)] left-4 z-[10001] glass rounded-2xl border border-white/10 shadow-2xl overflow-hidden min-w-[180px]" style={{ background: "rgba(26,29,46,0.98)" }}>
+              <button
+                onClick={() => onPickFile("image")}
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-white/5 transition-colors"
+              >
+                <div className="w-8 h-8 rounded-lg bg-purple-500/15 flex items-center justify-center">
+                  <Icon name="Image" size={16} className="text-purple-400" />
+                </div>
+                <span className="text-foreground">Фото</span>
+              </button>
+              <button
+                onClick={() => onPickFile("file")}
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-white/5 transition-colors border-t border-white/5"
+              >
+                <div className="w-8 h-8 rounded-lg bg-sky-500/15 flex items-center justify-center">
+                  <Icon name="Paperclip" size={16} className="text-sky-400" />
+                </div>
+                <span className="text-foreground">Файл</span>
+              </button>
+            </div>
+          </>
+        )}
+
+        <input
+          ref={imageInputRef}
+          type="file"
+          accept="image/*"
+          onChange={onFileSelected}
+          className="hidden"
+        />
+        <input
+          ref={fileInputRef}
+          type="file"
+          onChange={onFileSelected}
+          className="hidden"
+        />
+
         <div className="flex gap-2 items-end">
+          <button
+            onClick={() => setShowAttachMenu(v => !v)}
+            disabled={sending || uploading}
+            className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 bg-white/5 border border-white/10 hover:bg-white/10 transition-colors disabled:opacity-40"
+            aria-label="Прикрепить"
+          >
+            <Icon name="Paperclip" size={18} className="text-purple-400" />
+          </button>
           <textarea
             ref={textareaRef}
             value={text}
@@ -287,11 +496,11 @@ export default function ChatWindow({ debtId, rentalId, title, token, onClose }: 
           />
           <button
             onClick={send}
-            disabled={!text.trim() || sending}
+            disabled={(!text.trim() && !attachment) || sending || uploading}
             className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 disabled:opacity-40 transition-all active:scale-95"
             style={{ background: "linear-gradient(135deg, #a855f7, #6366f1)" }}
           >
-            {sending
+            {sending || uploading
               ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
               : <Icon name="Send" size={18} className="text-white" />
             }
@@ -299,6 +508,36 @@ export default function ChatWindow({ debtId, rentalId, title, token, onClose }: 
         </div>
       </div>
       </div>
+
+      {previewImage && (
+        <div
+          className="fixed inset-0 z-[10010] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4"
+          onClick={() => setPreviewImage(null)}
+        >
+          <img
+            src={previewImage}
+            alt=""
+            className="max-w-full max-h-full object-contain rounded-xl"
+            onClick={e => e.stopPropagation()}
+          />
+          <button
+            onClick={() => setPreviewImage(null)}
+            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/15 backdrop-blur-md flex items-center justify-center hover:bg-white/25 transition-colors"
+          >
+            <Icon name="X" size={20} className="text-white" />
+          </button>
+          <a
+            href={previewImage}
+            download
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={e => e.stopPropagation()}
+            className="absolute top-4 right-16 w-10 h-10 rounded-full bg-white/15 backdrop-blur-md flex items-center justify-center hover:bg-white/25 transition-colors"
+          >
+            <Icon name="Download" size={18} className="text-white" />
+          </a>
+        </div>
+      )}
     </div>,
     document.body
   );

@@ -10,6 +10,8 @@ GET  ?action=vapid-key      — публичный VAPID ключ
 """
 import json
 import os
+import uuid
+import base64
 import psycopg2
 
 SCHEMA = "t_p29977622_debt_tracker_app"
@@ -209,7 +211,8 @@ def handler(event: dict, context) -> dict:
                     if not cur.fetchone():
                         return err("Нет доступа к чату", 403)
                     cur.execute(
-                        f"""SELECT id, sender_user_id, sender_name, text, created_at, is_read
+                        f"""SELECT id, sender_user_id, sender_name, text, created_at, is_read,
+                                   attachment_url, attachment_type, attachment_name, attachment_size
                             FROM {SCHEMA}.messages
                             WHERE debt_id = %s
                             ORDER BY created_at ASC LIMIT 200""",
@@ -224,7 +227,8 @@ def handler(event: dict, context) -> dict:
                     if not cur.fetchone():
                         return err("Нет доступа к чату", 403)
                     cur.execute(
-                        f"""SELECT id, sender_user_id, sender_name, text, created_at, is_read
+                        f"""SELECT id, sender_user_id, sender_name, text, created_at, is_read,
+                                   attachment_url, attachment_type, attachment_name, attachment_size
                             FROM {SCHEMA}.messages
                             WHERE rental_id = %s
                             ORDER BY created_at ASC LIMIT 200""",
@@ -252,10 +256,14 @@ def handler(event: dict, context) -> dict:
                 "id": r[0],
                 "sender_user_id": r[1],
                 "sender_name": r[2],
-                "text": r[3],
+                "text": r[3] or "",
                 "created_at": str(r[4]),
                 "is_read": r[5],
                 "is_mine": r[1] == user_id,
+                "attachment_url": r[6],
+                "attachment_type": r[7],
+                "attachment_name": r[8],
+                "attachment_size": r[9],
             }
             for r in rows
         ]
@@ -267,9 +275,15 @@ def handler(event: dict, context) -> dict:
         debt_id = body.get("debt_id")
         rental_id = body.get("rental_id")
         text = (body.get("text") or "").strip()
+        attachment_url = body.get("attachment_url") or None
+        attachment_type = body.get("attachment_type") or None
+        attachment_name = body.get("attachment_name") or None
+        attachment_size = body.get("attachment_size") or None
 
-        if not (debt_id or rental_id) or not text:
-            return err("debt_id или rental_id и text обязательны")
+        if not (debt_id or rental_id):
+            return err("debt_id или rental_id обязательны")
+        if not text and not attachment_url:
+            return err("text или attachment_url обязательны")
         if len(text) > 1000:
             return err("Сообщение слишком длинное")
 
@@ -291,10 +305,13 @@ def handler(event: dict, context) -> dict:
                     recipient_id = debt_row[1] if debt_row[0] == user_id else debt_row[0]
                     chat_title = debt_row[2]
                     cur.execute(
-                        f"""INSERT INTO {SCHEMA}.messages (debt_id, sender_user_id, sender_name, text)
-                            VALUES (%s, %s, %s, %s)
-                            RETURNING id, sender_user_id, sender_name, text, created_at""",
-                        (debt_id, user_id, user_name, text)
+                        f"""INSERT INTO {SCHEMA}.messages (debt_id, sender_user_id, sender_name, text,
+                                                           attachment_url, attachment_type, attachment_name, attachment_size)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                            RETURNING id, sender_user_id, sender_name, text, created_at,
+                                      attachment_url, attachment_type, attachment_name, attachment_size""",
+                        (debt_id, user_id, user_name, text,
+                         attachment_url, attachment_type, attachment_name, attachment_size)
                     )
                 else:
                     cur.execute(
@@ -308,10 +325,13 @@ def handler(event: dict, context) -> dict:
                     recipient_id = rental_row[1] if rental_row[0] == user_id else rental_row[0]
                     chat_title = rental_row[2]
                     cur.execute(
-                        f"""INSERT INTO {SCHEMA}.messages (rental_id, sender_user_id, sender_name, text)
-                            VALUES (%s, %s, %s, %s)
-                            RETURNING id, sender_user_id, sender_name, text, created_at""",
-                        (int(rental_id), user_id, user_name, text)
+                        f"""INSERT INTO {SCHEMA}.messages (rental_id, sender_user_id, sender_name, text,
+                                                           attachment_url, attachment_type, attachment_name, attachment_size)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                            RETURNING id, sender_user_id, sender_name, text, created_at,
+                                      attachment_url, attachment_type, attachment_name, attachment_size""",
+                        (int(rental_id), user_id, user_name, text,
+                         attachment_url, attachment_type, attachment_name, attachment_size)
                     )
                 r = cur.fetchone()
             conn.commit()
@@ -324,9 +344,15 @@ def handler(event: dict, context) -> dict:
                 else:
                     chat_url = f"/?openChat=rental&id={rental_id}"
                     chat_tag = f"chat-rental-{rental_id}"
+                if text:
+                    push_body = text[:80]
+                elif attachment_type == "image":
+                    push_body = "📷 Фото"
+                else:
+                    push_body = "📎 " + (attachment_name or "Файл")
                 send_push_notification(
                     conn, recipient_id,
-                    f"Сообщение от {user_name}", text[:80],
+                    f"Сообщение от {user_name}", push_body,
                     url=chat_url, tag=chat_tag,
                 )
 
@@ -334,9 +360,13 @@ def handler(event: dict, context) -> dict:
             "id": r[0],
             "sender_user_id": r[1],
             "sender_name": r[2],
-            "text": r[3],
+            "text": r[3] or "",
             "created_at": str(r[4]),
             "is_mine": True,
+            "attachment_url": r[5],
+            "attachment_type": r[6],
+            "attachment_name": r[7],
+            "attachment_size": r[8],
         }, 201)
 
     # PUT / — отметить прочитанными
@@ -364,6 +394,58 @@ def handler(event: dict, context) -> dict:
                     )
             conn.commit()
         return json_resp({"ok": True})
+
+    # POST ?action=upload — загрузить фото/файл и получить URL
+    if method == "POST" and qs.get("action") == "upload":
+        body = json.loads(event.get("body") or "{}")
+        file_b64 = body.get("file_base64") or ""
+        file_name = (body.get("file_name") or "file").replace("/", "_").replace("\\", "_")[:200]
+        content_type = body.get("content_type") or "application/octet-stream"
+        is_image = content_type.startswith("image/")
+
+        if not file_b64:
+            return err("file_base64 обязателен")
+
+        with get_conn() as conn:
+            user_id, _ = get_user_from_token(auth, conn)
+            if not user_id:
+                return err("Не авторизован", 401)
+
+        try:
+            raw = base64.b64decode(file_b64)
+        except Exception:
+            return err("Неверная base64-кодировка")
+        if len(raw) > 15 * 1024 * 1024:
+            return err("Файл больше 15 МБ", 413)
+
+        try:
+            import boto3
+            s3 = boto3.client(
+                "s3",
+                endpoint_url="https://bucket.poehali.dev",
+                aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
+                aws_secret_access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
+            )
+            ext = ""
+            if "." in file_name:
+                ext = "." + file_name.rsplit(".", 1)[-1].lower()[:8]
+            key = f"chat/{user_id}/{uuid.uuid4().hex}{ext}"
+            s3.put_object(
+                Bucket="files",
+                Key=key,
+                Body=raw,
+                ContentType=content_type,
+            )
+            cdn_url = f"https://cdn.poehali.dev/projects/{os.environ['AWS_ACCESS_KEY_ID']}/bucket/{key}"
+            return json_resp({
+                "url": cdn_url,
+                "type": "image" if is_image else "file",
+                "name": file_name,
+                "size": len(raw),
+            })
+        except Exception as e:
+            print(f"[upload] error: {e}")
+            return err("Ошибка загрузки файла", 500)
 
     # POST ?action=subscribe — сохранить push-подписку
     if method == "POST" and qs.get("action") == "subscribe":
