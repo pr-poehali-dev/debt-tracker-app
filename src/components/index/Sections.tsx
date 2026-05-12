@@ -238,16 +238,6 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                   boxShadow: isOverdue ? "0 0 0 1px rgba(239,68,68,0.25) inset" : undefined,
                 }}
               >
-                {isOverdue && (
-                  <div
-                    className="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
-                    style={{ background: "rgba(239,68,68,0.18)", border: "1px solid rgba(239,68,68,0.35)" }}
-                    aria-label="Просрочено"
-                    title="Просрочено"
-                  >
-                    <Icon name="AlertTriangle" size={12} className="text-red-400" />
-                  </div>
-                )}
                 <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
                   <Avatar initials={d.avatar} color={contact?.color} />
                   {(() => {
@@ -268,6 +258,16 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                       </p>
                     );
                   })()}
+                  {isOverdue && (
+                    <div
+                      className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
+                      style={{ background: "rgba(239,68,68,0.18)", border: "1px solid rgba(239,68,68,0.35)" }}
+                      aria-label="Просрочено"
+                      title="Просрочено"
+                    >
+                      <Icon name="AlertTriangle" size={12} className="text-red-400" />
+                    </div>
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-foreground break-words leading-snug">{d.name}</p>
