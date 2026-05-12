@@ -59,7 +59,8 @@ export default function ChatWindow({ debtId, rentalId, title, token, onClose }: 
     isImage: boolean;
   } | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [previewImage, setPreviewImage] = useState<{ url: string; name: string } | null>(null);
+  const [downloading, setDownloading] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -90,6 +91,42 @@ export default function ChatWindow({ debtId, rentalId, title, token, onClose }: 
     if (debtId) return `?debt_id=${debtId}`;
     if (rentalId) return `?rental_id=${rentalId}`;
     return "";
+  }
+
+  async function downloadAttachment(url: string, fileName: string) {
+    setDownloading(true);
+    try {
+      const res = await fetch(url, { mode: "cors", credentials: "omit" });
+      if (!res.ok) throw new Error("fetch failed");
+      const blob = await res.blob();
+
+      const safeName = (fileName || "file").replace(/[\\/:*?"<>|]/g, "_");
+      const nav = navigator as Navigator & {
+        canShare?: (data: ShareData) => boolean;
+        share?: (data: ShareData) => Promise<void>;
+      };
+      const file = new File([blob], safeName, { type: blob.type || "application/octet-stream" });
+
+      if (nav.canShare && nav.canShare({ files: [file] }) && nav.share) {
+        try {
+          await nav.share({ files: [file], title: safeName });
+          return;
+        } catch (_e) { /* пользователь отменил — fallback ниже */ }
+      }
+
+      const objUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objUrl;
+      a.download = safeName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(objUrl), 1000);
+    } catch (_e) {
+      window.open(url, "_blank", "noopener,noreferrer");
+    } finally {
+      setDownloading(false);
+    }
   }
 
   async function loadMessages(silent = false) {
@@ -356,7 +393,7 @@ export default function ChatWindow({ debtId, rentalId, title, token, onClose }: 
                             {m.attachment_url && m.attachment_type === "image" && (
                               <button
                                 type="button"
-                                onClick={() => setPreviewImage(m.attachment_url || null)}
+                                onClick={() => setPreviewImage({ url: m.attachment_url!, name: m.attachment_name || "photo.jpg" })}
                                 className="block w-full"
                               >
                                 <img
@@ -368,23 +405,24 @@ export default function ChatWindow({ debtId, rentalId, title, token, onClose }: 
                               </button>
                             )}
                             {m.attachment_url && m.attachment_type !== "image" && (
-                              <a
-                                href={m.attachment_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                download={m.attachment_name || undefined}
-                                className="flex items-center gap-3 px-3.5 py-2.5 hover:opacity-90 transition-opacity"
+                              <button
+                                type="button"
+                                onClick={() => downloadAttachment(m.attachment_url!, m.attachment_name || "file")}
+                                disabled={downloading}
+                                className="w-full flex items-center gap-3 px-3.5 py-2.5 hover:opacity-90 transition-opacity disabled:opacity-60"
                                 style={{ background: m.is_mine ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.04)" }}
                               >
                                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${m.is_mine ? "bg-white/20" : "bg-white/10"}`}>
                                   <Icon name="FileText" size={18} className={m.is_mine ? "text-white" : "text-purple-400"} />
                                 </div>
-                                <div className="min-w-0 flex-1">
+                                <div className="min-w-0 flex-1 text-left">
                                   <p className="truncate text-sm font-medium">{m.attachment_name || "Файл"}</p>
                                   <p className={`text-[10px] ${m.is_mine ? "text-white/70" : "text-muted-foreground"}`}>{formatSize(m.attachment_size)}</p>
                                 </div>
-                                <Icon name="Download" size={16} className={m.is_mine ? "text-white/80" : "text-muted-foreground"} />
-                              </a>
+                                {downloading
+                                  ? <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                  : <Icon name="Download" size={16} className={m.is_mine ? "text-white/80" : "text-muted-foreground"} />}
+                              </button>
                             )}
                             {m.text && (
                               <div className="px-3.5 py-2.5 whitespace-pre-wrap break-words">{m.text}</div>
@@ -515,7 +553,7 @@ export default function ChatWindow({ debtId, rentalId, title, token, onClose }: 
           onClick={() => setPreviewImage(null)}
         >
           <img
-            src={previewImage}
+            src={previewImage.url}
             alt=""
             className="max-w-full max-h-full object-contain rounded-xl"
             onClick={e => e.stopPropagation()}
@@ -526,16 +564,20 @@ export default function ChatWindow({ debtId, rentalId, title, token, onClose }: 
           >
             <Icon name="X" size={20} className="text-white" />
           </button>
-          <a
-            href={previewImage}
-            download
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={e => e.stopPropagation()}
-            className="absolute top-4 right-16 w-10 h-10 rounded-full bg-white/15 backdrop-blur-md flex items-center justify-center hover:bg-white/25 transition-colors"
+          <button
+            onClick={async (e) => {
+              e.stopPropagation();
+              if (downloading) return;
+              await downloadAttachment(previewImage.url, previewImage.name);
+            }}
+            disabled={downloading}
+            className="absolute top-4 right-16 w-10 h-10 rounded-full bg-white/15 backdrop-blur-md flex items-center justify-center hover:bg-white/25 transition-colors disabled:opacity-50"
+            aria-label="Скачать"
           >
-            <Icon name="Download" size={18} className="text-white" />
-          </a>
+            {downloading
+              ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              : <Icon name="Download" size={18} className="text-white" />}
+          </button>
         </div>
       )}
     </div>,
