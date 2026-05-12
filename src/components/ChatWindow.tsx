@@ -61,6 +61,8 @@ export default function ChatWindow({ debtId, rentalId, title, token, onClose }: 
   const [uploading, setUploading] = useState(false);
   const [previewImage, setPreviewImage] = useState<{ url: string; name: string } | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const longPressTimerRef = useRef<number | null>(null);
+  const longPressFiredRef = useRef(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -141,6 +143,22 @@ export default function ChatWindow({ debtId, rentalId, title, token, onClose }: 
       img.onerror = () => reject(new Error("image load failed"));
       img.src = url;
     });
+  }
+
+  function startLongPress(url: string, name: string) {
+    longPressFiredRef.current = false;
+    if (longPressTimerRef.current) window.clearTimeout(longPressTimerRef.current);
+    longPressTimerRef.current = window.setTimeout(() => {
+      longPressFiredRef.current = true;
+      if (navigator.vibrate) try { navigator.vibrate(30); } catch { /* ignore */ }
+      downloadAttachment(url, name);
+    }, 500);
+  }
+  function cancelLongPress() {
+    if (longPressTimerRef.current) {
+      window.clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
   }
 
   async function downloadAttachment(url: string, fileName: string) {
@@ -439,14 +457,27 @@ export default function ChatWindow({ debtId, rentalId, title, token, onClose }: 
                             {m.attachment_url && m.attachment_type === "image" && (
                               <button
                                 type="button"
-                                onClick={() => setPreviewImage({ url: m.attachment_url!, name: m.attachment_name || "photo.jpg" })}
-                                className="block w-full"
+                                onClick={() => {
+                                  if (longPressFiredRef.current) { longPressFiredRef.current = false; return; }
+                                  setPreviewImage({ url: m.attachment_url!, name: m.attachment_name || "photo.jpg" });
+                                }}
+                                onTouchStart={() => startLongPress(m.attachment_url!, m.attachment_name || "photo.jpg")}
+                                onTouchEnd={cancelLongPress}
+                                onTouchMove={cancelLongPress}
+                                onTouchCancel={cancelLongPress}
+                                onMouseDown={() => startLongPress(m.attachment_url!, m.attachment_name || "photo.jpg")}
+                                onMouseUp={cancelLongPress}
+                                onMouseLeave={cancelLongPress}
+                                onContextMenu={(e) => { e.preventDefault(); downloadAttachment(m.attachment_url!, m.attachment_name || "photo.jpg"); }}
+                                className="block w-full select-none"
+                                style={{ WebkitTouchCallout: "none", WebkitUserSelect: "none" }}
                               >
                                 <img
                                   src={m.attachment_url}
                                   alt={m.attachment_name || "Фото"}
-                                  className="max-h-72 w-full object-cover"
+                                  className="max-h-72 w-full object-cover pointer-events-none"
                                   style={{ display: "block" }}
+                                  draggable={false}
                                 />
                               </button>
                             )}
