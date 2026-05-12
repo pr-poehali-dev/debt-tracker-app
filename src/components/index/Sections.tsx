@@ -1672,6 +1672,7 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
   const [pushSubbed, setPushSubbed] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const isAdmin = (profile.phone || "").replace(/\D/g, "").endsWith("9680066666");
 
   useEffect(() => {
     (async () => {
@@ -2126,33 +2127,37 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
                 </p>
               </div>
             )}
-            <button
-              onClick={sendTestPush}
-              disabled={testPushBusy}
-              className="mt-2 w-full py-2 rounded-xl text-xs font-semibold transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
-              style={{ background: "rgba(168,85,247,0.12)", color: "#c4b5fd", border: "1px solid rgba(168,85,247,0.25)" }}
-            >
-              {testPushBusy ? <Icon name="Loader2" size={12} className="animate-spin" /> : <Icon name="Send" size={12} />}
-              {testPushMsg || "Отправить тестовое уведомление"}
-            </button>
-            <button
-              onClick={runDiagnostics}
-              disabled={diagBusy}
-              className="mt-2 w-full py-2 rounded-xl text-xs font-semibold transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
-              style={{ background: "rgba(245,158,11,0.10)", color: "#fbbf24", border: "1px solid rgba(245,158,11,0.25)" }}
-            >
-              {diagBusy ? <Icon name="Loader2" size={12} className="animate-spin" /> : <Icon name="Stethoscope" size={12} />}
-              Диагностика push
-            </button>
-            <button
-              onClick={fullResetPush}
-              disabled={resetBusy}
-              className="mt-2 w-full py-2 rounded-xl text-xs font-semibold transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
-              style={{ background: "rgba(34,197,94,0.10)", color: "#86efac", border: "1px solid rgba(34,197,94,0.25)" }}
-            >
-              {resetBusy ? <Icon name="Loader2" size={12} className="animate-spin" /> : <Icon name="RefreshCw" size={12} />}
-              {resetMsg || "Пересоздать подписку"}
-            </button>
+            {isAdmin && (
+              <>
+                <button
+                  onClick={sendTestPush}
+                  disabled={testPushBusy}
+                  className="mt-2 w-full py-2 rounded-xl text-xs font-semibold transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+                  style={{ background: "rgba(168,85,247,0.12)", color: "#c4b5fd", border: "1px solid rgba(168,85,247,0.25)" }}
+                >
+                  {testPushBusy ? <Icon name="Loader2" size={12} className="animate-spin" /> : <Icon name="Send" size={12} />}
+                  {testPushMsg || "Отправить тестовое уведомление"}
+                </button>
+                <button
+                  onClick={runDiagnostics}
+                  disabled={diagBusy}
+                  className="mt-2 w-full py-2 rounded-xl text-xs font-semibold transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+                  style={{ background: "rgba(245,158,11,0.10)", color: "#fbbf24", border: "1px solid rgba(245,158,11,0.25)" }}
+                >
+                  {diagBusy ? <Icon name="Loader2" size={12} className="animate-spin" /> : <Icon name="Stethoscope" size={12} />}
+                  Диагностика push
+                </button>
+                <button
+                  onClick={fullResetPush}
+                  disabled={resetBusy}
+                  className="mt-2 w-full py-2 rounded-xl text-xs font-semibold transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+                  style={{ background: "rgba(34,197,94,0.10)", color: "#86efac", border: "1px solid rgba(34,197,94,0.25)" }}
+                >
+                  {resetBusy ? <Icon name="Loader2" size={12} className="animate-spin" /> : <Icon name="RefreshCw" size={12} />}
+                  {resetMsg || "Пересоздать подписку"}
+                </button>
+              </>
+            )}
             <button
               onClick={() => setShowAndroidGuide(true)}
               className="mt-2 w-full py-2 rounded-xl text-xs font-semibold transition-all active:scale-95 flex items-center justify-center gap-2"
