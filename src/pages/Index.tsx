@@ -154,6 +154,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
               pendingPaymentsCount: d.pending_payments_count != null ? Number(d.pending_payments_count) : 0,
               counterpartyName: String(isLender ? (d.borrower_name || "") : (d.lender_name || "")) || undefined,
               archivedDir: (status === "archived" || isDeleted) ? (isLender ? "lent" : "borrowed") : undefined,
+              createdAt: d.created_at ? String(d.created_at) : undefined,
             };
 
             if (status === "archived") {

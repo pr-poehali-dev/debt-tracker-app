@@ -16,6 +16,7 @@ interface Debt {
   interestRate?: number;
   interestType?: "simple" | "compound";
   counterpartyName?: string;
+  createdAt?: string;
 }
 
 interface Props {
@@ -257,6 +258,32 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
                 </div>
               );
             })()}
+
+            {dir === "borrowed" && debt.counterpartyName && (
+              <div className="flex items-center gap-3 glass rounded-2xl px-4 py-3">
+                <div className="w-8 h-8 rounded-xl bg-cyan-500/15 flex items-center justify-center flex-shrink-0">
+                  <Icon name="UserCheck" size={16} className="text-cyan-400" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs text-muted-foreground">Кто выдал долг</p>
+                  <p className="text-sm font-medium text-foreground">{debt.counterpartyName}</p>
+                </div>
+              </div>
+            )}
+
+            {debt.createdAt && (
+              <div className="flex items-center gap-3 glass rounded-2xl px-4 py-3">
+                <div className="w-8 h-8 rounded-xl bg-indigo-500/15 flex items-center justify-center flex-shrink-0">
+                  <Icon name="CalendarClock" size={16} className="text-indigo-400" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs text-muted-foreground">Дата выдачи долга</p>
+                  <p className="text-sm font-medium text-foreground">
+                    {new Date(debt.createdAt).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" })}
+                  </p>
+                </div>
+              </div>
+            )}
 
             {debt.note && dir === "lent" && (
               <div className="flex items-start gap-3 glass rounded-2xl px-4 py-3">
