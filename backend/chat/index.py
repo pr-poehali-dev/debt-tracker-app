@@ -343,23 +343,36 @@ def handler(event: dict, context) -> dict:
                 r = cur.fetchone()
             conn.commit()
 
-            # Push-уведомление получателю
+            # Push-уведомление получателю + запись в БД (для истории / непрочитанных)
             if recipient_id:
                 if debt_id:
                     chat_url = f"/?openChat=debt&id={debt_id}"
                     chat_tag = f"chat-debt-{debt_id}"
+                    notif_data = {"debt_id": str(debt_id), "message_id": r[0]}
                 else:
                     chat_url = f"/?openChat=rental&id={rental_id}"
                     chat_tag = f"chat-rental-{rental_id}"
+                    notif_data = {"rental_id": str(rental_id), "message_id": r[0]}
                 if text:
                     push_body = text[:80]
                 elif attachment_type == "image":
                     push_body = "📷 Фото"
                 else:
                     push_body = "📎 " + (attachment_name or "Файл")
+                notif_title = f"Сообщение от {user_name}"
+                try:
+                    with conn.cursor() as cur:
+                        cur.execute(
+                            f"""INSERT INTO {SCHEMA}.notifications (user_id, type, title, body, data)
+                                VALUES (%s, 'message', %s, %s, %s)""",
+                            (recipient_id, notif_title, push_body, json.dumps(notif_data))
+                        )
+                    conn.commit()
+                except Exception as e:
+                    print(f"[chat] failed notif insert: {e}")
                 send_push_notification(
                     conn, recipient_id,
-                    f"Сообщение от {user_name}", push_body,
+                    notif_title, push_body,
                     url=chat_url, tag=chat_tag,
                 )
 

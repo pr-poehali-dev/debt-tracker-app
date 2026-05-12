@@ -1,0 +1,12 @@
+{
+  "tests": [
+    {
+      "name": "Run overdue cron",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 200,
+      "expectedBody": {"target_date": "string"},
+      "bodyMatcher": "partial"
+    }
+  ]
+}

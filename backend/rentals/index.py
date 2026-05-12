@@ -273,13 +273,17 @@ def handler(event: dict, context) -> dict:
                 tenant_id = find_user_by_phone(conn, body.get("tenant_phone"))
                 if tenant_id:
                     amount_str = f"{float(body['amount']):,.0f} ₽".replace(",", " ")
-                    send_push(
-                        conn,
-                        tenant_id,
-                        f"🏠 Новая аренда от {body['landlord_name']}",
-                        f"«{body['title']}» — {amount_str}/мес",
-                        "/?section=rental",
-                    )
+                    notif_title = f"🏠 Новая аренда от {body['landlord_name']}"
+                    notif_body = f"«{body['title']}» — {amount_str}/мес"
+                    with conn.cursor() as cur:
+                        cur.execute(
+                            f"""INSERT INTO {SCHEMA}.notifications (user_id, type, title, body, data)
+                                VALUES (%s, 'rental_created', %s, %s, %s)""",
+                            (tenant_id, notif_title, notif_body,
+                             json.dumps({"rental_id": str(row[0]), "landlord_name": body['landlord_name'], "amount": float(body['amount'])}))
+                        )
+                    conn.commit()
+                    send_push(conn, tenant_id, notif_title, notif_body, "/?section=rental")
             except Exception as e:
                 print(f"[push] new-rental notify failed: {e}")
         return json_resp(row_to_rental(row), 201)

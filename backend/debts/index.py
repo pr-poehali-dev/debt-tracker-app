@@ -269,13 +269,17 @@ def handler(event: dict, context) -> dict:
                 if borrower_id:
                     lender_name = body.get("lender_name") or "Кредитор"
                     amount_str = f"{float(body['amount']):,.0f} ₽".replace(",", " ")
-                    send_push(
-                        conn,
-                        borrower_id,
-                        f"💰 Новый долг от {lender_name}",
-                        f"«{body['title']}» — {amount_str}",
-                        "/?section=borrowed",
-                    )
+                    notif_title = f"💰 Новый долг от {lender_name}"
+                    notif_body = f"«{body['title']}» — {amount_str}"
+                    with conn.cursor() as cur:
+                        cur.execute(
+                            f"""INSERT INTO {SCHEMA}.notifications (user_id, type, title, body, data)
+                                VALUES (%s, 'debt_created', %s, %s, %s)""",
+                            (borrower_id, notif_title, notif_body,
+                             json.dumps({"debt_id": str(row[0]), "lender_name": lender_name, "amount": float(body['amount'])}))
+                        )
+                    conn.commit()
+                    send_push(conn, borrower_id, notif_title, notif_body, "/?section=borrowed")
             except Exception as e:
                 print(f"[push] new-debt notify failed: {e}")
         return json_resp(row_to_debt(row), 201)
@@ -390,7 +394,17 @@ def handler(event: dict, context) -> dict:
                     b_name = body.get("borrower_name") or str(row[8] or "Должник")
                     emoji = "✅" if decision == "accepted" else "❌"
                     status_text = "принял долг" if decision == "accepted" else "отклонил долг"
-                    send_push(conn, row[13], f"{emoji} {b_name} {status_text}", f"«{row[2]}» — {float(row[3]):,.0f} ₽".replace(",", " "), "/?section=lent")
+                    notif_title = f"{emoji} {b_name} {status_text}"
+                    notif_body = f"«{row[2]}» — {float(row[3]):,.0f} ₽".replace(",", " ")
+                    if row[13]:
+                        with conn.cursor() as cur2:
+                            cur2.execute(
+                                f"""INSERT INTO {SCHEMA}.notifications (user_id, type, title, body, data)
+                                    VALUES (%s, 'debt_decision', %s, %s, %s)""",
+                                (row[13], notif_title, notif_body,
+                                 json.dumps({"debt_id": str(row[0]), "decision": decision, "borrower_name": b_name}))
+                            )
+                    send_push(conn, row[13], notif_title, notif_body, "/?section=lent")
             conn.commit()
         if not row:
             return err("Долг не найден", 404)
