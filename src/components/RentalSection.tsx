@@ -88,7 +88,7 @@ function PaymentCalendar({ rental, token, userId }: { rental: Rental; token: str
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-end justify-center" style={{ background: "rgba(0,0,0,0.6)" }}
       onClick={e => e.currentTarget === e.target && document.dispatchEvent(new CustomEvent("close-payment-calendar"))}>
-      <div className="w-full max-w-lg rounded-t-3xl p-5 space-y-4" style={{ background: "#13152a", maxHeight: "80vh", overflowY: "auto" }}>
+      <div className="w-full max-w-lg rounded-t-3xl p-5 space-y-4" style={{ background: "#13152a", maxHeight: "80vh", overflowY: "auto", paddingBottom: "max(100px, calc(env(safe-area-inset-bottom) + 100px))" }}>
         <div className="flex items-center justify-between">
           <div>
             <p className="font-bold text-foreground">{rental.title}</p>

@@ -90,7 +90,10 @@ export default function ExtraPaymentModal({ loan, onClose, onSave }: Props) {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+        <div
+          className="flex-1 overflow-y-auto px-5 py-4 space-y-4"
+          style={{ paddingBottom: "max(100px, calc(env(safe-area-inset-bottom) + 100px))" }}
+        >
           {/* Текущий остаток */}
           <div className="glass rounded-2xl p-4" style={{ borderLeft: "3px solid rgba(56,189,248,0.4)" }}>
             <p className="text-xs text-muted-foreground mb-1">Текущий остаток</p>

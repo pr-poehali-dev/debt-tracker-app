@@ -138,7 +138,7 @@ export default function SupportModal({ token, onClose, initialTicketId, isAdmin 
     <div className="fixed inset-0 z-[100] flex items-end justify-center" onClick={e => e.currentTarget === e.target && onClose()}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full max-w-lg flex flex-col animate-slide-up"
-        style={{ maxHeight: "90dvh", background: "var(--app-bg)", borderRadius: "20px 20px 0 0" }}
+        style={{ maxHeight: "90dvh", background: "var(--app-bg)", borderRadius: "20px 20px 0 0", paddingBottom: "max(96px, calc(env(safe-area-inset-bottom) + 96px))" }}
         onClick={e => e.stopPropagation()}>
         <div className="flex justify-center pt-3 pb-1 cursor-pointer" onClick={onClose}>
           <div className="w-10 h-1 rounded-full bg-white/20" />
