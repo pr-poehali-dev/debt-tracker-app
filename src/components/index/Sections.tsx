@@ -2070,7 +2070,7 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
               className={pushSubbed && pushStatus === "granted" ? "text-purple-400" : "text-muted-foreground"} />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-foreground">{/* TODO: i18n */}Push-уведомления</p>
+            <p className="font-semibold text-foreground">{/* TODO: i18n */}{isAdmin ? "Push-уведомления" : "Уведомления"}</p>
             <p className="text-xs text-muted-foreground">
               {pushStatus === "loading" && "Проверяем настройки…"}
               {pushStatus === "unsupported" && "Браузер не поддерживает push"}
