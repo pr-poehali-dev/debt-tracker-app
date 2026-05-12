@@ -606,13 +606,27 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
     return () => clearInterval(iv);
   }, [isDemo, token]);
 
-  // Web Push: тихая попытка переподписки если разрешение уже дано
+  // Web Push: автоматическая подписка после логина.
+  // - granted: тихо переподписываемся (обновление endpoint/ключей)
+  // - default: один раз показываем системный запрос и подписываемся
+  // - denied: уважаем выбор пользователя, ничего не делаем
   useEffect(() => {
-    if (isDemo) return;
+    if (isDemo || !token) return;
     if (typeof window === "undefined" || !("Notification" in window)) return;
-    if (window.Notification.permission !== "granted") return;
+    const perm = window.Notification.permission;
+    if (perm === "denied") return;
+    const askedKey = "push_auto_asked_v1";
+    if (perm === "default") {
+      try {
+        if (localStorage.getItem(askedKey)) return;
+      } catch { /* ignore */ }
+    }
     import("@/lib/push").then(({ ensurePushSubscription }) => {
-      ensurePushSubscription(token).catch(() => {});
+      ensurePushSubscription(token).catch(() => {}).finally(() => {
+        if (perm === "default") {
+          try { localStorage.setItem(askedKey, "1"); } catch { /* ignore */ }
+        }
+      });
     });
   }, [isDemo, token]);
 
