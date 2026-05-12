@@ -17,6 +17,61 @@ SCHEMA = "t_p29977622_debt_tracker_app"
 def get_conn():
     return psycopg2.connect(os.environ["DATABASE_URL"])
 
+def send_push(conn, user_id, title, body_text, url="/"):
+    try:
+        from pywebpush import webpush, WebPushException
+        vapid_private = os.environ.get("VAPID_PRIVATE_KEY", "")
+        if not vapid_private or not user_id:
+            return
+        with conn.cursor() as cur:
+            cur.execute(
+                f"SELECT id, endpoint, p256dh, auth_key FROM {SCHEMA}.push_subscriptions WHERE user_id = %s",
+                (int(user_id),)
+            )
+            subs = cur.fetchall()
+        if not subs:
+            return
+        dead_ids = []
+        for sub_id, endpoint, p256dh, auth_key in subs:
+            try:
+                webpush(
+                    subscription_info={"endpoint": endpoint, "keys": {"p256dh": p256dh, "auth": auth_key}},
+                    data=json.dumps({"title": title, "body": body_text, "url": url}, ensure_ascii=False),
+                    vapid_private_key=vapid_private,
+                    vapid_claims={"sub": "mailto:noreply@debt-debt.ru"},
+                    timeout=10,
+                )
+            except WebPushException as e:
+                status = getattr(getattr(e, "response", None), "status_code", None)
+                if status in (403, 404, 410):
+                    dead_ids.append(sub_id)
+            except Exception as e:
+                print(f"[push] error user={user_id} sub={sub_id}: {e}")
+        if dead_ids:
+            try:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        f"DELETE FROM {SCHEMA}.push_subscriptions WHERE id = ANY(%s)",
+                        (dead_ids,)
+                    )
+                conn.commit()
+            except Exception:
+                pass
+    except Exception as e:
+        print(f"[push] fatal: {e}")
+
+def save_notification(conn, user_id, ntype, title, body, data=None):
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"""INSERT INTO {SCHEMA}.notifications (user_id, type, title, body, data, is_read)
+                    VALUES (%s, %s, %s, %s, %s::jsonb, false)""",
+                (user_id, ntype, title, body, json.dumps(data or {}, ensure_ascii=False))
+            )
+        conn.commit()
+    except Exception as e:
+        print(f"[notif] failed: {e}")
+
 def cors():
     return {
         "Access-Control-Allow-Origin": "*",
@@ -297,6 +352,25 @@ def handler(event: dict, context) -> dict:
                 )
                 cid = cur.fetchone()[0]
             conn.commit()
+
+            # Уведомим вторую сторону, что для неё подготовлен договор
+            other_id = None
+            if user_id == party_a and party_b:
+                other_id = party_b
+            elif user_id == party_b and party_a:
+                other_id = party_a
+            if other_id:
+                with conn.cursor() as cur:
+                    cur.execute(f"SELECT full_name FROM {SCHEMA}.users WHERE id = %s", (user_id,))
+                    nm = cur.fetchone()
+                creator_name = (nm[0] if nm else "Партнёр")
+                title = "Подготовлен договор займа"
+                body = f"{creator_name} оформил договор и ждёт твою подпись"
+                save_notification(conn, other_id, "contract_created", title, body,
+                                  {"contract_id": cid, "debt_id": str(debt_id) if debt_id else None,
+                                   "rental_id": rental_id})
+                send_push(conn, other_id, title, body, url="/")
+
             return json_resp({"id": cid, "ok": True}, 201)
 
         # PUT ?id=N — обновить data (только в draft)
@@ -331,15 +405,18 @@ def handler(event: dict, context) -> dict:
             if not (is_a or is_b):
                 return err("Только стороны договора могут подписать", 403)
 
+            was_a_signed = bool(c["signed_by_a_at"])
+            was_b_signed = bool(c["signed_by_b_at"])
+
             with conn.cursor() as cur:
-                if is_a and not c["signed_by_a_at"]:
+                if is_a and not was_a_signed:
                     cur.execute(
                         f"""UPDATE {SCHEMA}.contracts
                             SET signed_by_a_at = NOW(), signed_by_a_ip = %s, updated_at = NOW()
                             WHERE id = %s""",
                         (source_ip, cid)
                     )
-                if is_b and not c["signed_by_b_at"]:
+                if is_b and not was_b_signed:
                     cur.execute(
                         f"""UPDATE {SCHEMA}.contracts
                             SET signed_by_b_at = NOW(), signed_by_b_ip = %s, updated_at = NOW()
@@ -353,6 +430,41 @@ def handler(event: dict, context) -> dict:
                     (cid,)
                 )
             conn.commit()
-            return json_resp({"ok": True, "contract": fetch_contract(conn, cid)})
+
+            updated = fetch_contract(conn, cid)
+            # Имя подписавшего
+            with conn.cursor() as cur:
+                cur.execute(f"SELECT full_name FROM {SCHEMA}.users WHERE id = %s", (user_id,))
+                nm = cur.fetchone()
+            signer_name = (nm[0] if nm else "Партнёр")
+
+            other_id = c["party_b_user_id"] if is_a else c["party_a_user_id"]
+            fully_signed = bool(updated and updated.get("signed_by_a_at") and updated.get("signed_by_b_at"))
+
+            if other_id:
+                if fully_signed:
+                    title = "Договор подписан полностью"
+                    body = f"{signer_name} подписал договор. Документ вступил в силу"
+                    ntype = "contract_active"
+                else:
+                    title = f"{signer_name} подписал договор"
+                    body = "Твоя подпись ожидается"
+                    ntype = "contract_signed"
+                save_notification(conn, other_id, ntype, title, body,
+                                  {"contract_id": cid,
+                                   "debt_id": str(c["debt_id"]) if c["debt_id"] else None,
+                                   "rental_id": c["rental_id"]})
+                send_push(conn, other_id, title, body, url="/")
+
+            # Если обе стороны подписали — продублируем уведомление подписавшему
+            if fully_signed:
+                save_notification(conn, user_id, "contract_active",
+                                  "Договор подписан полностью",
+                                  "Документ вступил в силу",
+                                  {"contract_id": cid,
+                                   "debt_id": str(c["debt_id"]) if c["debt_id"] else None,
+                                   "rental_id": c["rental_id"]})
+
+            return json_resp({"ok": True, "contract": updated})
 
     return err("Неизвестный маршрут", 404)
