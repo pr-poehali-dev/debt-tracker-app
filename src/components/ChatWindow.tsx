@@ -105,7 +105,11 @@ export default function ChatWindow({ debtId, rentalId, title, token, onClose }: 
 
     if (nav.canShare && nav.canShare({ files: [file] }) && nav.share) {
       try {
-        await nav.share({ files: [file], title: safeName });
+        await nav.share({
+          files: [file],
+          title: "Debt-Debt.ru",
+          text: "Debt-Debt.ru",
+        });
         return true;
       } catch (_e) { /* пользователь отменил — fallback ниже */ }
     }
