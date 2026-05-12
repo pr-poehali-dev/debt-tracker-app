@@ -3,6 +3,21 @@ import Icon from "@/components/ui/icon";
 import { ColorPicker } from "@/components/index/SharedComponents";
 import { type Contact, type ContactColor } from "@/components/index/types";
 
+function formatPhoneInput(raw: string): string {
+  const digits = raw.replace(/\D/g, "");
+  let d = digits;
+  if (d.startsWith("8")) d = "7" + d.slice(1);
+  if (!d.startsWith("7") && d.length > 0) d = "7" + d;
+  d = d.slice(0, 11);
+  if (d.length === 0) return "";
+  let out = "+7";
+  if (d.length > 1) out += " (" + d.slice(1, 4);
+  if (d.length >= 4) out += ") " + d.slice(4, 7);
+  if (d.length >= 7) out += "-" + d.slice(7, 9);
+  if (d.length >= 9) out += "-" + d.slice(9, 11);
+  return out;
+}
+
 export interface ContactFormValues {
   name: string;
   phone: string;
@@ -100,9 +115,12 @@ export default function ContactModal({
             <label className="text-xs text-muted-foreground mb-1 block">Телефон</label>
             <input
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="+7 999 123 45 67"
-              inputMode="tel"
+              onChange={(e) => setPhone(formatPhoneInput(e.target.value))}
+              onFocus={() => { if (!phone) setPhone("+7 ("); }}
+              onBlur={() => { if (phone === "+7 (" || phone === "+7") setPhone(""); }}
+              placeholder="+7 (999) 123-45-67"
+              type="tel"
+              inputMode="numeric"
               className="w-full px-4 py-3 rounded-2xl bg-white/5 border border-white/10 focus:border-purple-500/50 outline-none text-foreground"
             />
           </div>

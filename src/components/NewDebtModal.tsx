@@ -753,7 +753,16 @@ export default function NewDebtModal({ open, onClose, myName = "", myPhone = "",
             {form.borrower_name.trim() && (
               <div>
                 <label className="text-xs text-muted-foreground mb-1 block">Телефон должника (для контакта)</label>
-                <input value={form.borrower_phone} onChange={e => set("borrower_phone", e.target.value)} placeholder="+7 999 123 45 67" inputMode="tel" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-purple-500/50 transition-colors" />
+                <input
+                value={form.borrower_phone}
+                onChange={e => set("borrower_phone", formatPhoneInput(e.target.value))}
+                onFocus={() => { if (!form.borrower_phone) set("borrower_phone", "+7 ("); }}
+                onBlur={() => { if (form.borrower_phone === "+7 (" || form.borrower_phone === "+7") set("borrower_phone", ""); }}
+                placeholder="+7 (999) 123-45-67"
+                type="tel"
+                inputMode="numeric"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-purple-500/50 transition-colors"
+              />
               </div>
             )}
             {form.borrower_name.trim() && (
