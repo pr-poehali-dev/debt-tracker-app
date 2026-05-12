@@ -61,6 +61,13 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
   const [confirmClose, setConfirmClose] = useState(false);
   const [showContract, setShowContract] = useState(false);
   const [contractStatus, setContractStatus] = useState<"none" | "draft" | "active">("none");
+  const [contractWipToast, setContractWipToast] = useState(false);
+
+  useEffect(() => {
+    if (!contractWipToast) return;
+    const t = window.setTimeout(() => setContractWipToast(false), 2000);
+    return () => window.clearTimeout(t);
+  }, [contractWipToast]);
 
   useEffect(() => {
     if (autoOpenContract && debt?.debtDbId) {
@@ -394,35 +401,31 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
           {/* Договор */}
           {debt.debtDbId && (
             <button
-              onClick={() => setShowContract(true)}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-all"
+              onClick={() => setContractWipToast(true)}
+              className="relative w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-all opacity-60"
               style={{
-                background: contractStatus === "active"
-                  ? "rgba(34,197,94,0.10)"
-                  : contractStatus === "draft"
-                    ? "rgba(245,158,11,0.10)"
-                    : "rgba(168,85,247,0.10)",
-                borderColor: contractStatus === "active"
-                  ? "rgba(34,197,94,0.3)"
-                  : contractStatus === "draft"
-                    ? "rgba(245,158,11,0.3)"
-                    : "rgba(168,85,247,0.3)",
+                background: "rgba(255,255,255,0.04)",
+                borderColor: "rgba(255,255,255,0.10)",
               }}
             >
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{
-                background: contractStatus === "active" ? "rgba(34,197,94,0.18)" : contractStatus === "draft" ? "rgba(245,158,11,0.18)" : "rgba(168,85,247,0.18)",
-              }}>
-                <Icon name="FileSignature" size={18} className={contractStatus === "active" ? "text-emerald-400" : contractStatus === "draft" ? "text-amber-400" : "text-purple-400"} />
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(255,255,255,0.06)" }}>
+                <Icon name="FileSignature" size={18} className="text-muted-foreground" />
               </div>
               <div className="flex-1 min-w-0 text-left">
-                <p className="font-semibold text-sm text-foreground">
-                  {contractStatus === "active" ? "Договор подписан" : contractStatus === "draft" ? "Договор: ожидает подписи" : "Создать договор займа"}
-                </p>
-                <p className="text-[11px] text-muted-foreground">
-                  {contractStatus === "active" ? "Открыть и скачать PDF" : contractStatus === "draft" ? "Дополнить и подписать" : "Типовой шаблон с подписями"}
-                </p>
+                <p className="font-semibold text-sm text-foreground">Договор займа</p>
+                <p className="text-[11px] text-muted-foreground">Скоро будет доступно</p>
               </div>
-              <Icon name="ChevronRight" size={16} className="text-muted-foreground flex-shrink-0" />
+              <span className="text-[10px] font-bold px-2 py-1 rounded-full flex-shrink-0" style={{ background: "rgba(245,158,11,0.18)", color: "#fbbf24" }}>
+                В разработке
+              </span>
+              {contractWipToast && (
+                <span
+                  className="absolute left-1/2 -translate-x-1/2 -bottom-9 whitespace-nowrap text-[11px] font-medium px-3 py-1.5 rounded-xl animate-fade-in"
+                  style={{ background: "rgba(245,158,11,0.18)", color: "#fbbf24", border: "1px solid rgba(245,158,11,0.35)" }}
+                >
+                  В разработке
+                </span>
+              )}
             </button>
           )}
 
