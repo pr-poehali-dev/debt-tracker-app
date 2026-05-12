@@ -8,7 +8,7 @@ import { type PersonalLoan } from "@/components/PersonalLoanModal";
 import ExtraPaymentModal from "@/components/ExtraPaymentModal";
 import { computeSchedule } from "@/lib/loanSchedule";
 import ManualReturnModal from "@/components/ManualReturnModal";
-import { ensurePushSubscription, getPushStatus, isSubscribedToPush, unsubscribeFromPush, hardResetPush } from "@/lib/push";
+import { ensurePushSubscription, getPushStatus, isSubscribedToPush, unsubscribeFromPush, hardResetPush, getLastPushError } from "@/lib/push";
 
 // ─── Section: DebtList ────────────────────────────────────────────────────────
 
@@ -1743,13 +1743,14 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
         setPushSubbed(true);
         setResetMsg("Готово! Подписка пересоздана");
       } else {
-        setResetMsg("Не удалось переподписаться");
+        const reason = getLastPushError();
+        setResetMsg(reason ? `Ошибка: ${reason}` : `Не удалось (${status})`);
       }
-    } catch {
-      setResetMsg("Ошибка сброса");
+    } catch (e) {
+      setResetMsg(`Ошибка: ${(e as Error).message}`.slice(0, 120));
     } finally {
       setResetBusy(false);
-      setTimeout(() => setResetMsg(null), 5000);
+      setTimeout(() => setResetMsg(null), 12000);
     }
   }
   async function runDiagnostics() {

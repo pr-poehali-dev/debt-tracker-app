@@ -36,12 +36,17 @@ export async function hardResetPush(token: string): Promise<boolean> {
   }
 }
 
+let lastPushError = "";
+export function getLastPushError(): string { return lastPushError; }
+
 export async function ensurePushSubscription(
   token: string,
   opts: { silent?: boolean } = {}
 ): Promise<"granted" | "denied" | "default" | "unsupported" | "error"> {
+  lastPushError = "";
   try {
     if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+      lastPushError = "Браузер не поддерживает push";
       return "unsupported";
     }
 
@@ -97,14 +102,34 @@ export async function ensurePushSubscription(
     }
 
     if (!sub) {
-      sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: serverKey,
-      });
+      try {
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: serverKey,
+        });
+      } catch (subErr) {
+        lastPushError = `subscribe: ${(subErr as Error).name}: ${(subErr as Error).message}`.slice(0, 200);
+        // Попытка восстановления: если есть «зависшая» подписка — снимем и попробуем ещё раз
+        try {
+          const stuck = await reg.pushManager.getSubscription();
+          if (stuck) {
+            await stuck.unsubscribe();
+            sub = await reg.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: serverKey,
+            });
+            lastPushError = "";
+          }
+        } catch (retryErr) {
+          lastPushError = `retry: ${(retryErr as Error).name}: ${(retryErr as Error).message}`.slice(0, 200);
+          return "error";
+        }
+        if (!sub) return "error";
+      }
     }
 
     const subJson = sub.toJSON() as { endpoint?: string; keys?: { p256dh?: string; auth?: string } };
-    await fetch(`${CHAT_URL}?action=subscribe`, {
+    const r = await fetch(`${CHAT_URL}?action=subscribe`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({
@@ -113,10 +138,15 @@ export async function ensurePushSubscription(
         auth: subJson.keys?.auth,
       }),
     });
+    if (!r.ok) {
+      lastPushError = `backend save failed: ${r.status}`;
+      return "error";
+    }
 
     try { localStorage.setItem(PUSH_RESET_KEY, PUSH_RESET_VERSION); } catch { /* ignore */ }
     return "granted";
-  } catch {
+  } catch (e) {
+    lastPushError = `${(e as Error).name}: ${(e as Error).message}`.slice(0, 200);
     return "error";
   }
 }
