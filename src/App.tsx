@@ -14,7 +14,7 @@ import func2url from "../backend/func2url.json";
 
 const queryClient = new QueryClient();
 
-const ICON = "https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/bucket/36805ee6-eff5-43db-a621-0e48de935d2a.jpg";
+const ICON = "https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/files/98b74c9b-2e18-44dc-82a6-42c5215f3b20.jpg";
 
 function SplashScreen({ onDone }: { onDone: () => void }) {
   const [hiding, setHiding] = useState(false);
