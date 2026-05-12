@@ -42,6 +42,7 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
   const [manualReturn, setManualReturn] = useState<Debt | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Debt | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [filter, setFilter] = useState<"all" | "active" | "overdue">("all");
 
   function showToast(msg: string) {
     setToast(msg);
@@ -57,6 +58,10 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
   }
   const total = debts.filter(d => d.status !== "paid").reduce((s, d) => s + d.amount, 0);
   const overdue = debts.filter(d => d.status === "overdue").length;
+  const activeCount = debts.filter(d => d.status === "active").length;
+  const visibleDebts = filter === "all"
+    ? debts
+    : debts.filter(d => d.status === filter);
 
   return (
     <div className="animate-fade-in">
@@ -138,14 +143,48 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
             <p className="text-muted-foreground text-xs mb-1">{dir === "lent" ? t.totalLent : t.totalBorrowed}</p>
             <p className={`text-2xl font-bold font-heading ${dir === "lent" ? "text-gradient-purple" : "text-gradient-blue"}`}>{fmt(total)}</p>
           </div>
-          <div className="glass rounded-2xl p-4">
+          <button
+            type="button"
+            onClick={() => setFilter(filter === "active" ? "all" : "active")}
+            className="glass rounded-2xl p-4 text-left transition-all active:scale-[0.98]"
+            style={{
+              outline: filter === "active" ? "2px solid rgba(168,85,247,0.55)" : "none",
+              background: filter === "active" ? "rgba(168,85,247,0.10)" : undefined,
+            }}
+            aria-pressed={filter === "active"}
+          >
             <p className="text-muted-foreground text-xs mb-1">{t.active}</p>
-            <p className="text-2xl font-bold font-heading text-foreground">{debts.filter(d => d.status === "active").length}</p>
-          </div>
-          <div className="glass rounded-2xl p-4">
+            <p className="text-2xl font-bold font-heading text-foreground">{activeCount}</p>
+          </button>
+          <button
+            type="button"
+            onClick={() => overdue > 0 && setFilter(filter === "overdue" ? "all" : "overdue")}
+            disabled={overdue === 0}
+            className="glass rounded-2xl p-4 text-left transition-all active:scale-[0.98] disabled:cursor-default"
+            style={{
+              outline: filter === "overdue" ? "2px solid rgba(239,68,68,0.6)" : "none",
+              background: filter === "overdue" ? "rgba(239,68,68,0.10)" : undefined,
+            }}
+            aria-pressed={filter === "overdue"}
+          >
             <p className="text-muted-foreground text-xs mb-1">{t.overdue}</p>
             <p className="text-2xl font-bold font-heading text-red-400">{overdue}</p>
-          </div>
+          </button>
+        </div>
+      )}
+
+      {filter !== "all" && (
+        <div className="flex items-center justify-between mb-3 px-1">
+          <p className="text-xs text-muted-foreground">
+            {filter === "overdue" ? "Только просроченные" : "Только активные"} · {visibleDebts.length}
+          </p>
+          <button
+            type="button"
+            onClick={() => setFilter("all")}
+            className="text-xs font-medium text-purple-400 hover:text-purple-300 flex items-center gap-1"
+          >
+            <Icon name="X" size={12} /> Сбросить
+          </button>
         </div>
       )}
 
@@ -159,9 +198,25 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
             <p className="text-xs text-muted-foreground">{t.emptyDebtsHint}</p>
           </div>
         </div>
+      ) : visibleDebts.length === 0 ? (
+        <div className="glass rounded-2xl p-8 flex flex-col items-center text-center gap-2">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center">
+            <Icon name="CheckCircle2" size={22} className="text-emerald-400" />
+          </div>
+          <p className="text-sm font-medium text-foreground">
+            {filter === "overdue" ? "Просроченных долгов нет" : "Активных долгов нет"}
+          </p>
+          <button
+            type="button"
+            onClick={() => setFilter("all")}
+            className="text-xs font-medium text-purple-400 hover:text-purple-300 mt-1"
+          >
+            Показать все
+          </button>
+        </div>
       ) : (
         <div className="space-y-3">
-          {debts.map((d, i) => {
+          {visibleDebts.map((d, i) => {
             const contact = contacts.find(c => c.id === d.contactId);
             const col = contact ? getColor(contact.color) : null;
             const isOverdue = d.status === "overdue";
