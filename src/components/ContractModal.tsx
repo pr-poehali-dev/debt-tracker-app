@@ -271,7 +271,7 @@ export default function ContractModal({
     <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={onClose} />
       <div className="relative w-full sm:max-w-lg max-h-[92vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl border border-white/10 shadow-2xl animate-slide-up"
-        style={{ background: "#1a1d2e" }}>
+        style={{ background: "#1a1d2e", paddingBottom: "max(100px, calc(env(safe-area-inset-bottom) + 100px))" }}>
         <div className="sticky top-0 z-10 px-5 py-4 border-b border-white/10 flex items-center justify-between"
           style={{ background: "#1a1d2e" }}>
           <div className="flex items-center gap-3">
