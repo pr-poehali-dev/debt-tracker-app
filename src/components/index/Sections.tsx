@@ -164,13 +164,33 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
           {debts.map((d, i) => {
             const contact = contacts.find(c => c.id === d.contactId);
             const col = contact ? getColor(contact.color) : null;
+            const isOverdue = d.status === "overdue";
             return (
               <div
                 key={d.id}
                 onClick={() => setSelectedDebt(d)}
-                className="glass rounded-2xl p-4 flex items-start gap-4 hover:bg-white/[0.06] transition-all duration-200 cursor-pointer group"
-                style={{ animationDelay: `${i * 0.05}s`, borderLeft: col ? `3px solid ${col.hex}` : undefined }}
+                className={`relative glass rounded-2xl p-4 flex items-start gap-4 hover:bg-white/[0.06] transition-all duration-200 cursor-pointer group ${isOverdue ? "overdue-pulse" : ""}`}
+                style={{
+                  animationDelay: `${i * 0.05}s`,
+                  borderLeft: isOverdue
+                    ? "3px solid #ef4444"
+                    : col ? `3px solid ${col.hex}` : undefined,
+                  background: isOverdue
+                    ? "linear-gradient(135deg, rgba(239,68,68,0.10), rgba(239,68,68,0.02))"
+                    : undefined,
+                  boxShadow: isOverdue ? "0 0 0 1px rgba(239,68,68,0.25) inset" : undefined,
+                }}
               >
+                {isOverdue && (
+                  <div
+                    className="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
+                    style={{ background: "rgba(239,68,68,0.18)", border: "1px solid rgba(239,68,68,0.35)" }}
+                    aria-label="Просрочено"
+                    title="Просрочено"
+                  >
+                    <Icon name="AlertTriangle" size={12} className="text-red-400" />
+                  </div>
+                )}
                 <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
                   <Avatar initials={d.avatar} color={contact?.color} />
                   {(() => {
