@@ -79,25 +79,16 @@ export default function BalanceReportModal({ onClose, lentDebts, borrowedDebts, 
   const dragStartY = useRef<number | null>(null);
   const [dragY, setDragY] = useState(0);
 
-  const dragStartT = useRef<number>(0);
   function handleTouchStart(e: React.TouchEvent) {
     dragStartY.current = e.touches[0].clientY;
-    dragStartT.current = Date.now();
   }
   function handleTouchMove(e: React.TouchEvent) {
     if (dragStartY.current === null) return;
     const delta = e.touches[0].clientY - dragStartY.current;
     if (delta > 0) setDragY(delta);
   }
-  function handleTouchEnd(e: React.TouchEvent) {
-    const startY = dragStartY.current;
-    const endY = e.changedTouches[0]?.clientY ?? 0;
-    const dy = startY === null ? 0 : endY - startY;
-    const dt = Date.now() - dragStartT.current;
+  function handleTouchEnd(_e: React.TouchEvent) {
     if (dragY > 120) {
-      onClose();
-    } else if (dy < -70 && dt < 600) {
-      // свайп снизу-вверх — закрыть
       onClose();
     } else {
       setDragY(0);
