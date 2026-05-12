@@ -51,6 +51,13 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [pullUpDistance, setPullUpDistance] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const [inAppToast, setInAppToast] = useState<{ id: string; title: string; body: string; deepUrl?: string } | null>(null);
+
+  useEffect(() => {
+    if (!inAppToast) return;
+    const t = window.setTimeout(() => setInAppToast(null), 6000);
+    return () => window.clearTimeout(t);
+  }, [inAppToast]);
   const [showContactModal, setShowContactModal] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [viewingContact, setViewingContact] = useState<Contact | null>(null);
@@ -371,6 +378,10 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
               }
               return base;
             });
+          if (fresh.length > 0) {
+            const last = fresh[0];
+            setInAppToast({ id: String(last.id), title: last.title, body: last.message, deepUrl: last.deepUrl });
+          }
           return fresh.length > 0 ? [...fresh, ...prev] : prev;
         });
       }
@@ -1227,6 +1238,43 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
           {section === "settings"      && <SettingsSection theme={theme} onThemeChange={setTheme} profile={profile} onProfileChange={handleProfileChange} t={t} lang={lang} onLangChange={handleLangChange} onLogout={onLogout} isDemo={isDemo} onOpenSupport={() => setShowSupport(true)} token={token} authUrl={func2url.auth} />}
         </div>
       </main>
+
+      {inAppToast && (
+        <div className="fixed top-3 left-2 right-2 z-[300] flex justify-center pointer-events-none">
+          <div
+            className="max-w-md w-full glass-strong rounded-2xl p-3 flex items-start gap-3 cursor-pointer pointer-events-auto animate-slide-down"
+            style={{ border: "1px solid rgba(168,85,247,0.35)", boxShadow: "0 10px 30px rgba(0,0,0,0.4)" }}
+            onClick={() => {
+              if (inAppToast.deepUrl) {
+                const qi = inAppToast.deepUrl.indexOf("?");
+                if (qi >= 0) {
+                  const params = new URLSearchParams(inAppToast.deepUrl.slice(qi));
+                  const openDebt = params.get("openDebt");
+                  const contract = params.get("contract") === "1";
+                  if (openDebt) {
+                    window.dispatchEvent(new CustomEvent("open-debt", { detail: { debtDbId: openDebt, openContract: contract } }));
+                  }
+                }
+              }
+              setInAppToast(null);
+            }}
+          >
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(168,85,247,0.18)" }}>
+              <Icon name="Bell" size={16} className="text-purple-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-foreground truncate">{inAppToast.title}</p>
+              <p className="text-xs text-muted-foreground line-clamp-2">{inAppToast.body}</p>
+            </div>
+            <button
+              onClick={(e) => { e.stopPropagation(); setInAppToast(null); }}
+              className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-white/10 flex-shrink-0"
+            >
+              <Icon name="X" size={14} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {(pullUpDistance > 0 || refreshing) && (
         <div
