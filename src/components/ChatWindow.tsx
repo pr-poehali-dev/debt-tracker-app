@@ -23,6 +23,7 @@ interface Props {
   debtId?: string;
   rentalId?: number;
   title: string;
+  contactName?: string;
   token: string;
   onClose: () => void;
 }
@@ -48,7 +49,7 @@ function playNotifSound() {
   } catch (_e) { /* звук не поддерживается */ }
 }
 
-export default function ChatWindow({ debtId, rentalId, title, token, onClose }: Props) {
+export default function ChatWindow({ debtId, rentalId, title, contactName, token, onClose }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(true);
@@ -468,9 +469,20 @@ export default function ChatWindow({ debtId, rentalId, title, token, onClose }: 
 
         {/* Header */}
         <div className="relative z-10 px-4 pt-1 pb-3 flex items-center gap-3 border-b border-white/5">
+          {contactName && (
+            <div className="w-9 h-9 rounded-full bg-purple-500/20 border border-purple-400/30 flex items-center justify-center flex-shrink-0">
+              <span className="text-sm font-semibold text-purple-300">
+                {contactName.trim().charAt(0).toUpperCase() || "?"}
+              </span>
+            </div>
+          )}
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-foreground truncate">{title}</p>
-            <p className="text-xs text-muted-foreground">Чат по {chatType}</p>
+            <p className="font-semibold text-foreground truncate">
+              {contactName || title}
+            </p>
+            <p className="text-xs text-muted-foreground truncate">
+              {contactName ? `${title} • Чат по ${chatType}` : `Чат по ${chatType}`}
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1">

@@ -42,7 +42,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
   const [totalRentalAmount, setTotalRentalAmount] = useState(0);
   const [rentals, setRentals] = useState<Array<{ id: string; title: string; amount: number; payment_day: number; landlord_user_id?: number; tenant_user_id?: number; status: string }>>([]);
   const [rentalInvite, setRentalInvite] = useState<string | null>(() => new URLSearchParams(window.location.search).get("rental"));
-  const [activeChat, setActiveChat] = useState<{ debtId?: string; rentalId?: number; title: string } | null>(null);
+  const [activeChat, setActiveChat] = useState<{ debtId?: string; rentalId?: number; title: string; contactName?: string } | null>(null);
   const [showSupport, setShowSupport] = useState(false);
   const [supportTicketId, setSupportTicketId] = useState<number | null>(null);
   const [showReport, setShowReport] = useState(false);
@@ -644,7 +644,8 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
       if (kind && id) {
         if (kind === "debt") {
           const debt = [...lentDebts, ...borrowedDebts, ...archiveDebts].find(d => d.debtDbId === id);
-          setActiveChat({ debtId: id, title: debt?.title || "Чат по долгу" });
+          const contactName = debt ? (contacts.find(c => c.id === debt.contactId)?.name || debt.counterpartyName) : undefined;
+          setActiveChat({ debtId: id, title: debt?.title || "Чат по долгу", contactName });
         } else if (kind === "rental") {
           const rental = rentals.find(r => String(r.id) === String(id));
           setActiveChat({ rentalId: Number(id), title: rental?.title || "Чат по аренде" });
@@ -1088,6 +1089,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
           debtId={activeChat.debtId}
           rentalId={activeChat.rentalId}
           title={activeChat.title}
+          contactName={activeChat.contactName}
           token={token}
           onClose={() => setActiveChat(null)}
         />
@@ -1174,11 +1176,11 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
       >
         <div key={section} className={`max-w-lg mx-auto ${swipeDir === "left" ? "animate-slide-in-right" : swipeDir === "right" ? "animate-slide-in-left" : ""}`}>
           {section === "dashboard"     && <Dashboard onNav={setSection} contacts={contactsWithTotals} t={t} lentDebts={lentDebts} borrowedDebts={borrowedDebts} activeRentalCount={activeRentalCount} totalRentalAmount={totalRentalAmount} personalLoans={personalLoans} onOpenReport={() => setShowReport(true)} />}
-          {section === "lent"          && <DebtList debts={lentDebts} dir="lent" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => setActiveChat({ debtId: id, title })} onMarkPaid={handleMarkPaid} onDeleteDebt={handleDeleteDebt} onAddNew={() => setShowNewDebt(true)} token={token} userId={user.id} onPaymentAccepted={handlePaymentAccepted} />}
-          {section === "borrowed"      && <DebtList debts={borrowedDebts} dir="borrowed" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => setActiveChat({ debtId: id, title })} onMarkPaid={handleMarkPaid} onDeleteDebt={handleDeleteDebt} onAddNew={() => setShowPersonalLoan(true)} personalLoans={personalLoans} onPersonalLoanUpdate={(loans) => { setPersonalLoans(loans); localStorage.setItem("df-personal-loans", JSON.stringify(loans)); }} token={token} userId={user.id} onPaymentAccepted={handlePaymentAccepted} />}
+          {section === "lent"          && <DebtList debts={lentDebts} dir="lent" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => { const d = lentDebts.find(x => x.debtDbId === id); const cn = d ? (contacts.find(c => c.id === d.contactId)?.name || d.counterpartyName) : undefined; setActiveChat({ debtId: id, title, contactName: cn }); }} onMarkPaid={handleMarkPaid} onDeleteDebt={handleDeleteDebt} onAddNew={() => setShowNewDebt(true)} token={token} userId={user.id} onPaymentAccepted={handlePaymentAccepted} />}
+          {section === "borrowed"      && <DebtList debts={borrowedDebts} dir="borrowed" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => { const d = borrowedDebts.find(x => x.debtDbId === id); const cn = d ? (contacts.find(c => c.id === d.contactId)?.name || d.counterpartyName) : undefined; setActiveChat({ debtId: id, title, contactName: cn }); }} onMarkPaid={handleMarkPaid} onDeleteDebt={handleDeleteDebt} onAddNew={() => setShowPersonalLoan(true)} personalLoans={personalLoans} onPersonalLoanUpdate={(loans) => { setPersonalLoans(loans); localStorage.setItem("df-personal-loans", JSON.stringify(loans)); }} token={token} userId={user.id} onPaymentAccepted={handlePaymentAccepted} />}
           {section === "calendar"      && <CalendarSection contacts={contacts} t={t} debts={[...lentDebts, ...borrowedDebts]} rentals={rentals} userId={user.id} />}
-          {section === "notifications" && <NotificationsSection notifs={notifs} onMarkAllRead={handleMarkAllRead} onMarkRead={handleMarkRead} t={t} token={token} onOpenChat={(debtId, rentalId, title) => setActiveChat({ debtId: debtId || undefined, rentalId: rentalId || undefined, title })} onOpenSupport={(ticketId) => { setSupportTicketId(ticketId); setShowSupport(true); }} onPaymentAccepted={handlePaymentAccepted} />}
-          {section === "archive"       && <ArchiveSection contacts={contacts} t={t} locale={locale} archiveDebts={archiveDebts} token={token} onOpenChat={(id, title) => setActiveChat({ debtId: id, title })} />}
+          {section === "notifications" && <NotificationsSection notifs={notifs} onMarkAllRead={handleMarkAllRead} onMarkRead={handleMarkRead} t={t} token={token} onOpenChat={(debtId, rentalId, title) => { const d = debtId ? [...lentDebts, ...borrowedDebts, ...archiveDebts].find(x => x.debtDbId === debtId) : undefined; const cn = d ? (contacts.find(c => c.id === d.contactId)?.name || d.counterpartyName) : undefined; setActiveChat({ debtId: debtId || undefined, rentalId: rentalId || undefined, title, contactName: cn }); }} onOpenSupport={(ticketId) => { setSupportTicketId(ticketId); setShowSupport(true); }} onPaymentAccepted={handlePaymentAccepted} />}
+          {section === "archive"       && <ArchiveSection contacts={contacts} t={t} locale={locale} archiveDebts={archiveDebts} token={token} onOpenChat={(id, title) => { const d = archiveDebts.find(x => x.debtDbId === id); const cn = d ? (contacts.find(c => c.id === d.contactId)?.name || d.counterpartyName) : undefined; setActiveChat({ debtId: id, title, contactName: cn }); }} />}
           {section === "rental"        && <RentalSection userId={user.id} token={token} myName={profile.name} isDemo={isDemo} openNew={showNewRental} onNewClose={() => setShowNewRental(false)} t={t} />}
           {section === "contacts"      && (
             <ContactsSection

@@ -1029,6 +1029,9 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
                     <p className="font-semibold text-sm text-foreground truncate">{th.title}</p>
                     <p className="text-[11px] text-muted-foreground flex-shrink-0">{n.date}</p>
                   </div>
+                  {isChat && th.subtitle && (
+                    <p className="text-[11px] text-purple-300 truncate mt-0.5">{th.subtitle}</p>
+                  )}
                   <div className="flex items-center justify-between gap-2 mt-0.5">
                     <p className={`text-xs truncate ${th.unreadCount > 0 ? "text-foreground" : "text-muted-foreground"}`}>{n.message}</p>
                     {th.unreadCount > 0 && (
