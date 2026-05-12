@@ -692,7 +692,7 @@ export default function NewDebtModal({ open, onClose, myName = "", myPhone = "",
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" onClick={e => e.target === e.currentTarget && close()}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={close} />
-      <div className="relative z-10 w-full max-w-lg glass-strong rounded-t-3xl sm:rounded-3xl overflow-hidden" style={{ maxHeight: "92vh", overflowY: "auto" }}>
+      <div className="relative z-10 w-full max-w-lg glass-strong rounded-t-3xl sm:rounded-3xl overflow-hidden" style={{ maxHeight: "92vh", overflowY: "auto", paddingBottom: "max(100px, calc(env(safe-area-inset-bottom) + 100px))" }}>
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 pt-5 pb-3">
