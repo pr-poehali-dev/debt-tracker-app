@@ -49,10 +49,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
   const [notifs, setNotifs] = useState<Notification[]>([]);
   const audioCtxRef = { current: null as AudioContext | null };
   const [unreadMessages, setUnreadMessages] = useState(0);
-  const [pullUpDistance, setPullUpDistance] = useState(0);
-  const [refreshing, setRefreshing] = useState(false);
   const [inAppToast, setInAppToast] = useState<{ id: string; title: string; body: string; deepUrl?: string } | null>(null);
-  const [refreshSeed, setRefreshSeed] = useState(0);
 
   useEffect(() => {
     if (!inAppToast) return;
@@ -88,7 +85,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
         })
         .catch(() => {});
     });
-  }, [isDemo, token, refreshSeed]);
+  }, [isDemo, token]);
 
   useEffect(() => {
     if (isDemo) return;
@@ -190,7 +187,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
           if (newNotifs.length > 0) setNotifs(prev => [...newNotifs, ...prev]);
         });
     });
-  }, [isDemo, user.id, token, contacts, refreshSeed]);
+  }, [isDemo, user.id, token, contacts]);
 
   useEffect(() => {
     if (isDemo) return;
@@ -212,7 +209,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
           })));
         });
     });
-  }, [isDemo, user.id, token, refreshSeed]);
+  }, [isDemo, user.id, token]);
 
   useEffect(() => {
     if (isDemo) return;
@@ -258,7 +255,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
           });
         });
     });
-  }, [isDemo, token, refreshSeed]);
+  }, [isDemo, token]);
 
   useEffect(() => {
     if (isDemo) return;
@@ -683,70 +680,6 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
       }
     };
   }, [lentDebts, borrowedDebts, archiveDebts, rentals]);
-
-  // Pull-up-to-refresh: тянем снизу вверх, когда страница докручена до самого низа.
-  // Включаем только на вкладке "Главная" (dashboard), на остальных — отключаем.
-  useEffect(() => {
-    if (section !== "dashboard") {
-      setPullUpDistance(0);
-      return;
-    }
-    let startY = 0;
-    let active = false;
-    const THRESHOLD = 80;
-
-    function isAtBottom() {
-      const doc = document.documentElement;
-      const scrollTop = window.scrollY || doc.scrollTop;
-      const winH = window.innerHeight;
-      const docH = Math.max(doc.scrollHeight, doc.offsetHeight);
-      return scrollTop + winH >= docH - 2;
-    }
-
-    function onTouchStart(e: TouchEvent) {
-      if (refreshing) return;
-      if (!isAtBottom()) { active = false; return; }
-      startY = e.touches[0].clientY;
-      active = true;
-    }
-    function onTouchMove(e: TouchEvent) {
-      if (!active || refreshing) return;
-      const dy = startY - e.touches[0].clientY;
-      if (dy > 0) {
-        const pull = Math.min(THRESHOLD * 1.6, dy);
-        setPullUpDistance(pull);
-      } else {
-        setPullUpDistance(0);
-      }
-    }
-    function onTouchEnd() {
-      if (!active) return;
-      active = false;
-      if (pullUpDistance >= THRESHOLD && !refreshing) {
-        setRefreshing(true);
-        setPullUpDistance(THRESHOLD);
-        // Тихо обновляем данные без перезагрузки страницы
-        setRefreshSeed(s => s + 1);
-        setTimeout(() => {
-          setRefreshing(false);
-          setPullUpDistance(0);
-        }, 900);
-      } else {
-        setPullUpDistance(0);
-      }
-    }
-
-    window.addEventListener("touchstart", onTouchStart, { passive: true });
-    window.addEventListener("touchmove", onTouchMove, { passive: true });
-    window.addEventListener("touchend", onTouchEnd, { passive: true });
-    window.addEventListener("touchcancel", onTouchEnd, { passive: true });
-    return () => {
-      window.removeEventListener("touchstart", onTouchStart);
-      window.removeEventListener("touchmove", onTouchMove);
-      window.removeEventListener("touchend", onTouchEnd);
-      window.removeEventListener("touchcancel", onTouchEnd);
-    };
-  }, [pullUpDistance, refreshing, section]);
 
   // Web Push: запрос разрешения при первом жесте пользователя
   useEffect(() => {
@@ -1281,35 +1214,6 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
             >
               <Icon name="X" size={14} />
             </button>
-          </div>
-        </div>
-      )}
-
-      {(pullUpDistance > 0 || refreshing) && (
-        <div
-          className="fixed left-0 right-0 z-30 flex justify-center pointer-events-none"
-          style={{
-            bottom: `calc(72px + ${pullUpDistance}px)`,
-            transition: refreshing ? "bottom 200ms ease-out" : "none",
-          }}
-        >
-          <div
-            className="flex items-center gap-2 px-4 py-2 rounded-full backdrop-blur-md"
-            style={{
-              background: "rgba(168, 85, 247, 0.18)",
-              border: "1px solid rgba(168, 85, 247, 0.35)",
-              opacity: Math.min(1, pullUpDistance / 60),
-            }}
-          >
-            <Icon
-              name={refreshing ? "Loader2" : "RefreshCw"}
-              size={14}
-              className={refreshing ? "animate-spin text-purple-300" : "text-purple-300"}
-              style={{ transform: refreshing ? undefined : `rotate(${pullUpDistance * 2}deg)` }}
-            />
-            <span className="text-[11px] font-medium text-purple-200 whitespace-nowrap">
-              {refreshing ? "Обновляем…" : pullUpDistance >= 80 ? "Отпусти для обновления" : "Потяни вверх"}
-            </span>
           </div>
         </div>
       )}
