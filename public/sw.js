@@ -1,4 +1,5 @@
-const CACHE_NAME = 'debtflow-v9';
+const CACHE_NAME = 'debtflow-v10';
+const NOTIF_ICON = 'https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/files/06ebc5e2-b802-4aeb-af0f-994592ccdbcb.jpg';
 const STATIC_ASSETS = [
   '/manifest.json',
 ];
@@ -96,22 +97,31 @@ self.addEventListener('push', (event) => {
     try { data = { body: event.data && event.data.text ? event.data.text() : '' }; } catch (_) { data = {}; }
   }
   const title = data.title || 'Debt-Debt';
-  const options = {
-    body: data.body || 'Новое уведомление',
-    icon: '/icons/icon-192.png',
-    badge: '/icons/icon-96.png',
-    tag: data.tag || ('debtflow-' + Date.now()),
+  const body = data.body || 'Новое уведомление';
+  const tag = data.tag || ('debtflow-' + Date.now());
+  const targetUrl = data.url || '/';
+
+  const show = self.registration.showNotification(title, {
+    body,
+    icon: NOTIF_ICON,
+    badge: NOTIF_ICON,
+    tag,
     renotify: true,
-    requireInteraction: true,
+    requireInteraction: false,
     silent: false,
     vibrate: [200, 100, 200, 100, 200],
-    data: { url: data.url || '/' },
-    actions: [
-      { action: 'open', title: 'Открыть' },
-      { action: 'close', title: 'Закрыть' }
-    ]
-  };
-  event.waitUntil(self.registration.showNotification(title, options));
+    timestamp: Date.now(),
+    data: { url: targetUrl }
+  }).catch((err) => {
+    // Fallback: минимальный набор опций если что-то не нравится Android
+    return self.registration.showNotification(title, {
+      body,
+      tag,
+      data: { url: targetUrl }
+    }).catch(() => {});
+  });
+
+  event.waitUntil(show);
 });
 
 self.addEventListener('pushsubscriptionchange', (event) => {
