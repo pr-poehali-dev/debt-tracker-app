@@ -824,6 +824,8 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
   const [sending, setSending] = useState<number | null>(null);
   const [decidingPay, setDecidingPay] = useState<number | null>(null);
   const [decidedPay, setDecidedPay] = useState<Record<number, "accepted" | "rejected">>({});
+  const [decidingTopUp, setDecidingTopUp] = useState<number | null>(null);
+  const [decidedTopUp, setDecidedTopUp] = useState<Record<number, "accepted" | "rejected">>({});
   const unread = notifs.filter(n => !n.read).length;
 
   async function decidePayment(n: Notification, decision: "accepted" | "rejected") {
@@ -849,6 +851,27 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
         }
       }
     } finally { setDecidingPay(null); }
+  }
+
+  async function decideTopUp(n: Notification, decision: "accepted" | "rejected") {
+    if (!n.topUpRequestMeta) return;
+    setDecidingTopUp(n.id);
+    try {
+      const urls = (await import("../../../backend/func2url.json")).default;
+      const res = await fetch(`${urls["debts"]}?action=topup`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ topup_request_id: n.topUpRequestMeta.topUpRequestId, decision }),
+      });
+      if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setDecidedTopUp(prev => ({ ...prev, [n.id]: decision }));
+        onMarkRead(n.id);
+        if (decision === "accepted" && onPaymentAccepted && n.topUpRequestMeta && typeof data.new_amount === "number") {
+          onPaymentAccepted(n.topUpRequestMeta.debtId, data.new_amount, false);
+        }
+      }
+    } finally { setDecidingTopUp(null); }
   }
 
   async function sendReply(n: Notification) {
@@ -1072,6 +1095,7 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
           const isChat = !!n.chatMeta;
           const isSupport = !!n.supportMeta;
           const isPayReq = !!n.paymentRequestMeta;
+          const isTopUpReq = !!n.topUpRequestMeta;
           const isReplyable = isChat || isSupport;
           return (
             <div
@@ -1208,6 +1232,68 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
                           <>
                             <Icon name="Check" size={13} />
                             {t.confirm}
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Запрос подтверждения доложения долга */}
+              {isTopUpReq && n.topUpRequestMeta && (() => {
+                const decided = decidedTopUp[n.id] || (n.topUpRequestMeta.status !== "pending" ? n.topUpRequestMeta.status : null);
+                const isLoading = decidingTopUp === n.id;
+                if (decided) {
+                  return (
+                    <div className="px-4 pb-3 border-t border-white/5">
+                      <div className="mt-3 flex items-center gap-2 text-xs">
+                        <Icon name={decided === "accepted" ? "CheckCircle2" : "XCircle"} size={14} className={decided === "accepted" ? "text-purple-400" : "text-red-400"} />
+                        <span className={decided === "accepted" ? "text-purple-400" : "text-red-400"}>
+                          {decided === "accepted" ? "Доложение принято" : "Доложение отклонено"}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="px-4 pb-3 border-t border-white/5">
+                    <div className="mt-3 mb-2 rounded-xl p-3" style={{ background: "rgba(168,85,247,0.08)", border: "1px solid rgba(168,85,247,0.2)" }}>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[11px] text-muted-foreground">От {n.topUpRequestMeta.fromName || "кредитора"}</span>
+                        <span className="text-[11px] text-muted-foreground">«{n.topUpRequestMeta.debtTitle}»</span>
+                      </div>
+                      <div className="mt-1.5 text-lg font-bold" style={{ color: "#a855f7" }}>
+                        +{n.topUpRequestMeta.amount.toLocaleString("ru-RU")} ₽
+                      </div>
+                      {n.topUpRequestMeta.note && (
+                        <div className="mt-2 text-[12px] text-foreground/80 italic">
+                          «{n.topUpRequestMeta.note}»
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => decideTopUp(n, "rejected")}
+                        disabled={isLoading}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium transition-all active:scale-95 disabled:opacity-50"
+                        style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", color: "#f87171" }}
+                      >
+                        <Icon name="X" size={13} />
+                        Отклонить
+                      </button>
+                      <button
+                        onClick={() => decideTopUp(n, "accepted")}
+                        disabled={isLoading}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95 disabled:opacity-50"
+                        style={{ background: "linear-gradient(135deg, #a855f7, #6366f1)", color: "#fff" }}
+                      >
+                        {isLoading ? (
+                          <Icon name="Loader2" size={13} className="animate-spin" />
+                        ) : (
+                          <>
+                            <Icon name="Check" size={13} />
+                            Подтвердить
                           </>
                         )}
                       </button>

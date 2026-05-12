@@ -245,6 +245,17 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
                 status: "pending",
               };
             }
+            if (ntype === "topup_request" && nd.topup_request_id) {
+              notif.topUpRequestMeta = {
+                topUpRequestId: Number(nd.topup_request_id),
+                debtId: String(nd.debt_id || ""),
+                amount: Number(nd.amount || 0),
+                fromName: String(nd.from_name || ""),
+                debtTitle: String(nd.debt_title || ""),
+                note: nd.note ? String(nd.note) : null,
+                status: "pending",
+              };
+            }
             if (nd.deep_url && typeof nd.deep_url === "string") {
               notif.deepUrl = nd.deep_url;
             }
@@ -339,6 +350,18 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
                 }
               } else if (ntype === "payment_request") {
                 resolvedType = "info";
+              } else if (ntype === "topup_request") {
+                resolvedType = "info";
+              } else if (ntype === "topup_response") {
+                resolvedType = String(data.decision) === "accepted" ? "success" : "warning";
+                if (String(data.decision) === "accepted") {
+                  const tDebtId = String(data.debt_id || "");
+                  const newAmt = Number(data.new_amount);
+                  if (tDebtId && !Number.isNaN(newAmt)) {
+                    setLentDebts(prev => prev.map(d => d.debtDbId === tDebtId ? { ...d, amount: newAmt } : d));
+                    setBorrowedDebts(prev => prev.map(d => d.debtDbId === tDebtId ? { ...d, amount: newAmt } : d));
+                  }
+                }
               } else if (ntype === "debt_deleted") {
                 resolvedType = "warning";
                 const delDebtId = String(data.debt_id || "");
@@ -365,6 +388,17 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
               if (ntype === "payment_request" && data.payment_request_id) {
                 base.paymentRequestMeta = {
                   paymentRequestId: Number(data.payment_request_id),
+                  debtId: String(data.debt_id || ""),
+                  amount: Number(data.amount || 0),
+                  fromName: String(data.from_name || ""),
+                  debtTitle: String(data.debt_title || ""),
+                  note: data.note ? String(data.note) : null,
+                  status: "pending",
+                };
+              }
+              if (ntype === "topup_request" && data.topup_request_id) {
+                base.topUpRequestMeta = {
+                  topUpRequestId: Number(data.topup_request_id),
                   debtId: String(data.debt_id || ""),
                   amount: Number(data.amount || 0),
                   fromName: String(data.from_name || ""),

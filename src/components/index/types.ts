@@ -61,6 +61,16 @@ export interface PaymentRequestMeta {
   status: "pending" | "accepted" | "rejected";
 }
 
+export interface TopUpRequestMeta {
+  topUpRequestId: number;
+  debtId: string;
+  amount: number;
+  fromName: string;
+  debtTitle: string;
+  note?: string | null;
+  status: "pending" | "accepted" | "rejected";
+}
+
 export interface Notification {
   id: number;
   type: "warning" | "danger" | "info" | "success";
@@ -71,6 +81,7 @@ export interface Notification {
   chatMeta?: ChatMeta;
   supportMeta?: SupportMeta;
   paymentRequestMeta?: PaymentRequestMeta;
+  topUpRequestMeta?: TopUpRequestMeta;
   deepUrl?: string;
 }
 

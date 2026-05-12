@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import Icon from "@/components/ui/icon";
 import ContractModal from "@/components/ContractModal";
+import TopUpDebtModal from "@/components/TopUpDebtModal";
 
 interface Debt {
   id: number;
@@ -63,6 +64,7 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
   const [showContract, setShowContract] = useState(false);
   const [contractStatus, setContractStatus] = useState<"none" | "draft" | "active">("none");
   const [contractWipToast, setContractWipToast] = useState(false);
+  const [showTopUp, setShowTopUp] = useState(false);
 
   useEffect(() => {
     if (!contractWipToast) return;
@@ -457,20 +459,29 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
           )}
 
           {/* Actions */}
-          <div className="flex gap-2 pt-2 pb-6">
+          <div className="flex flex-wrap gap-2 pt-2 pb-6">
             {debt.debtDbId && onOpenChat && debt.borrowerDecision === "accepted" && (
               <button
                 onClick={() => { onClose(); onOpenChat(debt.debtDbId!, debt.name); }}
-                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-purple-500/15 text-purple-400 hover:bg-purple-500/25 transition-colors font-medium text-sm border border-purple-500/20"
+                className="flex-1 min-w-[140px] flex items-center justify-center gap-2 py-3 rounded-2xl bg-purple-500/15 text-purple-400 hover:bg-purple-500/25 transition-colors font-medium text-sm border border-purple-500/20"
               >
                 <Icon name="MessageCircle" size={16} />
                 Открыть чат
               </button>
             )}
+            {debt.debtDbId && debt.status !== "paid" && dir === "lent" && debt.borrowerDecision === "accepted" && (
+              <button
+                onClick={() => setShowTopUp(true)}
+                className="flex-1 min-w-[140px] flex items-center justify-center gap-2 py-3 rounded-2xl bg-indigo-500/15 text-indigo-300 hover:bg-indigo-500/25 transition-colors font-medium text-sm border border-indigo-500/20"
+              >
+                <Icon name="Plus" size={16} />
+                Доложить долг
+              </button>
+            )}
             {debt.debtDbId && debt.status !== "paid" && onMarkPaid && dir === "lent" && !pendingPayment && (
               <button
                 onClick={() => setConfirmClose(true)}
-                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-green-500/15 text-green-400 hover:bg-green-500/25 transition-colors font-medium text-sm border border-green-500/20"
+                className="flex-1 min-w-[140px] flex items-center justify-center gap-2 py-3 rounded-2xl bg-green-500/15 text-green-400 hover:bg-green-500/25 transition-colors font-medium text-sm border border-green-500/20"
               >
                 <Icon name="CheckCircle2" size={16} />
                 Возвращён
@@ -545,6 +556,16 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
           defaultInterest={debt.interestRate}
           counterpartyName={debt.counterpartyName}
           onClose={() => setShowContract(false)}
+        />
+      )}
+
+      {showTopUp && debt.debtDbId && (
+        <TopUpDebtModal
+          debtId={debt.debtDbId}
+          debtTitle={debt.name}
+          currentAmount={debt.amount}
+          token={token || localStorage.getItem("df-token") || ""}
+          onClose={() => setShowTopUp(false)}
         />
       )}
     </div>

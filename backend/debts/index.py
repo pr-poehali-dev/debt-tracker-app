@@ -559,6 +559,144 @@ def handler(event: dict, context) -> dict:
              "created_at": str(r[4]), "from_name": r[5]} for r in rows
         ]})
 
+    # POST ?action=topup — кредитор отправляет запрос на доложение суммы к существующему долгу
+    if method == "POST" and qs.get("action") == "topup":
+        body = json.loads(event.get("body") or "{}")
+        debt_id = body.get("debt_id")
+        amount = body.get("amount")
+        note = (body.get("note") or "").strip()
+        if not debt_id or not amount:
+            return err("debt_id и amount обязательны")
+        try:
+            amount_val = float(amount)
+        except Exception:
+            return err("amount должен быть числом")
+        if amount_val <= 0:
+            return err("Сумма должна быть положительной")
+        with get_conn() as conn:
+            user_id = get_user_id_from_token(auth_header, conn)
+            if not user_id:
+                return err("Не авторизован", 401)
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""SELECT id, lender_user_id, borrower_user_id, title FROM {SCHEMA}.debts
+                        WHERE id = %s AND lender_user_id = %s AND status = 'active'""",
+                    (debt_id, user_id)
+                )
+                debt = cur.fetchone()
+                if not debt:
+                    return err("Долг не найден или нет прав", 403)
+                borrower_id = debt[2]
+                title = debt[3]
+                if not borrower_id:
+                    return err("Заёмщик не зарегистрирован", 400)
+                cur.execute(
+                    f"""INSERT INTO {SCHEMA}.topup_requests (debt_id, from_user_id, to_user_id, amount, note)
+                        VALUES (%s, %s, %s, %s, %s) RETURNING id""",
+                    (debt_id, user_id, borrower_id, amount_val, note or None)
+                )
+                req_id = cur.fetchone()[0]
+                cur.execute(f"SELECT full_name FROM {SCHEMA}.users WHERE id = %s", (user_id,))
+                lender_name = (cur.fetchone() or ["Кредитор"])[0]
+                cur.execute(
+                    f"""INSERT INTO {SCHEMA}.notifications (user_id, type, title, body, data)
+                        VALUES (%s, 'topup_request', %s, %s, %s)""",
+                    (borrower_id,
+                     f"➕ {lender_name} хочет доложить долг",
+                     f"«{title}» — +{amount_val:,.0f} ₽".replace(",", " "),
+                     json.dumps({"topup_request_id": req_id, "debt_id": str(debt_id), "amount": amount_val, "from_name": lender_name, "debt_title": title, "note": note or None}))
+                )
+            send_push(conn, borrower_id, f"➕ {lender_name} хочет доложить долг", f"«{title}» — +{amount_val:,.0f} ₽".replace(",", " "), "/?section=notifications")
+            conn.commit()
+        return json_resp({"ok": True, "topup_request_id": req_id}, 201)
+
+    # PUT ?action=topup — заёмщик принимает или отклоняет доложение
+    if method == "PUT" and qs.get("action") == "topup":
+        body = json.loads(event.get("body") or "{}")
+        req_id = body.get("topup_request_id")
+        decision = body.get("decision")
+        if not req_id or decision not in ("accepted", "rejected"):
+            return err("topup_request_id и decision обязательны")
+        with get_conn() as conn:
+            user_id = get_user_id_from_token(auth_header, conn)
+            if not user_id:
+                return err("Не авторизован", 401)
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""UPDATE {SCHEMA}.topup_requests SET status = %s, updated_at = NOW()
+                        WHERE id = %s AND to_user_id = %s AND status = 'pending'
+                        RETURNING debt_id, from_user_id, amount""",
+                    (decision, req_id, user_id)
+                )
+                row = cur.fetchone()
+                if not row:
+                    return err("Запрос не найден или уже обработан", 404)
+                debt_id, from_user_id, amount = row
+                amount_val = float(amount)
+                cur.execute(f"SELECT title FROM {SCHEMA}.debts WHERE id = %s", (debt_id,))
+                title = (cur.fetchone() or ["Долг"])[0]
+                cur.execute(f"SELECT full_name FROM {SCHEMA}.users WHERE id = %s", (user_id,))
+                borrower_name = (cur.fetchone() or ["Должник"])[0]
+                new_amount = None
+                if decision == "accepted":
+                    cur.execute(
+                        f"SELECT amount FROM {SCHEMA}.debts WHERE id = %s AND lender_user_id = %s",
+                        (debt_id, from_user_id)
+                    )
+                    cur_row = cur.fetchone()
+                    if cur_row:
+                        current_amount = float(cur_row[0])
+                        new_amount = round(current_amount + amount_val, 2)
+                        cur.execute(
+                            f"""UPDATE {SCHEMA}.debts SET amount = %s, updated_at = NOW()
+                                WHERE id = %s AND lender_user_id = %s""",
+                            (new_amount, debt_id, from_user_id)
+                        )
+                emoji = "✅" if decision == "accepted" else "❌"
+                status_text = "принял доложение" if decision == "accepted" else "отклонил доложение"
+                if decision == "accepted":
+                    body_text = f"«{title}» — +{amount_val:,.0f} ₽, итого {new_amount:,.0f} ₽".replace(",", " ")
+                else:
+                    body_text = f"«{title}» — +{amount_val:,.0f} ₽".replace(",", " ")
+                notif_payload = {"debt_id": str(debt_id), "decision": decision, "amount": amount_val}
+                if new_amount is not None:
+                    notif_payload["new_amount"] = new_amount
+                cur.execute(
+                    f"""INSERT INTO {SCHEMA}.notifications (user_id, type, title, body, data)
+                        VALUES (%s, 'topup_response', %s, %s, %s)""",
+                    (from_user_id,
+                     f"{emoji} {borrower_name} {status_text}",
+                     body_text,
+                     json.dumps(notif_payload))
+                )
+            send_push(conn, from_user_id, f"{emoji} {borrower_name} {status_text}", body_text, "/?section=notifications")
+            conn.commit()
+        return json_resp({"ok": True, "new_amount": new_amount})
+
+    # GET ?action=topup&debt_id=UUID — список топ-ап запросов по долгу
+    if method == "GET" and qs.get("action") == "topup":
+        debt_id = qs.get("debt_id")
+        if not debt_id:
+            return err("debt_id обязателен")
+        with get_conn() as conn:
+            user_id = get_user_id_from_token(auth_header, conn)
+            if not user_id:
+                return err("Не авторизован", 401)
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""SELECT tr.id, tr.amount, tr.note, tr.status, tr.created_at, u.full_name
+                        FROM {SCHEMA}.topup_requests tr
+                        JOIN {SCHEMA}.users u ON u.id = tr.from_user_id
+                        WHERE tr.debt_id = %s
+                        ORDER BY tr.created_at DESC""",
+                    (debt_id,)
+                )
+                rows = cur.fetchall()
+        return json_resp({"requests": [
+            {"id": r[0], "amount": float(r[1]), "note": r[2], "status": r[3],
+             "created_at": str(r[4]), "from_name": r[5]} for r in rows
+        ]})
+
     # DELETE ?token=XXX — удалить долг (кредитор удаляет полностью, должник скрывает у себя)
     if method == "DELETE" and qs.get("token"):
         token = qs["token"].upper().strip()
