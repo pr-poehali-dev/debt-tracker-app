@@ -11,10 +11,6 @@ function b64ToBytes(b64: string): Uint8Array {
   return out;
 }
 
-function log(...args: unknown[]) {
-  console.log("[push]", ...args);
-}
-
 let lastError = "";
 export function getLastPushError(): string { return lastError; }
 
@@ -39,7 +35,6 @@ async function fetchVapidKey(): Promise<Uint8Array | null> {
     if (!r.ok) { lastError = `vapid-key HTTP ${r.status}`; return null; }
     const j = await r.json();
     if (!j.public_key) { lastError = "vapid-key empty"; return null; }
-    log("got vapid_key len=", j.public_key.length);
     return b64ToBytes(j.public_key);
   } catch (e) {
     lastError = `vapid-key fetch: ${(e as Error).message}`;
@@ -56,7 +51,6 @@ async function saveSubOnBackend(token: string, sub: PushSubscription): Promise<b
       body: JSON.stringify({ endpoint: j.endpoint, p256dh: j.keys?.p256dh, auth: j.keys?.auth }),
     });
     if (!r.ok) { lastError = `subscribe save HTTP ${r.status}`; return false; }
-    log("saved on backend");
     return true;
   } catch (e) {
     lastError = `subscribe save: ${(e as Error).message}`;
@@ -64,7 +58,6 @@ async function saveSubOnBackend(token: string, sub: PushSubscription): Promise<b
   }
 }
 
-/** Жёсткий сброс: снимает подписку с устройства и удаляет ВСЕ записи пользователя в БД. */
 export async function hardResetPush(token: string): Promise<void> {
   lastError = "";
   try {
@@ -72,7 +65,7 @@ export async function hardResetPush(token: string): Promise<void> {
     const reg = await navigator.serviceWorker.ready;
     const sub = await reg.pushManager.getSubscription();
     if (sub) {
-      try { await sub.unsubscribe(); log("unsubscribed local"); } catch (e) { log("local unsub err", e); }
+      try { await sub.unsubscribe(); } catch { /* ignore */ }
     }
     try {
       await fetch(`${CHAT_URL}?action=unsubscribe`, {
@@ -80,14 +73,10 @@ export async function hardResetPush(token: string): Promise<void> {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({}),
       });
-      log("cleared backend subs");
-    } catch (e) { log("backend clear err", e); }
-  } catch (e) {
-    log("hardReset err", e);
-  }
+    } catch { /* ignore */ }
+  } catch { /* ignore */ }
 }
 
-/** Подписаться/обновить подписку. После hardResetPush создаёт новую под актуальный VAPID-ключ. */
 export async function ensurePushSubscription(
   token: string,
   opts: { silent?: boolean } = {}
@@ -100,11 +89,9 @@ export async function ensurePushSubscription(
     }
 
     let permission = Notification.permission;
-    log("permission =", permission);
     if (permission === "default") {
       if (opts.silent) return "default";
       permission = await Notification.requestPermission();
-      log("requested permission =", permission);
     }
     if (permission !== "granted") {
       lastError = `permission ${permission}`;
@@ -112,13 +99,10 @@ export async function ensurePushSubscription(
     }
 
     const reg = await navigator.serviceWorker.ready;
-    log("SW ready scope =", reg.scope);
-
     const serverKey = await fetchVapidKey();
     if (!serverKey) return "error";
 
     let sub = await reg.pushManager.getSubscription();
-    log("existing sub =", !!sub);
 
     if (sub) {
       const existing = sub.options?.applicationServerKey;
@@ -130,25 +114,21 @@ export async function ensurePushSubscription(
           for (let i = 0; i < a.length; i++) if (a[i] !== serverKey[i]) { same = false; break; }
         }
       }
-      log("keys match =", same);
       if (!same) {
-        try { await sub.unsubscribe(); log("unsub stale"); } catch (e) { log("unsub stale err", e); }
+        try { await sub.unsubscribe(); } catch { /* ignore */ }
         sub = null;
       }
     }
 
     if (!sub) {
       try {
-        log("subscribing…");
         sub = await reg.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: serverKey,
         });
-        log("subscribed ok endpoint host =", new URL(sub.endpoint).host);
       } catch (e) {
         const err = e as Error;
         lastError = `${err.name}: ${err.message}`.slice(0, 200);
-        log("subscribe FAILED", err.name, err.message);
         return "error";
       }
     }
@@ -159,7 +139,6 @@ export async function ensurePushSubscription(
   } catch (e) {
     const err = e as Error;
     lastError = `${err.name}: ${err.message}`.slice(0, 200);
-    log("FATAL", err);
     return "error";
   }
 }

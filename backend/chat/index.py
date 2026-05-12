@@ -52,9 +52,7 @@ def send_push_notification(conn, recipient_user_id, title, body_text, url=None, 
         from pywebpush import webpush, WebPushException
         vapid_private = os.environ.get("VAPID_PRIVATE_KEY", "")
         vapid_public = os.environ.get("VAPID_PUBLIC_KEY", "")
-        print(f"[push] START user={recipient_user_id} title={title!r} vapid_pub_len={len(vapid_public)} vapid_priv_len={len(vapid_private)}")
         if not vapid_private or not vapid_public or not recipient_user_id:
-            print(f"[push] skip: no vapid keys or user_id (user={recipient_user_id})")
             return
         with conn.cursor() as cur:
             cur.execute(
@@ -63,15 +61,12 @@ def send_push_notification(conn, recipient_user_id, title, body_text, url=None, 
             )
             subs = cur.fetchall()
         if not subs:
-            print(f"[push] no subscriptions for user_id={recipient_user_id}")
             return
-        print(f"[push] subs_count={len(subs)} for user={recipient_user_id}")
         payload = {"title": title, "body": body_text}
         if url:
             payload["url"] = url
         if tag:
             payload["tag"] = tag
-        # high priority + 24h TTL + topic для дедупа
         extra_headers = {"Urgency": "high", "TTL": "86400"}
         if tag:
             import re
@@ -81,15 +76,8 @@ def send_push_notification(conn, recipient_user_id, title, body_text, url=None, 
         sent, removed, failed = 0, 0, 0
         dead_ids = []
         for sub_id, endpoint, p256dh, auth_key in subs:
-            ep_host = ""
             try:
-                from urllib.parse import urlparse
-                ep_host = urlparse(endpoint).netloc
-            except Exception:
-                pass
-            print(f"[push] -> sub_id={sub_id} host={ep_host} p256dh_len={len(p256dh or '')} auth_len={len(auth_key or '')}")
-            try:
-                resp = webpush(
+                webpush(
                     subscription_info={"endpoint": endpoint, "keys": {"p256dh": p256dh, "auth": auth_key}},
                     data=json.dumps(payload, ensure_ascii=False),
                     vapid_private_key=vapid_private,
@@ -98,40 +86,18 @@ def send_push_notification(conn, recipient_user_id, title, body_text, url=None, 
                     ttl=86400,
                     timeout=10,
                 )
-                fcm_status = getattr(resp, "status_code", "?")
-                fcm_text = ""
-                try:
-                    fcm_text = (resp.text or "")[:300]
-                except Exception:
-                    pass
-                fcm_msgid = ""
-                try:
-                    fcm_msgid = resp.headers.get("location", "") or resp.headers.get("Location", "")
-                except Exception:
-                    pass
-                print(f"[push] FCM OK sub={sub_id} status={fcm_status} loc={fcm_msgid} body={fcm_text!r}")
                 sent += 1
             except WebPushException as e:
                 status = getattr(getattr(e, "response", None), "status_code", None)
-                resp_text = ""
-                resp_headers = ""
-                try:
-                    resp_text = (e.response.text or "")[:500]
-                except Exception:
-                    pass
-                try:
-                    resp_headers = str(dict(e.response.headers))[:300]
-                except Exception:
-                    pass
-                print(f"[push] FCM FAIL sub={sub_id} host={ep_host} status={status} body={resp_text!r} headers={resp_headers}")
                 if status in (403, 404, 410):
                     dead_ids.append(sub_id)
                     removed += 1
                 else:
                     failed += 1
+                    print(f"[push] FCM FAIL sub={sub_id} status={status}")
             except Exception as e:
                 failed += 1
-                print(f"[push] error user={recipient_user_id} sub={sub_id}: {type(e).__name__}: {e}")
+                print(f"[push] err sub={sub_id}: {type(e).__name__}: {e}")
         if dead_ids:
             try:
                 with conn.cursor() as cur:
@@ -141,8 +107,9 @@ def send_push_notification(conn, recipient_user_id, title, body_text, url=None, 
                     )
                 conn.commit()
             except Exception as e:
-                print(f"[push] failed to remove dead subs: {e}")
-        print(f"[push] DONE user={recipient_user_id} sent={sent} removed={removed} failed={failed}")
+                print(f"[push] cleanup err: {e}")
+        if failed or removed:
+            print(f"[push] user={recipient_user_id} sent={sent} removed={removed} failed={failed}")
     except Exception as e:
         print(f"[push] fatal: {type(e).__name__}: {e}")
 

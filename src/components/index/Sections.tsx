@@ -8,7 +8,7 @@ import { type PersonalLoan } from "@/components/PersonalLoanModal";
 import ExtraPaymentModal from "@/components/ExtraPaymentModal";
 import { computeSchedule } from "@/lib/loanSchedule";
 import ManualReturnModal from "@/components/ManualReturnModal";
-import { ensurePushSubscription, getPushStatus, isSubscribedToPush, unsubscribeFromPush, hardResetPush, getLastPushError } from "@/lib/push";
+import { ensurePushSubscription, getPushStatus, isSubscribedToPush, unsubscribeFromPush, hardResetPush } from "@/lib/push";
 
 // ─── Section: DebtList ────────────────────────────────────────────────────────
 
@@ -1689,14 +1689,9 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
         await unsubscribeFromPush(token);
         setPushSubbed(false);
       } else {
-        await hardResetPush(token);
         const res = await ensurePushSubscription(token);
         setPushStatus(res === "error" ? "default" : res);
         setPushSubbed(res === "granted");
-        if (res !== "granted") {
-          const reason = getLastPushError();
-          alert(reason ? `Push: ${reason}` : `Push: не удалось (${res}).\nОткройте F12 → Console.`);
-        }
       }
     } finally {
       setPushBusy(false);
