@@ -18,6 +18,7 @@ import {
   ArchiveSection, ContactsSection, SettingsSection, InstallBanner,
 } from "@/components/index/Sections";
 import func2url from "../../backend/func2url.json";
+import { normalizePhone } from "@/lib/phone";
 
 // ─── Root ─────────────────────────────────────────────────────────────────────
 interface AuthUser { id: number; full_name: string; phone: string; email: string; }
@@ -819,7 +820,11 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
       if (!contactsUrl) return;
       const isEdit = !!editingContact;
       const url = isEdit ? `${contactsUrl}?id=${editingContact!.id}` : contactsUrl;
-      const body = { ...values, skip_duplicate_check: opts?.forceDuplicate ? true : false };
+      const body = {
+        ...values,
+        phone: values.phone ? normalizePhone(values.phone) : values.phone,
+        skip_duplicate_check: opts?.forceDuplicate ? true : false,
+      };
       const res = await fetch(url, {
         method: isEdit ? "PUT" : "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -920,7 +925,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
         const res = await fetch(contactsUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ name: name.trim(), phone: phone.trim(), email: email.trim() }),
+          body: JSON.stringify({ name: name.trim(), phone: normalizePhone(phone), email: email.trim() }),
         });
         if (!res.ok) continue;
         const data = await res.json();

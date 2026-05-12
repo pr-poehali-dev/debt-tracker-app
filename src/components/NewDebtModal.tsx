@@ -3,6 +3,7 @@ import QRCodeLib from "qrcode";
 import Icon from "@/components/ui/icon";
 import func2url from "../../backend/func2url.json";
 import { getT, type Lang } from "@/i18n";
+import { normalizePhone } from "@/lib/phone";
 
 const API_URL = func2url["debts"];
 const AUTH_URL = func2url["auth"];
@@ -629,9 +630,9 @@ export default function NewDebtModal({ open, onClose, myName = "", myPhone = "",
           title: form.title,
           amount: parseFloat(form.amount.replace(/\s/g, "")),
           lender_name: myName,
-          lender_phone: myPhone || undefined,
+          lender_phone: normalizePhone(myPhone) || undefined,
           borrower_name: form.borrower_name || undefined,
-          borrower_phone: form.borrower_phone || undefined,
+          borrower_phone: normalizePhone(form.borrower_phone) || undefined,
           note: form.note || undefined,
           due_date: form.due_date || undefined,
           interest_rate: form.interest_rate ? parseFloat(form.interest_rate) : undefined,
@@ -653,7 +654,7 @@ export default function NewDebtModal({ open, onClose, myName = "", myPhone = "",
                 },
                 body: JSON.stringify({
                   name: form.borrower_name.trim(),
-                  phone: form.borrower_phone.trim(),
+                  phone: normalizePhone(form.borrower_phone),
                 }),
               });
             }

@@ -6,6 +6,7 @@ import { fmt } from "@/components/index/types";
 import ChatWindow from "@/components/ChatWindow";
 import { type getT } from "@/i18n";
 import func2url from "../../backend/func2url.json";
+import { normalizePhone } from "@/lib/phone";
 
 const CHAT_URL = func2url["chat"];
 
@@ -910,7 +911,7 @@ function NewRentalModal({ myName, token, onClose, onCreated }: {
         payment_day: parseInt(form.payment_day),
         landlord_name: myName,
         tenant_name: form.tenant_name || undefined,
-        tenant_phone: form.tenant_phone || undefined,
+        tenant_phone: normalizePhone(form.tenant_phone) || undefined,
         note: form.note || undefined,
       }),
     });
