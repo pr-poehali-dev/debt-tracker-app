@@ -493,4 +493,21 @@ def handler(event: dict, context) -> dict:
             conn.commit()
         return json_resp({"ok": True})
 
+    # POST ?action=test-push — отправить тестовое push-уведомление текущему пользователю
+    if method == "POST" and qs.get("action") == "test-push":
+        with get_conn() as conn:
+            user_id, _ = get_user_from_token(auth, conn)
+            if not user_id:
+                return err("Не авторизован", 401)
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"SELECT COUNT(*) FROM {SCHEMA}.push_subscriptions WHERE user_id = %s",
+                    (user_id,)
+                )
+                cnt = cur.fetchone()[0]
+            if cnt == 0:
+                return json_resp({"ok": False, "subs": 0, "error": "Нет активных подписок. Откройте приложение в браузере и включите уведомления."})
+            send_push_notification(conn, user_id, "Проверка уведомлений", "Если ты видишь это сообщение — push работает!", url="/")
+            return json_resp({"ok": True, "subs": cnt})
+
     return err("Неизвестный маршрут", 404)

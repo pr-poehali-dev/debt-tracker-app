@@ -1551,6 +1551,34 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
       setPushBusy(false);
     }
   }
+
+  const [testPushBusy, setTestPushBusy] = useState(false);
+  const [testPushMsg, setTestPushMsg] = useState<string | null>(null);
+  async function sendTestPush() {
+    if (!token) return;
+    setTestPushBusy(true);
+    setTestPushMsg(null);
+    try {
+      await ensurePushSubscription(token, { silent: true });
+      const { default: urls } = await import("../../../backend/func2url.json");
+      const chatUrl = (urls as Record<string, string>)["chat"];
+      const r = await fetch(`${chatUrl}?action=test-push`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, "X-Authorization": `Bearer ${token}` },
+      });
+      const data = await r.json();
+      if (data.ok) {
+        setTestPushMsg(`Отправлено на ${data.subs} устр.`);
+      } else {
+        setTestPushMsg(data.error || "Не удалось");
+      }
+    } catch {
+      setTestPushMsg("Сеть недоступна");
+    } finally {
+      setTestPushBusy(false);
+      setTimeout(() => setTestPushMsg(null), 5000);
+    }
+  }
   const [deletePin, setDeletePin] = useState("");
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -1873,19 +1901,30 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
         )}
 
         {pushStatus === "granted" && pushSubbed && (
-          <div className="mt-3 grid grid-cols-2 gap-2 text-[10px]">
-            {[
-              { icon: "MessageCircle", label: "Сообщения" },
-              { icon: "HandCoins", label: "Возвраты" },
-              { icon: "CheckCircle2", label: "Подтверждения" },
-              { icon: "CalendarClock", label: "Напоминания" },
-            ].map(b => (
-              <div key={b.label} className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg" style={{ background: "rgba(168,85,247,0.08)", border: "1px solid rgba(168,85,247,0.15)" }}>
-                <Icon name={b.icon} size={11} className="text-purple-400" />
-                <span className="text-foreground/80">{b.label}</span>
-              </div>
-            ))}
-          </div>
+          <>
+            <button
+              onClick={sendTestPush}
+              disabled={testPushBusy}
+              className="mt-2 w-full py-2 rounded-xl text-xs font-semibold transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+              style={{ background: "rgba(168,85,247,0.12)", color: "#c4b5fd", border: "1px solid rgba(168,85,247,0.25)" }}
+            >
+              {testPushBusy ? <Icon name="Loader2" size={12} className="animate-spin" /> : <Icon name="Send" size={12} />}
+              {testPushMsg || "Отправить тестовое уведомление"}
+            </button>
+            <div className="mt-3 grid grid-cols-2 gap-2 text-[10px]">
+              {[
+                { icon: "MessageCircle", label: "Сообщения" },
+                { icon: "HandCoins", label: "Возвраты" },
+                { icon: "CheckCircle2", label: "Подтверждения" },
+                { icon: "CalendarClock", label: "Напоминания" },
+              ].map(b => (
+                <div key={b.label} className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg" style={{ background: "rgba(168,85,247,0.08)", border: "1px solid rgba(168,85,247,0.15)" }}>
+                  <Icon name={b.icon} size={11} className="text-purple-400" />
+                  <span className="text-foreground/80">{b.label}</span>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
 

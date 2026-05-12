@@ -11,15 +11,20 @@ function urlBase64ToUint8Array(base64: string): Uint8Array {
   return arr;
 }
 
-export async function ensurePushSubscription(token: string): Promise<"granted" | "denied" | "default" | "unsupported" | "error"> {
+export async function ensurePushSubscription(
+  token: string,
+  opts: { silent?: boolean } = {}
+): Promise<"granted" | "denied" | "default" | "unsupported" | "error"> {
   try {
     if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
       return "unsupported";
     }
 
-    const permission = Notification.permission === "default"
-      ? await Notification.requestPermission()
-      : Notification.permission;
+    let permission = Notification.permission;
+    if (permission === "default") {
+      if (opts.silent) return "default";
+      permission = await Notification.requestPermission();
+    }
 
     if (permission !== "granted") return permission;
 

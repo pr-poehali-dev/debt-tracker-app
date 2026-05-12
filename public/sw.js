@@ -1,4 +1,4 @@
-const CACHE_NAME = 'debtflow-v7';
+const CACHE_NAME = 'debtflow-v8';
 const STATIC_ASSETS = [
   '/manifest.json',
 ];
@@ -89,13 +89,20 @@ self.addEventListener('fetch', (event) => {
 });
 
 self.addEventListener('push', (event) => {
-  const data = event.data ? event.data.json() : {};
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch (e) {
+    try { data = { body: event.data && event.data.text ? event.data.text() : '' }; } catch (_) { data = {}; }
+  }
   const title = data.title || 'DebtFlow';
   const options = {
     body: data.body || 'Новое уведомление',
     icon: '/icons/icon-192.png',
     badge: '/icons/icon-96.png',
-    tag: data.tag || 'debtflow-notification',
+    tag: data.tag || ('debtflow-' + Date.now()),
+    renotify: true,
+    requireInteraction: false,
     vibrate: [200, 100, 200],
     data: { url: data.url || '/' },
     actions: [
@@ -104,6 +111,17 @@ self.addEventListener('push', (event) => {
     ]
   };
   event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('pushsubscriptionchange', (event) => {
+  event.waitUntil((async () => {
+    try {
+      const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      for (const client of clientList) {
+        client.postMessage({ type: 'PUSH_RESUBSCRIBE' });
+      }
+    } catch (e) { /* ignore */ }
+  })());
 });
 
 self.addEventListener('notificationclick', (event) => {
