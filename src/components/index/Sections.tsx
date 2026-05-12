@@ -1791,7 +1791,7 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
         try {
           await reg.showNotification("Локальный тест", {
             body: "Если ты видишь это — баннер работает. Проблема в push-сервере.",
-            icon: "https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/files/8db5d9fa-a5d5-40fc-b902-133a7ef030d7.jpg",
+            icon: "https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/files/dc2abe10-b11c-4ce6-b728-6078102a4d4d.jpg",
             tag: "diag-" + Date.now(),
             requireInteraction: false,
           });
@@ -2219,7 +2219,7 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
         </div>
         <div className="flex flex-col items-center gap-3 py-4">
           <img
-            src="https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/files/8db5d9fa-a5d5-40fc-b902-133a7ef030d7.jpg"
+            src="https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/files/dc2abe10-b11c-4ce6-b728-6078102a4d4d.jpg"
             alt="Debt-Debt"
             className="w-24 h-24 rounded-[22px] shadow-2xl"
             style={{ boxShadow: "0 0 40px rgba(168, 85, 247, 0.35)" }}
@@ -2227,15 +2227,15 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
           <p className="text-[11px] text-muted-foreground text-center">Так иконка выглядит на рабочем экране</p>
           <div className="flex items-end gap-3 mt-1">
             <div className="flex flex-col items-center gap-1">
-              <img src="https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/files/8db5d9fa-a5d5-40fc-b902-133a7ef030d7.jpg" alt="" className="w-12 h-12 rounded-xl" />
+              <img src="https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/files/dc2abe10-b11c-4ce6-b728-6078102a4d4d.jpg" alt="" className="w-12 h-12 rounded-xl" />
               <span className="text-[10px] text-muted-foreground">маленькая</span>
             </div>
             <div className="flex flex-col items-center gap-1">
-              <img src="https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/files/8db5d9fa-a5d5-40fc-b902-133a7ef030d7.jpg" alt="" className="w-16 h-16 rounded-2xl" />
+              <img src="https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/files/dc2abe10-b11c-4ce6-b728-6078102a4d4d.jpg" alt="" className="w-16 h-16 rounded-2xl" />
               <span className="text-[10px] text-muted-foreground">средняя</span>
             </div>
             <div className="flex flex-col items-center gap-1">
-              <img src="https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/files/8db5d9fa-a5d5-40fc-b902-133a7ef030d7.jpg" alt="" className="w-20 h-20 rounded-[20px]" />
+              <img src="https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/files/dc2abe10-b11c-4ce6-b728-6078102a4d4d.jpg" alt="" className="w-20 h-20 rounded-[20px]" />
               <span className="text-[10px] text-muted-foreground">крупная</span>
             </div>
           </div>
