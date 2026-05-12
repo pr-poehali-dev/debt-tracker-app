@@ -1791,7 +1791,7 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
         try {
           await reg.showNotification("Локальный тест", {
             body: "Если ты видишь это — баннер работает. Проблема в push-сервере.",
-            icon: "https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/files/6d908bff-2f44-48d6-93f7-67b79a26ff1e.jpg",
+            icon: "https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/files/1fc8d648-75a0-4808-a076-fa467c7354e3.jpg",
             tag: "diag-" + Date.now(),
             requireInteraction: false,
           });
@@ -2218,23 +2218,27 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
           </div>
         </div>
         <div className="flex flex-col items-center gap-3 py-4">
-          <p className="text-xs font-semibold text-foreground">Выбери вариант иконки</p>
-          <div className="grid grid-cols-3 gap-3 w-full">
-            {[
-              { id: 1, label: "Монета", url: "https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/files/a88c27a9-f8bf-453e-a664-cbdda35217a5.jpg" },
-              { id: 2, label: "Возврат", url: "https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/files/3c85fb56-a239-44e8-94ff-1f08ccc35bb7.jpg" },
-              { id: 3, label: "Обмен", url: "https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/files/d94b90db-cbc0-4c9c-8f0b-f0df9ab0b3d1.jpg" },
-            ].map(v => (
-              <div key={v.id} className="flex flex-col items-center gap-2">
-                <div className="relative">
-                  <span className="absolute -top-2 -left-2 z-10 w-6 h-6 rounded-full bg-purple-500 text-white text-[11px] font-bold flex items-center justify-center shadow-lg">{v.id}</span>
-                  <img src={v.url} alt={v.label} className="w-full aspect-square rounded-[20px] shadow-xl" style={{ boxShadow: "0 0 24px rgba(168,85,247,0.3)" }} />
-                </div>
-                <span className="text-[11px] text-muted-foreground text-center">{v.label}</span>
-              </div>
-            ))}
+          <img
+            src="https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/files/1fc8d648-75a0-4808-a076-fa467c7354e3.jpg"
+            alt="Debt-Debt"
+            className="w-24 h-24 rounded-[22px] shadow-2xl"
+            style={{ boxShadow: "0 0 40px rgba(168, 85, 247, 0.35)" }}
+          />
+          <p className="text-[11px] text-muted-foreground text-center">Так иконка выглядит на рабочем экране</p>
+          <div className="flex items-end gap-3 mt-1">
+            <div className="flex flex-col items-center gap-1">
+              <img src="https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/files/1fc8d648-75a0-4808-a076-fa467c7354e3.jpg" alt="" className="w-12 h-12 rounded-xl" />
+              <span className="text-[10px] text-muted-foreground">маленькая</span>
+            </div>
+            <div className="flex flex-col items-center gap-1">
+              <img src="https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/files/1fc8d648-75a0-4808-a076-fa467c7354e3.jpg" alt="" className="w-16 h-16 rounded-2xl" />
+              <span className="text-[10px] text-muted-foreground">средняя</span>
+            </div>
+            <div className="flex flex-col items-center gap-1">
+              <img src="https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/files/1fc8d648-75a0-4808-a076-fa467c7354e3.jpg" alt="" className="w-20 h-20 rounded-[20px]" />
+              <span className="text-[10px] text-muted-foreground">крупная</span>
+            </div>
           </div>
-          <p className="text-[11px] text-muted-foreground text-center mt-2">Скажи номер варианта (1/2/3) — поставлю его везде</p>
         </div>
         <div className="space-y-2 text-sm">
           {[
