@@ -33,6 +33,39 @@ def json_resp(data, status=200):
 def err(msg, status=400):
     return json_resp({"error": msg}, status)
 
+def normalize_phone(phone):
+    """Приводит телефон к единому формату 7XXXXXXXXXX (РФ).
+    Поддерживает +7, 8, 7 в начале и любые разделители."""
+    if not phone:
+        return ""
+    digits = "".join(ch for ch in str(phone) if ch.isdigit())
+    if not digits:
+        return ""
+    if len(digits) == 11 and digits[0] == "8":
+        digits = "7" + digits[1:]
+    elif len(digits) == 10:
+        digits = "7" + digits
+    return digits
+
+def find_user_by_phone(conn, phone):
+    """Ищет user_id по любому формату телефона (+7, 8, без кода)."""
+    norm = normalize_phone(phone)
+    if not norm:
+        return None
+    candidates = [norm]
+    if norm.startswith("7") and len(norm) == 11:
+        candidates.append("8" + norm[1:])
+        candidates.append(norm[1:])
+    with conn.cursor() as cur:
+        cur.execute(
+            f"""SELECT id FROM {SCHEMA}.users
+                WHERE regexp_replace(phone, '\\D', '', 'g') = ANY(%s)
+                LIMIT 1""",
+            (candidates,)
+        )
+        row = cur.fetchone()
+    return row[0] if row else None
+
 def send_push(conn, user_id, title, body_text, url="/"):
     try:
         from pywebpush import webpush, WebPushException
@@ -231,30 +264,20 @@ def handler(event: dict, context) -> dict:
                 row = cur.fetchone()
             conn.commit()
             # Найти должника по телефону и отправить push
-            borrower_phone = body.get("borrower_phone")
-            if borrower_phone:
-                phone_norm = "".join(ch for ch in borrower_phone if ch.isdigit())
-                if phone_norm:
-                    try:
-                        with conn.cursor() as cur:
-                            cur.execute(
-                                f"SELECT id, full_name FROM {SCHEMA}.users WHERE regexp_replace(phone, '\\D', '', 'g') = %s LIMIT 1",
-                                (phone_norm,)
-                            )
-                            urow = cur.fetchone()
-                        if urow:
-                            borrower_id = urow[0]
-                            lender_name = body.get("lender_name") or "Кредитор"
-                            amount_str = f"{float(body['amount']):,.0f} ₽".replace(",", " ")
-                            send_push(
-                                conn,
-                                borrower_id,
-                                f"💰 Новый долг от {lender_name}",
-                                f"«{body['title']}» — {amount_str}",
-                                "/?section=borrowed",
-                            )
-                    except Exception as e:
-                        print(f"[push] new-debt notify failed: {e}")
+            try:
+                borrower_id = find_user_by_phone(conn, body.get("borrower_phone"))
+                if borrower_id:
+                    lender_name = body.get("lender_name") or "Кредитор"
+                    amount_str = f"{float(body['amount']):,.0f} ₽".replace(",", " ")
+                    send_push(
+                        conn,
+                        borrower_id,
+                        f"💰 Новый долг от {lender_name}",
+                        f"«{body['title']}» — {amount_str}",
+                        "/?section=borrowed",
+                    )
+            except Exception as e:
+                print(f"[push] new-debt notify failed: {e}")
         return json_resp(row_to_debt(row), 201)
 
     # GET ?token=XXX — получить долг по токену (для QR-страницы)
