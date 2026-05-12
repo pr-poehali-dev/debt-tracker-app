@@ -52,6 +52,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
   const [pullUpDistance, setPullUpDistance] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [inAppToast, setInAppToast] = useState<{ id: string; title: string; body: string; deepUrl?: string } | null>(null);
+  const [refreshSeed, setRefreshSeed] = useState(0);
 
   useEffect(() => {
     if (!inAppToast) return;
@@ -87,7 +88,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
         })
         .catch(() => {});
     });
-  }, [isDemo, token]);
+  }, [isDemo, token, refreshSeed]);
 
   useEffect(() => {
     if (isDemo) return;
@@ -189,7 +190,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
           if (newNotifs.length > 0) setNotifs(prev => [...newNotifs, ...prev]);
         });
     });
-  }, [isDemo, user.id, token, contacts]);
+  }, [isDemo, user.id, token, contacts, refreshSeed]);
 
   useEffect(() => {
     if (isDemo) return;
@@ -211,7 +212,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
           })));
         });
     });
-  }, [isDemo, user.id, token]);
+  }, [isDemo, user.id, token, refreshSeed]);
 
   useEffect(() => {
     if (isDemo) return;
@@ -257,7 +258,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
           });
         });
     });
-  }, [isDemo, token]);
+  }, [isDemo, token, refreshSeed]);
 
   useEffect(() => {
     if (isDemo) return;
@@ -724,9 +725,12 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
       if (pullUpDistance >= THRESHOLD && !refreshing) {
         setRefreshing(true);
         setPullUpDistance(THRESHOLD);
+        // Тихо обновляем данные без перезагрузки страницы
+        setRefreshSeed(s => s + 1);
         setTimeout(() => {
-          window.location.reload();
-        }, 250);
+          setRefreshing(false);
+          setPullUpDistance(0);
+        }, 900);
       } else {
         setPullUpDistance(0);
       }
