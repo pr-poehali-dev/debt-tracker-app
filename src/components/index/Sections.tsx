@@ -58,10 +58,12 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
   }
   const total = debts.filter(d => d.status !== "paid").reduce((s, d) => s + d.amount, 0);
   const overdue = debts.filter(d => d.status === "overdue").length;
-  const activeCount = debts.filter(d => d.status === "active").length;
+  const activeCount = debts.filter(d => d.status === "active" || d.status === "overdue").length;
   const visibleDebts = filter === "all"
     ? debts
-    : debts.filter(d => d.status === filter);
+    : filter === "active"
+      ? debts.filter(d => d.status === "active" || d.status === "overdue")
+      : debts.filter(d => d.status === "overdue");
 
   return (
     <div className="animate-fade-in">
