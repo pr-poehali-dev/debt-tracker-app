@@ -479,6 +479,10 @@ def handler(event: dict, context) -> dict:
                                    "debt_id": str(c["debt_id"]) if c["debt_id"] else None,
                                    "rental_id": c["rental_id"],
                                    "deep_url": deep_url})
+                send_push(conn, user_id,
+                          "✅ Договор подписан полностью",
+                          "Документ вступил в силу",
+                          url=deep_url)
 
             return json_resp({"ok": True, "contract": updated})
 

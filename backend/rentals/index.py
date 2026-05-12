@@ -234,6 +234,30 @@ def handler(event: dict, context) -> dict:
                 )
                 row = cur.fetchone()
             conn.commit()
+            # Push арендатору, если есть в системе
+            tenant_phone = body.get("tenant_phone")
+            if tenant_phone:
+                phone_norm = "".join(ch for ch in tenant_phone if ch.isdigit())
+                if phone_norm:
+                    try:
+                        with conn.cursor() as cur:
+                            cur.execute(
+                                f"SELECT id FROM {SCHEMA}.users WHERE regexp_replace(phone, '\\D', '', 'g') = %s LIMIT 1",
+                                (phone_norm,)
+                            )
+                            urow = cur.fetchone()
+                        if urow:
+                            tenant_id = urow[0]
+                            amount_str = f"{float(body['amount']):,.0f} ₽".replace(",", " ")
+                            send_push(
+                                conn,
+                                tenant_id,
+                                f"🏠 Новая аренда от {body['landlord_name']}",
+                                f"«{body['title']}» — {amount_str}/мес",
+                                "/?section=rental",
+                            )
+                    except Exception as e:
+                        print(f"[push] new-rental notify failed: {e}")
         return json_resp(row_to_rental(row), 201)
 
     # GET ?token=XXX&history=1 — история платежей по аренде
@@ -443,6 +467,7 @@ def handler(event: dict, context) -> dict:
                 conn.commit()
 
         if "new_amount" in body and rental.get("tenant_user_id"):
+            new_amt = float(body["new_amount"])
             with get_conn() as conn:
                 with conn.cursor() as cur:
                     cur.execute(f"SELECT email FROM {SCHEMA}.users WHERE id = %s", (rental["tenant_user_id"],))
@@ -450,7 +475,34 @@ def handler(event: dict, context) -> dict:
                     if u and u[0]:
                         send_amount_change_email(u[0], rental["tenant_name"] or "Арендатор",
                                                  rental["landlord_name"], rental["title"],
-                                                 rental["amount"], float(body["new_amount"]), token)
+                                                 rental["amount"], new_amt, token)
+                    notif_title = f"💸 {rental['landlord_name']} изменил сумму аренды"
+                    old_str = f"{int(rental['amount']):,}".replace(",", " ")
+                    new_str = f"{int(new_amt):,}".replace(",", " ")
+                    notif_body = f"«{rental['title']}» — {old_str} ₽ → {new_str} ₽"
+                    cur.execute(
+                        f"INSERT INTO {SCHEMA}.notifications (user_id, type, title, body, data) VALUES (%s, %s, %s, %s, %s)",
+                        (rental["tenant_user_id"], "rental_amount_change", notif_title, notif_body,
+                         json.dumps({"rental_token": token, "old_amount": float(rental["amount"]), "new_amount": new_amt}))
+                    )
+                    send_push(conn, rental["tenant_user_id"], notif_title, notif_body, "/?section=rental")
+                conn.commit()
+
+        # Push арендодателю при принятии/отклонении новой суммы
+        if "accept_new_amount" in body and rental.get("landlord_user_id"):
+            accepted = bool(body["accept_new_amount"])
+            tenant_name = rental["tenant_name"] or "Арендатор"
+            notif_title = f"{'✅' if accepted else '❌'} {tenant_name} {'принял' if accepted else 'отклонил'} новую сумму"
+            notif_body = f"«{rental['title']}»"
+            with get_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        f"INSERT INTO {SCHEMA}.notifications (user_id, type, title, body, data) VALUES (%s, %s, %s, %s, %s)",
+                        (rental["landlord_user_id"], "rental_amount_decision", notif_title, notif_body,
+                         json.dumps({"rental_token": token, "accepted": accepted}))
+                    )
+                    send_push(conn, rental["landlord_user_id"], notif_title, notif_body, "/?section=rental")
+                conn.commit()
 
         return json_resp(row_to_rental(updated) if updated else {"ok": True})
 

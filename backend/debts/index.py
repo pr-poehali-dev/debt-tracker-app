@@ -230,6 +230,31 @@ def handler(event: dict, context) -> dict:
                 )
                 row = cur.fetchone()
             conn.commit()
+            # Найти должника по телефону и отправить push
+            borrower_phone = body.get("borrower_phone")
+            if borrower_phone:
+                phone_norm = "".join(ch for ch in borrower_phone if ch.isdigit())
+                if phone_norm:
+                    try:
+                        with conn.cursor() as cur:
+                            cur.execute(
+                                f"SELECT id, full_name FROM {SCHEMA}.users WHERE regexp_replace(phone, '\\D', '', 'g') = %s LIMIT 1",
+                                (phone_norm,)
+                            )
+                            urow = cur.fetchone()
+                        if urow:
+                            borrower_id = urow[0]
+                            lender_name = body.get("lender_name") or "Кредитор"
+                            amount_str = f"{float(body['amount']):,.0f} ₽".replace(",", " ")
+                            send_push(
+                                conn,
+                                borrower_id,
+                                f"💰 Новый долг от {lender_name}",
+                                f"«{body['title']}» — {amount_str}",
+                                "/?section=borrowed",
+                            )
+                    except Exception as e:
+                        print(f"[push] new-debt notify failed: {e}")
         return json_resp(row_to_debt(row), 201)
 
     # GET ?token=XXX — получить долг по токену (для QR-страницы)
@@ -535,6 +560,14 @@ def handler(event: dict, context) -> dict:
                              json.dumps({"debt_id": str(debt_id), "debt_title": title, "amount": float(amount), "borrower_name": borrower_name}))
                         )
                     conn.commit()
+                    if lender_id:
+                        send_push(
+                            conn,
+                            lender_id,
+                            f"🗑 {borrower_name} удалил долг у себя",
+                            f"«{title}» — {float(amount):,.0f} ₽".replace(",", " "),
+                            "/?section=lent",
+                        )
                     return json_resp({"ok": True, "dismissed": True})
 
                 # Кредитор удаляет полностью
@@ -548,18 +581,27 @@ def handler(event: dict, context) -> dict:
                     (debt_id,)
                 )
                 # Уведомление должнику
+                lender_name_for_push = None
                 if borrower_id:
                     cur.execute(f"SELECT full_name FROM {SCHEMA}.users WHERE id = %s", (user_id,))
-                    lender_name = (cur.fetchone() or ["Кредитор"])[0]
+                    lender_name_for_push = (cur.fetchone() or ["Кредитор"])[0]
                     cur.execute(
                         f"""INSERT INTO {SCHEMA}.notifications (user_id, type, title, body, data)
                             VALUES (%s, 'debt_deleted', %s, %s, %s)""",
                         (borrower_id,
-                         f"🗑 {lender_name} удалил займ",
+                         f"🗑 {lender_name_for_push} удалил займ",
                          f"«{title}» — {float(amount):,.0f} ₽".replace(",", " "),
-                         json.dumps({"debt_id": str(debt_id), "debt_title": title, "amount": float(amount), "lender_name": lender_name}))
+                         json.dumps({"debt_id": str(debt_id), "debt_title": title, "amount": float(amount), "lender_name": lender_name_for_push}))
                     )
             conn.commit()
+            if borrower_id and lender_name_for_push:
+                send_push(
+                    conn,
+                    borrower_id,
+                    f"🗑 {lender_name_for_push} удалил займ",
+                    f"«{title}» — {float(amount):,.0f} ₽".replace(",", " "),
+                    "/?section=borrowed",
+                )
         return json_resp({"ok": True})
 
     return err("Неизвестный маршрут", 404)
