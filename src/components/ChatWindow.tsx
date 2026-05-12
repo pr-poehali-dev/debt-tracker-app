@@ -93,36 +93,82 @@ export default function ChatWindow({ debtId, rentalId, title, token, onClose }: 
     return "";
   }
 
+  async function blobToFile(blob: Blob, name: string): Promise<boolean> {
+    const safeName = (name || "file").replace(/[\\/:*?"<>|]/g, "_");
+    const nav = navigator as Navigator & {
+      canShare?: (data: ShareData) => boolean;
+      share?: (data: ShareData) => Promise<void>;
+    };
+    const file = new File([blob], safeName, { type: blob.type || "application/octet-stream" });
+
+    if (nav.canShare && nav.canShare({ files: [file] }) && nav.share) {
+      try {
+        await nav.share({ files: [file], title: safeName });
+        return true;
+      } catch (_e) { /* пользователь отменил — fallback ниже */ }
+    }
+
+    const objUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = objUrl;
+    a.download = safeName;
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(objUrl), 2000);
+    return true;
+  }
+
+  function loadImageAsBlob(url: string): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = img.naturalWidth;
+          canvas.height = img.naturalHeight;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) return reject(new Error("no ctx"));
+          ctx.drawImage(img, 0, 0);
+          canvas.toBlob((b) => {
+            if (b) resolve(b);
+            else reject(new Error("toBlob failed"));
+          }, "image/jpeg", 0.95);
+        } catch (e) { reject(e); }
+      };
+      img.onerror = () => reject(new Error("image load failed"));
+      img.src = url;
+    });
+  }
+
   async function downloadAttachment(url: string, fileName: string) {
     setDownloading(true);
     try {
-      const res = await fetch(url, { mode: "cors", credentials: "omit" });
-      if (!res.ok) throw new Error("fetch failed");
-      const blob = await res.blob();
-
-      const safeName = (fileName || "file").replace(/[\\/:*?"<>|]/g, "_");
-      const nav = navigator as Navigator & {
-        canShare?: (data: ShareData) => boolean;
-        share?: (data: ShareData) => Promise<void>;
-      };
-      const file = new File([blob], safeName, { type: blob.type || "application/octet-stream" });
-
-      if (nav.canShare && nav.canShare({ files: [file] }) && nav.share) {
-        try {
-          await nav.share({ files: [file], title: safeName });
+      // 1) Пробуем fetch (работает если CDN отдаёт CORS-заголовки)
+      try {
+        const res = await fetch(url, { mode: "cors", credentials: "omit", cache: "no-store" });
+        if (res.ok) {
+          const blob = await res.blob();
+          await blobToFile(blob, fileName);
           return;
-        } catch (_e) { /* пользователь отменил — fallback ниже */ }
+        }
+      } catch (_e) { /* fallback */ }
+
+      // 2) Для изображений — рисуем в canvas и сохраняем
+      const isImg = /\.(jpe?g|png|gif|webp|bmp)$/i.test(url) || /\.(jpe?g|png|gif|webp|bmp)$/i.test(fileName);
+      if (isImg) {
+        try {
+          const blob = await loadImageAsBlob(url);
+          const ext = (blob.type.split("/")[1] || "jpg").replace("jpeg", "jpg");
+          const baseName = fileName.replace(/\.[^.]+$/, "");
+          await blobToFile(blob, `${baseName}.${ext}`);
+          return;
+        } catch (_e) { /* последний fallback */ }
       }
 
-      const objUrl = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = objUrl;
-      a.download = safeName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(objUrl), 1000);
-    } catch (_e) {
+      // 3) Крайний случай — открыть в новой вкладке
       window.open(url, "_blank", "noopener,noreferrer");
     } finally {
       setDownloading(false);
