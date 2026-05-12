@@ -1,6 +1,8 @@
 import func2url from "../../backend/func2url.json";
 
 const CHAT_URL = func2url["chat"];
+const PUSH_RESET_VERSION = "v2-2026-05-12";
+const PUSH_RESET_KEY = "push_reset_version";
 
 function urlBase64ToUint8Array(base64: string): Uint8Array {
   const padding = "=".repeat((4 - (base64.length % 4)) % 4);
@@ -9,6 +11,29 @@ function urlBase64ToUint8Array(base64: string): Uint8Array {
   const arr = new Uint8Array(raw.length);
   for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
   return arr;
+}
+
+export async function hardResetPush(token: string): Promise<boolean> {
+  try {
+    if (!("serviceWorker" in navigator)) return false;
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if (sub) {
+      try { await sub.unsubscribe(); } catch { /* ignore */ }
+    }
+    // Удаляем ВСЕ подписки пользователя на backend (без endpoint в теле — чистит всё)
+    try {
+      await fetch(`${CHAT_URL}?action=unsubscribe`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({}),
+      });
+    } catch { /* ignore */ }
+    try { localStorage.removeItem(PUSH_RESET_KEY); } catch { /* ignore */ }
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function ensurePushSubscription(
@@ -30,6 +55,22 @@ export async function ensurePushSubscription(
 
     const reg = await navigator.serviceWorker.ready;
     let sub = await reg.pushManager.getSubscription();
+
+    // Принудительный одноразовый сброс после смены VAPID-ключей
+    let storedVersion: string | null = null;
+    try { storedVersion = localStorage.getItem(PUSH_RESET_KEY); } catch { /* ignore */ }
+    if (storedVersion !== PUSH_RESET_VERSION && sub) {
+      const oldEndpoint = sub.endpoint;
+      try { await sub.unsubscribe(); } catch { /* ignore */ }
+      try {
+        await fetch(`${CHAT_URL}?action=unsubscribe`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ endpoint: oldEndpoint }),
+        });
+      } catch { /* ignore */ }
+      sub = null;
+    }
 
     const keyRes = await fetch(`${CHAT_URL}?action=vapid-key`);
     if (!keyRes.ok) return "error";
@@ -73,6 +114,7 @@ export async function ensurePushSubscription(
       }),
     });
 
+    try { localStorage.setItem(PUSH_RESET_KEY, PUSH_RESET_VERSION); } catch { /* ignore */ }
     return "granted";
   } catch {
     return "error";

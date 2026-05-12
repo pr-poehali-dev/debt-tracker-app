@@ -8,7 +8,7 @@ import { type PersonalLoan } from "@/components/PersonalLoanModal";
 import ExtraPaymentModal from "@/components/ExtraPaymentModal";
 import { computeSchedule } from "@/lib/loanSchedule";
 import ManualReturnModal from "@/components/ManualReturnModal";
-import { ensurePushSubscription, getPushStatus, isSubscribedToPush, unsubscribeFromPush } from "@/lib/push";
+import { ensurePushSubscription, getPushStatus, isSubscribedToPush, unsubscribeFromPush, hardResetPush } from "@/lib/push";
 
 // ─── Section: DebtList ────────────────────────────────────────────────────────
 
@@ -1729,6 +1729,29 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
   const [showAndroidGuide, setShowAndroidGuide] = useState(false);
   const [diagReport, setDiagReport] = useState<string | null>(null);
   const [diagBusy, setDiagBusy] = useState(false);
+  const [resetBusy, setResetBusy] = useState(false);
+  const [resetMsg, setResetMsg] = useState<string | null>(null);
+  async function fullResetPush() {
+    if (!token || resetBusy) return;
+    setResetBusy(true);
+    setResetMsg(null);
+    try {
+      await hardResetPush(token);
+      const status = await ensurePushSubscription(token, { silent: false });
+      if (status === "granted") {
+        setPushStatus("granted");
+        setPushSubbed(true);
+        setResetMsg("Готово! Подписка пересоздана");
+      } else {
+        setResetMsg("Не удалось переподписаться");
+      }
+    } catch {
+      setResetMsg("Ошибка сброса");
+    } finally {
+      setResetBusy(false);
+      setTimeout(() => setResetMsg(null), 5000);
+    }
+  }
   async function runDiagnostics() {
     setDiagBusy(true);
     const lines: string[] = [];
@@ -2119,6 +2142,15 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
             >
               {diagBusy ? <Icon name="Loader2" size={12} className="animate-spin" /> : <Icon name="Stethoscope" size={12} />}
               Диагностика push
+            </button>
+            <button
+              onClick={fullResetPush}
+              disabled={resetBusy}
+              className="mt-2 w-full py-2 rounded-xl text-xs font-semibold transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+              style={{ background: "rgba(34,197,94,0.10)", color: "#86efac", border: "1px solid rgba(34,197,94,0.25)" }}
+            >
+              {resetBusy ? <Icon name="Loader2" size={12} className="animate-spin" /> : <Icon name="RefreshCw" size={12} />}
+              {resetMsg || "Пересоздать подписку"}
             </button>
             <button
               onClick={() => setShowAndroidGuide(true)}
