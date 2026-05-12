@@ -236,6 +236,9 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
                 status: "pending",
               };
             }
+            if (nd.deep_url && typeof nd.deep_url === "string") {
+              notif.deepUrl = nd.deep_url;
+            }
             return notif;
           });
           if (dbNotifs.length > 0) setNotifs(prev => {
@@ -360,6 +363,9 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
                   note: data.note ? String(data.note) : null,
                   status: "pending",
                 };
+              }
+              if (data.deep_url && typeof data.deep_url === "string") {
+                base.deepUrl = data.deep_url;
               }
               return base;
             });
@@ -598,37 +604,60 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
     });
   }, [isDemo, token]);
 
-  // Открыть чат из URL (?openChat=debt|rental&id=...)
+  // Открыть чат/долг из URL (?openChat=debt|rental&id=... ИЛИ ?openDebt=UUID[&contract=1])
   useEffect(() => {
-    function openChatFromUrl(search: string) {
+    function openFromUrl(search: string) {
       const params = new URLSearchParams(search);
       const kind = params.get("openChat");
       const id = params.get("id");
-      if (!kind || !id) return false;
-      if (kind === "debt") {
-        const debt = [...lentDebts, ...borrowedDebts, ...archiveDebts].find(d => d.debtDbId === id);
-        setActiveChat({ debtId: id, title: debt?.title || "Чат по долгу" });
-      } else if (kind === "rental") {
-        const rental = rentals.find(r => String(r.id) === String(id));
-        setActiveChat({ rentalId: Number(id), title: rental?.title || "Чат по аренде" });
+      const openDebt = params.get("openDebt");
+      const openContract = params.get("contract") === "1";
+
+      let handled = false;
+
+      if (kind && id) {
+        if (kind === "debt") {
+          const debt = [...lentDebts, ...borrowedDebts, ...archiveDebts].find(d => d.debtDbId === id);
+          setActiveChat({ debtId: id, title: debt?.title || "Чат по долгу" });
+        } else if (kind === "rental") {
+          const rental = rentals.find(r => String(r.id) === String(id));
+          setActiveChat({ rentalId: Number(id), title: rental?.title || "Чат по аренде" });
+        }
+        handled = true;
       }
-      // очищаем параметры из URL
-      const url = new URL(window.location.href);
-      url.searchParams.delete("openChat");
-      url.searchParams.delete("id");
-      window.history.replaceState({}, "", url.toString());
-      return true;
+
+      if (openDebt) {
+        // Найдём долг и переключим раздел, потом сообщим DebtList показать его
+        const debt = [...lentDebts, ...borrowedDebts, ...archiveDebts].find(d => d.debtDbId === openDebt);
+        if (debt) {
+          const targetSection: Section = lentDebts.includes(debt) ? "lent" : borrowedDebts.includes(debt) ? "borrowed" : "archive";
+          setSection(targetSection);
+          // Дадим React переключить раздел, затем шлём событие
+          setTimeout(() => {
+            window.dispatchEvent(new CustomEvent("open-debt", { detail: { debtDbId: openDebt, openContract } }));
+          }, 60);
+          handled = true;
+        }
+      }
+
+      if (handled) {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("openChat");
+        url.searchParams.delete("id");
+        url.searchParams.delete("openDebt");
+        url.searchParams.delete("contract");
+        window.history.replaceState({}, "", url.toString());
+      }
+      return handled;
     }
 
-    // 1) при первой загрузке
-    openChatFromUrl(window.location.search);
+    openFromUrl(window.location.search);
 
-    // 2) при сообщениях от SW (клик по push)
     function onSwMessage(e: MessageEvent) {
       const data = e.data;
       if (data && data.type === "NAVIGATE" && typeof data.url === "string") {
         const qIndex = data.url.indexOf("?");
-        if (qIndex >= 0) openChatFromUrl(data.url.slice(qIndex));
+        if (qIndex >= 0) openFromUrl(data.url.slice(qIndex));
       }
     }
     if ("serviceWorker" in navigator) {

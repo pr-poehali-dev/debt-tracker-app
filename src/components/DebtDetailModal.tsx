@@ -27,6 +27,7 @@ interface Props {
   onMarkPaid?: (debtId: string) => void;
   token?: string;
   userId?: number;
+  autoOpenContract?: boolean;
   onPaymentAccepted?: (debtId: string, newAmount: number, fullyPaid: boolean) => void;
 }
 
@@ -53,13 +54,19 @@ function calcTotalWithInterest(amount: number, rate: number, type: string, dueDa
   return Math.round(amount * (1 + (rate / 100) * years));
 }
 
-export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat, onMarkPaid, token, userId, onPaymentAccepted }: Props) {
+export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat, onMarkPaid, token, userId, autoOpenContract, onPaymentAccepted }: Props) {
   const [history, setHistory] = useState<PaymentItem[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [decidingId, setDecidingId] = useState<number | null>(null);
   const [confirmClose, setConfirmClose] = useState(false);
   const [showContract, setShowContract] = useState(false);
   const [contractStatus, setContractStatus] = useState<"none" | "draft" | "active">("none");
+
+  useEffect(() => {
+    if (autoOpenContract && debt?.debtDbId) {
+      setShowContract(true);
+    }
+  }, [autoOpenContract, debt?.debtDbId]);
 
   const debtDbId = debt?.debtDbId;
   useEffect(() => {

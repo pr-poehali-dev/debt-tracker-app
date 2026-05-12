@@ -70,6 +70,7 @@ export interface Notification {
   chatMeta?: ChatMeta;
   supportMeta?: SupportMeta;
   paymentRequestMeta?: PaymentRequestMeta;
+  deepUrl?: string;
 }
 
 export const COLOR_OPTIONS: { id: ContactColor; label: string; hex: string; bg: string; border: string; text: string }[] = [

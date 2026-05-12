@@ -366,10 +366,11 @@ def handler(event: dict, context) -> dict:
                 creator_name = (nm[0] if nm else "Партнёр")
                 title = "Подготовлен договор займа"
                 body = f"{creator_name} оформил договор и ждёт твою подпись"
+                deep_url = f"/?openDebt={debt_id}&contract=1" if debt_id else "/"
                 save_notification(conn, other_id, "contract_created", title, body,
                                   {"contract_id": cid, "debt_id": str(debt_id) if debt_id else None,
-                                   "rental_id": rental_id})
-                send_push(conn, other_id, title, body, url="/")
+                                   "rental_id": rental_id, "deep_url": deep_url})
+                send_push(conn, other_id, title, body, url=deep_url)
 
             return json_resp({"id": cid, "ok": True}, 201)
 
@@ -441,6 +442,8 @@ def handler(event: dict, context) -> dict:
             other_id = c["party_b_user_id"] if is_a else c["party_a_user_id"]
             fully_signed = bool(updated and updated.get("signed_by_a_at") and updated.get("signed_by_b_at"))
 
+            deep_url = f"/?openDebt={c['debt_id']}&contract=1" if c["debt_id"] else "/"
+
             if other_id:
                 if fully_signed:
                     title = "Договор подписан полностью"
@@ -453,8 +456,9 @@ def handler(event: dict, context) -> dict:
                 save_notification(conn, other_id, ntype, title, body,
                                   {"contract_id": cid,
                                    "debt_id": str(c["debt_id"]) if c["debt_id"] else None,
-                                   "rental_id": c["rental_id"]})
-                send_push(conn, other_id, title, body, url="/")
+                                   "rental_id": c["rental_id"],
+                                   "deep_url": deep_url})
+                send_push(conn, other_id, title, body, url=deep_url)
 
             # Если обе стороны подписали — продублируем уведомление подписавшему
             if fully_signed:
@@ -463,7 +467,8 @@ def handler(event: dict, context) -> dict:
                                   "Документ вступил в силу",
                                   {"contract_id": cid,
                                    "debt_id": str(c["debt_id"]) if c["debt_id"] else None,
-                                   "rental_id": c["rental_id"]})
+                                   "rental_id": c["rental_id"],
+                                   "deep_url": deep_url})
 
             return json_resp({"ok": True, "contract": updated})
 

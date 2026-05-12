@@ -43,6 +43,21 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
   const [confirmDelete, setConfirmDelete] = useState<Debt | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [filter, setFilter] = useState<"all" | "active" | "overdue">("all");
+  const [openContractOnSelect, setOpenContractOnSelect] = useState(false);
+
+  useEffect(() => {
+    function onOpenDebt(e: Event) {
+      const detail = (e as CustomEvent).detail as { debtDbId?: string; openContract?: boolean } | undefined;
+      if (!detail?.debtDbId) return;
+      const target = debts.find(d => d.debtDbId === detail.debtDbId);
+      if (target) {
+        setOpenContractOnSelect(!!detail.openContract);
+        setSelectedDebt(target);
+      }
+    }
+    window.addEventListener("open-debt", onOpenDebt as EventListener);
+    return () => window.removeEventListener("open-debt", onOpenDebt as EventListener);
+  }, [debts]);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -71,11 +86,12 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
         debt={selectedDebt}
         dir={dir}
         locale={locale}
-        onClose={() => setSelectedDebt(null)}
+        onClose={() => { setSelectedDebt(null); setOpenContractOnSelect(false); }}
         onOpenChat={onOpenChat}
         onMarkPaid={onMarkPaid ? markPaidWithFeedback : undefined}
         token={token}
         userId={userId}
+        autoOpenContract={openContractOnSelect}
         onPaymentAccepted={onPaymentAccepted}
       />
       {manualReturn && manualReturn.debtDbId && (
@@ -1053,7 +1069,21 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
               {/* Шапка уведомления */}
               <div
                 className={`p-4 flex items-start gap-3 ${!isReplyable ? "cursor-pointer hover:bg-white/[0.06]" : ""}`}
-                onClick={() => !isReplyable && onMarkRead(n.id)}
+                onClick={() => {
+                  if (isReplyable) return;
+                  if (n.deepUrl) {
+                    const qi = n.deepUrl.indexOf("?");
+                    if (qi >= 0) {
+                      const params = new URLSearchParams(n.deepUrl.slice(qi));
+                      const openDebt = params.get("openDebt");
+                      const contract = params.get("contract") === "1";
+                      if (openDebt) {
+                        window.dispatchEvent(new CustomEvent("open-debt", { detail: { debtDbId: openDebt, openContract: contract } }));
+                      }
+                    }
+                  }
+                  onMarkRead(n.id);
+                }}
               >
                 <NotifIcon type={n.type} />
                 <div className="flex-1 min-w-0">
@@ -1073,6 +1103,27 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
                 {isChat && onOpenChat && n.chatMeta && (
                   <button
                     onClick={() => onOpenChat(n.chatMeta!.debtId, n.chatMeta!.rentalId, n.chatMeta!.chatTitle)}
+                    className="flex-shrink-0 px-2.5 py-1.5 rounded-xl text-[11px] font-medium transition-all"
+                    style={{ background: "rgba(168,85,247,0.15)", border: "1px solid rgba(168,85,247,0.3)", color: "#c084fc" }}
+                  >
+                    {/* TODO: i18n */}Открыть
+                  </button>
+                )}
+                {!isChat && !isSupport && n.deepUrl && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const qi = n.deepUrl!.indexOf("?");
+                      if (qi >= 0) {
+                        const params = new URLSearchParams(n.deepUrl!.slice(qi));
+                        const openDebt = params.get("openDebt");
+                        const contract = params.get("contract") === "1";
+                        if (openDebt) {
+                          window.dispatchEvent(new CustomEvent("open-debt", { detail: { debtDbId: openDebt, openContract: contract } }));
+                        }
+                      }
+                      onMarkRead(n.id);
+                    }}
                     className="flex-shrink-0 px-2.5 py-1.5 rounded-xl text-[11px] font-medium transition-all"
                     style={{ background: "rgba(168,85,247,0.15)", border: "1px solid rgba(168,85,247,0.3)", color: "#c084fc" }}
                   >
