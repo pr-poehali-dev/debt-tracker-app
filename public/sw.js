@@ -1,4 +1,4 @@
-const CACHE_NAME = 'debtflow-v10';
+const CACHE_NAME = 'debtflow-v11';
 const NOTIF_ICON = 'https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/files/06ebc5e2-b802-4aeb-af0f-994592ccdbcb.jpg';
 const STATIC_ASSETS = [
   '/manifest.json',
@@ -90,36 +90,52 @@ self.addEventListener('fetch', (event) => {
 });
 
 self.addEventListener('push', (event) => {
-  let data = {};
-  try {
-    data = event.data ? event.data.json() : {};
-  } catch (e) {
-    try { data = { body: event.data && event.data.text ? event.data.text() : '' }; } catch (_) { data = {}; }
-  }
-  const title = data.title || 'Debt-Debt';
-  const body = data.body || 'Новое уведомление';
-  const tag = data.tag || ('debtflow-' + Date.now());
-  const targetUrl = data.url || '/';
+  const show = (async () => {
+    let data = {};
+    try {
+      data = event.data ? event.data.json() : {};
+    } catch (e) {
+      try {
+        data = { body: event.data && event.data.text ? event.data.text() : '' };
+      } catch (_) {
+        data = {};
+      }
+    }
 
-  const show = self.registration.showNotification(title, {
-    body,
-    icon: NOTIF_ICON,
-    badge: NOTIF_ICON,
-    tag,
-    renotify: true,
-    requireInteraction: false,
-    silent: false,
-    vibrate: [200, 100, 200, 100, 200],
-    timestamp: Date.now(),
-    data: { url: targetUrl }
-  }).catch((err) => {
-    // Fallback: минимальный набор опций если что-то не нравится Android
-    return self.registration.showNotification(title, {
-      body,
-      tag,
-      data: { url: targetUrl }
-    }).catch(() => {});
-  });
+    const title = String(data.title || 'Debt-Debt');
+    const body = String(data.body || 'Новое уведомление');
+    const targetUrl = data.url || '/';
+    const uniqueTag = 'debtflow-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+
+    try {
+      await self.registration.showNotification(title, {
+        body,
+        icon: NOTIF_ICON,
+        badge: NOTIF_ICON,
+        tag: uniqueTag,
+        renotify: false,
+        requireInteraction: false,
+        silent: false,
+        vibrate: [200, 100, 200],
+        timestamp: Date.now(),
+        data: { url: targetUrl }
+      });
+      return;
+    } catch (err1) {
+      try {
+        await self.registration.showNotification(title, {
+          body,
+          icon: NOTIF_ICON,
+          tag: uniqueTag
+        });
+        return;
+      } catch (err2) {
+        try {
+          await self.registration.showNotification(title, { body });
+        } catch (_) {}
+      }
+    }
+  })();
 
   event.waitUntil(show);
 });

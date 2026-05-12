@@ -1725,6 +1725,51 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
       setTimeout(() => setTestPushMsg(null), 5000);
     }
   }
+
+  const [diagReport, setDiagReport] = useState<string | null>(null);
+  const [diagBusy, setDiagBusy] = useState(false);
+  async function runDiagnostics() {
+    setDiagBusy(true);
+    const lines: string[] = [];
+    try {
+      lines.push("1. SW: " + ("serviceWorker" in navigator ? "OK" : "НЕТ"));
+      lines.push("2. PushManager: " + ("PushManager" in window ? "OK" : "НЕТ"));
+      lines.push("3. Notification: " + ("Notification" in window ? "OK" : "НЕТ"));
+      lines.push("4. Permission: " + (typeof Notification !== "undefined" ? Notification.permission : "?"));
+      const standalone = window.matchMedia("(display-mode: standalone)").matches;
+      lines.push("5. Standalone (PWA): " + (standalone ? "ДА" : "НЕТ — открой через ярлык!"));
+
+      if ("serviceWorker" in navigator) {
+        const reg = await navigator.serviceWorker.ready;
+        lines.push("6. SW active: " + (reg.active ? "OK" : "НЕТ"));
+        lines.push("7. SW scope: " + reg.scope);
+        const sub = await reg.pushManager.getSubscription();
+        lines.push("8. Subscription: " + (sub ? "ЕСТЬ" : "НЕТ"));
+        if (sub) {
+          lines.push("9. Endpoint host: " + new URL(sub.endpoint).host);
+        }
+        // Локальный тест — без сервера, прямо из SW
+        try {
+          await reg.showNotification("Локальный тест", {
+            body: "Если ты видишь это — баннер работает. Проблема в push-сервере.",
+            icon: "https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/files/06ebc5e2-b802-4aeb-af0f-994592ccdbcb.jpg",
+            tag: "diag-" + Date.now(),
+            requireInteraction: false,
+          });
+          lines.push("10. Локальный showNotification: ВЫЗВАН");
+        } catch (e) {
+          lines.push("10. Локальный showNotification: ОШИБКА " + (e as Error).message);
+        }
+      }
+
+      lines.push("11. UA: " + navigator.userAgent.slice(0, 80));
+    } catch (e) {
+      lines.push("ERR: " + (e as Error).message);
+    } finally {
+      setDiagReport(lines.join("\n"));
+      setDiagBusy(false);
+    }
+  }
   const [deletePin, setDeletePin] = useState("");
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -2065,6 +2110,27 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
               {testPushBusy ? <Icon name="Loader2" size={12} className="animate-spin" /> : <Icon name="Send" size={12} />}
               {testPushMsg || "Отправить тестовое уведомление"}
             </button>
+            <button
+              onClick={runDiagnostics}
+              disabled={diagBusy}
+              className="mt-2 w-full py-2 rounded-xl text-xs font-semibold transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+              style={{ background: "rgba(245,158,11,0.10)", color: "#fbbf24", border: "1px solid rgba(245,158,11,0.25)" }}
+            >
+              {diagBusy ? <Icon name="Loader2" size={12} className="animate-spin" /> : <Icon name="Stethoscope" size={12} />}
+              Диагностика push
+            </button>
+            {diagReport && (
+              <div className="mt-2 p-3 rounded-xl text-[10px] font-mono whitespace-pre-wrap leading-relaxed" style={{ background: "rgba(0,0,0,0.4)", color: "#a7f3d0", border: "1px solid rgba(255,255,255,0.1)" }}>
+                {diagReport}
+                <button
+                  onClick={() => { navigator.clipboard?.writeText(diagReport).catch(() => {}); }}
+                  className="mt-2 px-2 py-1 rounded-md text-[10px] font-bold"
+                  style={{ background: "rgba(168,85,247,0.2)", color: "#c4b5fd" }}
+                >
+                  Скопировать
+                </button>
+              </div>
+            )}
             <div className="mt-3 grid grid-cols-2 gap-2 text-[10px]">
               {[
                 { icon: "MessageCircle", label: "Сообщения" },
