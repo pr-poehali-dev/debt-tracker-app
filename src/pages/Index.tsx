@@ -124,7 +124,16 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
               name: String(d.title),
               amount: Number(d.amount),
               dueDate: String(d.due_date || new Date().toISOString().slice(0, 10)),
-              status: status === "archived" ? "paid" : (isDeleted && isLender) ? "deleted" : (new Date(String(d.due_date)) < new Date() && decision !== "accepted" ? "overdue" : "active"),
+              status: status === "archived" ? "paid" : (isDeleted && isLender) ? "deleted" : ((() => {
+                const dueStr = String(d.due_date || "");
+                if (!dueStr) return "active" as const;
+                const due = new Date(dueStr);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                due.setHours(0, 0, 0, 0);
+                const isOverdueByDate = due.getTime() < today.getTime();
+                return (isOverdueByDate && decision !== "declined") ? "overdue" as const : "active" as const;
+              })()),
               avatar: String(isLender ? (d.borrower_name || "?") : d.lender_name).slice(0, 2).toUpperCase(),
               note: d.note ? String(d.note) : undefined,
               debtDbId: String(d.id),
