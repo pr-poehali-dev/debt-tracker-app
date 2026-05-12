@@ -239,7 +239,7 @@ export default function ChatWindow({ debtId, rentalId, title, token, onClose }: 
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  function readAsBase64(file: File): Promise<string> {
+  function readAsBase64(file: File | Blob): Promise<string> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => {
@@ -250,6 +250,64 @@ export default function ChatWindow({ debtId, rentalId, title, token, onClose }: 
       reader.onerror = () => reject(reader.error);
       reader.readAsDataURL(file);
     });
+  }
+
+  async function addWatermark(file: File): Promise<{ blob: Blob; name: string; type: string }> {
+    try {
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const i = new Image();
+        i.onload = () => resolve(i);
+        i.onerror = () => reject(new Error("img load"));
+        i.src = URL.createObjectURL(file);
+      });
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("no ctx");
+      ctx.drawImage(img, 0, 0);
+
+      const text = "Debt-Debt.ru";
+      const base = Math.min(canvas.width, canvas.height);
+      const fontSize = Math.max(14, Math.round(base * 0.028));
+      const padX = Math.round(fontSize * 0.7);
+      const padY = Math.round(fontSize * 0.45);
+      const margin = Math.round(base * 0.025);
+
+      ctx.font = `600 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+      ctx.textBaseline = "middle";
+      const textWidth = ctx.measureText(text).width;
+      const boxW = textWidth + padX * 2;
+      const boxH = fontSize + padY * 2;
+      const x = canvas.width - margin - boxW;
+      const y = canvas.height - margin - boxH;
+
+      const radius = boxH / 2;
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.arcTo(x + boxW, y, x + boxW, y + boxH, radius);
+      ctx.arcTo(x + boxW, y + boxH, x, y + boxH, radius);
+      ctx.arcTo(x, y + boxH, x, y, radius);
+      ctx.arcTo(x, y, x + boxW, y, radius);
+      ctx.closePath();
+      ctx.fillStyle = "rgba(0, 0, 0, 0.45)";
+      ctx.fill();
+
+      ctx.fillStyle = "rgba(255, 255, 255, 0.95)";
+      ctx.fillText(text, x + padX, y + boxH / 2 + 1);
+
+      URL.revokeObjectURL(img.src);
+
+      const outType = file.type === "image/png" ? "image/png" : "image/jpeg";
+      const blob: Blob = await new Promise((resolve, reject) => {
+        canvas.toBlob((b) => b ? resolve(b) : reject(new Error("toBlob")), outType, 0.92);
+      });
+      const baseName = file.name.replace(/\.[^.]+$/, "") || "photo";
+      const ext = outType === "image/png" ? "png" : "jpg";
+      return { blob, name: `${baseName}.${ext}`, type: outType };
+    } catch {
+      return { blob: file, name: file.name, type: file.type };
+    }
   }
 
   function onPickFile(kind: "image" | "file") {
@@ -286,14 +344,23 @@ export default function ChatWindow({ debtId, rentalId, title, token, onClose }: 
     if (attachment) {
       setUploading(true);
       try {
-        const base64 = await readAsBase64(attachment.file);
+        let uploadBlob: Blob = attachment.file;
+        let uploadName = attachment.file.name;
+        let uploadType = attachment.file.type || "application/octet-stream";
+        if (attachment.isImage) {
+          const wm = await addWatermark(attachment.file);
+          uploadBlob = wm.blob;
+          uploadName = wm.name;
+          uploadType = wm.type;
+        }
+        const base64 = await readAsBase64(uploadBlob);
         const upRes = await fetch(`${CHAT_URL}?action=upload`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({
             file_base64: base64,
-            file_name: attachment.file.name,
-            content_type: attachment.file.type || "application/octet-stream",
+            file_name: uploadName,
+            content_type: uploadType,
           }),
         });
         if (!upRes.ok) {
