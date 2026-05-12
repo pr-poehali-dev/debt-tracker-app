@@ -829,8 +829,79 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
     setViewingContact(null);
   }
 
-  function handleImportFromPhonebook() {
-    alert("Импорт из телефонной книги пока в разработке. Скоро здесь будет выбор контактов из адресной книги устройства.");
+  async function handleImportFromPhonebook() {
+    interface ContactsManager {
+      select: (props: string[], opts?: { multiple?: boolean }) => Promise<Array<{ name?: string[]; tel?: string[]; email?: string[] }>>;
+      getProperties: () => Promise<string[]>;
+    }
+    const nav = navigator as Navigator & { contacts?: ContactsManager };
+    if (!nav.contacts || typeof nav.contacts.select !== "function") {
+      alert("Ваш браузер пока не поддерживает выбор из телефонной книги. Откройте приложение в Chrome на Android или добавьте контакт вручную.");
+      return;
+    }
+    try {
+      const props = await nav.contacts.getProperties();
+      const want = ["name", "tel", "email"].filter((p) => props.includes(p));
+      const picked = await nav.contacts.select(want, { multiple: true });
+      if (!picked || picked.length === 0) return;
+
+      const { default: urls } = await import("../../backend/func2url.json");
+      const contactsUrl = (urls as Record<string, string>)["contacts"];
+      if (!contactsUrl && !isDemo) {
+        alert("Сервис контактов недоступен");
+        return;
+      }
+
+      let added = 0;
+      let skipped = 0;
+      for (const item of picked) {
+        const name = (item.name && item.name[0]) || "";
+        const phone = (item.tel && item.tel[0]) || "";
+        const email = (item.email && item.email[0]) || "";
+        if (!name.trim()) continue;
+
+        if (isDemo) {
+          const id = Date.now() + Math.random();
+          const avatar = (name.trim().split(/\s+/).map(s => s[0]).slice(0, 2).join("") || "??").toUpperCase();
+          setContacts(prev => [...prev, { id, name: name.trim(), phone, email, telegram: "", note: "", avatar, color: "purple", totalLent: 0, totalBorrowed: 0 }]);
+          added++;
+          continue;
+        }
+
+        const res = await fetch(contactsUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ name: name.trim(), phone: phone.trim(), email: email.trim() }),
+        });
+        if (!res.ok) continue;
+        const data = await res.json();
+        if (data.duplicate) {
+          skipped++;
+          continue;
+        }
+        const c = data.contact as Record<string, unknown>;
+        const newContact: Contact = {
+          id: Number(c.id),
+          name: String(c.name || ""),
+          phone: String(c.phone || ""),
+          email: String(c.email || ""),
+          telegram: String(c.telegram || ""),
+          note: String(c.note || ""),
+          avatar: String(c.avatar || ""),
+          color: String(c.color || "purple") as ContactColor,
+          totalLent: 0,
+          totalBorrowed: 0,
+        };
+        setContacts(prev => [...prev, newContact]);
+        added++;
+      }
+      alert(`Импорт завершён: добавлено ${added}${skipped ? `, пропущено дубликатов: ${skipped}` : ""}`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (!/cancel|abort/i.test(msg)) {
+        alert("Не удалось импортировать контакты: " + msg);
+      }
+    }
   }
 
 
