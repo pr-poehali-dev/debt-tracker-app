@@ -47,70 +47,70 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
         `,
       }} />
 
-      {/* Animated DD icon */}
+      {/* Animated icon */}
       <div style={{
         position: "relative",
-        width: 140, height: 140, borderRadius: 32,
-        background: "radial-gradient(circle at 50% 50%, #1a1f5c 0%, #0d1240 100%)",
-        boxShadow: "0 0 50px rgba(168,85,247,0.35), 0 0 90px rgba(99,102,241,0.18)",
-        overflow: "hidden",
-        animation: "splashIconPop 0.6s cubic-bezier(0.34,1.56,0.64,1) forwards",
+        width: 160, height: 160,
         display: "flex", alignItems: "center", justifyContent: "center",
       }}>
-        {/* Soft inner glow */}
+        {/* Rotating aura */}
         <div style={{
-          position: "absolute", inset: 0,
-          background: "radial-gradient(circle at 30% 30%, rgba(168,85,247,0.25) 0%, transparent 55%)",
-          pointerEvents: "none",
-        }} />
-
-        {/* Left D — magenta with glow */}
-        <div style={{
-          position: "absolute",
-          left: 14, top: "50%", transform: "translateY(-50%)",
-          fontSize: 92, lineHeight: 1, fontWeight: 900,
-          fontFamily: "Montserrat, sans-serif",
-          color: "#c026d3",
-          textShadow: "0 0 18px rgba(217,70,239,0.85), 0 0 35px rgba(168,85,247,0.6)",
-          animation: "splashLeftD 0.8s 0.1s cubic-bezier(0.34,1.56,0.64,1) both",
-        }}>D</div>
-
-        {/* Right D — solid blue */}
-        <div style={{
-          position: "absolute",
-          right: 14, top: "50%", transform: "translateY(-50%)",
-          fontSize: 92, lineHeight: 1, fontWeight: 900,
-          fontFamily: "Montserrat, sans-serif",
-          color: "#4f6df5",
-          textShadow: "0 0 14px rgba(99,102,241,0.6)",
-          animation: "splashRightD 0.8s 0.1s cubic-bezier(0.34,1.56,0.64,1) both",
-        }}>D</div>
-
-        {/* Triangle between */}
-        <div style={{
-          position: "absolute",
-          left: "50%", top: "50%",
-          width: 0, height: 0,
-          borderTop: "9px solid transparent",
-          borderBottom: "9px solid transparent",
-          borderLeft: "13px solid #c026d3",
-          transform: "translate(-50%, -50%)",
-          filter: "drop-shadow(0 0 8px rgba(217,70,239,0.95)) drop-shadow(0 0 14px rgba(168,85,247,0.6))",
-          animation: "splashTriangle 0.5s 0.85s cubic-bezier(0.34,1.56,0.64,1) both",
-        }} />
-
-        {/* Pulse ring on impact */}
-        <div style={{
-          position: "absolute",
-          left: "50%", top: "50%",
-          width: 14, height: 14,
+          position: "absolute", inset: -30,
           borderRadius: "50%",
-          border: "2px solid #c026d3",
-          transform: "translate(-50%, -50%)",
-          animation: "splashRing 0.9s 0.95s ease-out both",
-          opacity: 0,
-          pointerEvents: "none",
+          background: "conic-gradient(from 0deg, rgba(168,85,247,0.0), rgba(168,85,247,0.55), rgba(99,102,241,0.35), rgba(168,85,247,0.0))",
+          filter: "blur(18px)",
+          animation: "splashAura 3s linear infinite",
+          opacity: 0.9,
         }} />
+
+        {/* Outer pulse ring 1 */}
+        <div style={{
+          position: "absolute",
+          width: 140, height: 140, borderRadius: "50%",
+          border: "2px solid rgba(168,85,247,0.55)",
+          animation: "splashPulse 2.2s 0.6s ease-out infinite",
+          opacity: 0,
+        }} />
+
+        {/* Outer pulse ring 2 */}
+        <div style={{
+          position: "absolute",
+          width: 140, height: 140, borderRadius: "50%",
+          border: "2px solid rgba(99,102,241,0.45)",
+          animation: "splashPulse 2.2s 1.3s ease-out infinite",
+          opacity: 0,
+        }} />
+
+        {/* The actual app icon */}
+        <img
+          src={ICON}
+          alt="Debt-Debt"
+          style={{
+            position: "relative",
+            width: 140, height: 140,
+            borderRadius: 32,
+            boxShadow: "0 0 50px rgba(168,85,247,0.45), 0 0 90px rgba(99,102,241,0.25)",
+            animation: "splashIconIn 0.9s cubic-bezier(0.34,1.56,0.64,1) both, splashIconFloat 3.2s 0.9s ease-in-out infinite",
+            willChange: "transform",
+          }}
+        />
+
+        {/* Shine sweep overlay */}
+        <div style={{
+          position: "absolute",
+          width: 140, height: 140, borderRadius: 32,
+          overflow: "hidden",
+          pointerEvents: "none",
+          animation: "splashIconIn 0.9s cubic-bezier(0.34,1.56,0.64,1) both",
+        }}>
+          <div style={{
+            position: "absolute",
+            top: 0, left: "-60%",
+            width: "60%", height: "100%",
+            background: "linear-gradient(115deg, transparent 0%, rgba(255,255,255,0.0) 35%, rgba(255,255,255,0.55) 50%, rgba(255,255,255,0.0) 65%, transparent 100%)",
+            animation: "splashShine 2.6s 1.1s ease-in-out infinite",
+          }} />
+        </div>
       </div>
 
       {/* Name */}
@@ -141,28 +141,29 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
       </div>
 
       <style>{`
-        @keyframes splashIconPop {
-          from { transform: scale(0.7); opacity: 0; }
-          to   { transform: scale(1);   opacity: 1; }
+        @keyframes splashIconIn {
+          0%   { transform: scale(0.5) rotate(-18deg); opacity: 0; }
+          60%  { transform: scale(1.08) rotate(4deg);  opacity: 1; }
+          80%  { transform: scale(0.97) rotate(-2deg); opacity: 1; }
+          100% { transform: scale(1) rotate(0);        opacity: 1; }
         }
-        @keyframes splashLeftD {
-          0%   { transform: translate(-120px, -50%) rotate(-12deg); opacity: 0; }
-          70%  { transform: translate(6px, -50%) rotate(2deg); opacity: 1; }
-          100% { transform: translate(0, -50%) rotate(0); opacity: 1; }
+        @keyframes splashIconFloat {
+          0%, 100% { transform: translateY(0) scale(1); }
+          50%      { transform: translateY(-6px) scale(1.02); }
         }
-        @keyframes splashRightD {
-          0%   { transform: translate(120px, -50%) rotate(12deg); opacity: 0; }
-          70%  { transform: translate(-6px, -50%) rotate(-2deg); opacity: 1; }
-          100% { transform: translate(0, -50%) rotate(0); opacity: 1; }
+        @keyframes splashAura {
+          from { transform: rotate(0deg); }
+          to   { transform: rotate(360deg); }
         }
-        @keyframes splashTriangle {
-          0%   { transform: translate(-50%, -50%) scale(0) rotate(-90deg); opacity: 0; }
-          60%  { transform: translate(-50%, -50%) scale(1.4) rotate(0deg); opacity: 1; }
-          100% { transform: translate(-50%, -50%) scale(1) rotate(0deg); opacity: 1; }
+        @keyframes splashPulse {
+          0%   { transform: scale(0.85); opacity: 0.8; }
+          80%  { opacity: 0; }
+          100% { transform: scale(1.6);  opacity: 0; }
         }
-        @keyframes splashRing {
-          0%   { width: 14px;  height: 14px; opacity: 0.9; border-width: 2px; }
-          100% { width: 120px; height: 120px; opacity: 0;  border-width: 1px; }
+        @keyframes splashShine {
+          0%   { left: -60%; }
+          60%  { left: 120%; }
+          100% { left: 120%; }
         }
         @keyframes splashFade {
           from { opacity: 0; transform: translateY(8px); }
