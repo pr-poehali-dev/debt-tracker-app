@@ -1,5 +1,5 @@
-const CACHE_NAME = 'debtflow-v11';
-const NOTIF_ICON = 'https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/files/06ebc5e2-b802-4aeb-af0f-994592ccdbcb.jpg';
+const CACHE_NAME = 'debtflow-v12';
+const NOTIF_ICON = 'https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/bucket/36805ee6-eff5-43db-a621-0e48de935d2a.jpg';
 const STATIC_ASSETS = [
   '/manifest.json',
 ];

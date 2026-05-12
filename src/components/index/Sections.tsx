@@ -1791,7 +1791,7 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
         try {
           await reg.showNotification("Локальный тест", {
             body: "Если ты видишь это — баннер работает. Проблема в push-сервере.",
-            icon: "https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/files/06ebc5e2-b802-4aeb-af0f-994592ccdbcb.jpg",
+            icon: "https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/bucket/36805ee6-eff5-43db-a621-0e48de935d2a.jpg",
             tag: "diag-" + Date.now(),
             requireInteraction: false,
           });

@@ -10,17 +10,17 @@
   "lang": "ru",
   "categories": ["finance", "productivity"],
   "icons": [
-    { "src": "https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/files/06ebc5e2-b802-4aeb-af0f-994592ccdbcb.jpg", "sizes": "72x72", "type": "image/jpeg", "purpose": "any maskable" },
-    { "src": "https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/files/06ebc5e2-b802-4aeb-af0f-994592ccdbcb.jpg", "sizes": "96x96", "type": "image/jpeg", "purpose": "any maskable" },
-    { "src": "https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/files/06ebc5e2-b802-4aeb-af0f-994592ccdbcb.jpg", "sizes": "128x128", "type": "image/jpeg", "purpose": "any maskable" },
-    { "src": "https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/files/06ebc5e2-b802-4aeb-af0f-994592ccdbcb.jpg", "sizes": "144x144", "type": "image/jpeg", "purpose": "any maskable" },
-    { "src": "https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/files/06ebc5e2-b802-4aeb-af0f-994592ccdbcb.jpg", "sizes": "152x152", "type": "image/jpeg", "purpose": "any maskable" },
-    { "src": "https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/files/06ebc5e2-b802-4aeb-af0f-994592ccdbcb.jpg", "sizes": "192x192", "type": "image/jpeg", "purpose": "any maskable" },
-    { "src": "https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/files/06ebc5e2-b802-4aeb-af0f-994592ccdbcb.jpg", "sizes": "384x384", "type": "image/jpeg", "purpose": "any maskable" },
-    { "src": "https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/files/06ebc5e2-b802-4aeb-af0f-994592ccdbcb.jpg", "sizes": "512x512", "type": "image/jpeg", "purpose": "any maskable" }
+    { "src": "https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/bucket/36805ee6-eff5-43db-a621-0e48de935d2a.jpg", "sizes": "72x72", "type": "image/jpeg", "purpose": "any maskable" },
+    { "src": "https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/bucket/36805ee6-eff5-43db-a621-0e48de935d2a.jpg", "sizes": "96x96", "type": "image/jpeg", "purpose": "any maskable" },
+    { "src": "https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/bucket/36805ee6-eff5-43db-a621-0e48de935d2a.jpg", "sizes": "128x128", "type": "image/jpeg", "purpose": "any maskable" },
+    { "src": "https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/bucket/36805ee6-eff5-43db-a621-0e48de935d2a.jpg", "sizes": "144x144", "type": "image/jpeg", "purpose": "any maskable" },
+    { "src": "https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/bucket/36805ee6-eff5-43db-a621-0e48de935d2a.jpg", "sizes": "152x152", "type": "image/jpeg", "purpose": "any maskable" },
+    { "src": "https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/bucket/36805ee6-eff5-43db-a621-0e48de935d2a.jpg", "sizes": "192x192", "type": "image/jpeg", "purpose": "any maskable" },
+    { "src": "https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/bucket/36805ee6-eff5-43db-a621-0e48de935d2a.jpg", "sizes": "384x384", "type": "image/jpeg", "purpose": "any maskable" },
+    { "src": "https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/bucket/36805ee6-eff5-43db-a621-0e48de935d2a.jpg", "sizes": "512x512", "type": "image/jpeg", "purpose": "any maskable" }
   ],
   "screenshots": [
-    { "src": "https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/files/06ebc5e2-b802-4aeb-af0f-994592ccdbcb.jpg", "sizes": "512x512", "type": "image/jpeg", "form_factor": "narrow" }
+    { "src": "https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/bucket/36805ee6-eff5-43db-a621-0e48de935d2a.jpg", "sizes": "512x512", "type": "image/jpeg", "form_factor": "narrow" }
   ],
   "shortcuts": [
     {
@@ -28,14 +28,14 @@
       "short_name": "Выдано",
       "description": "Список выданных займов",
       "url": "/?section=lent",
-      "icons": [{ "src": "https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/files/06ebc5e2-b802-4aeb-af0f-994592ccdbcb.jpg", "sizes": "96x96" }]
+      "icons": [{ "src": "https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/bucket/36805ee6-eff5-43db-a621-0e48de935d2a.jpg", "sizes": "96x96" }]
     },
     {
       "name": "Взятые займы",
       "short_name": "Взято",
       "description": "Список взятых займов",
       "url": "/?section=borrowed",
-      "icons": [{ "src": "https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/files/06ebc5e2-b802-4aeb-af0f-994592ccdbcb.jpg", "sizes": "96x96" }]
+      "icons": [{ "src": "https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/bucket/36805ee6-eff5-43db-a621-0e48de935d2a.jpg", "sizes": "96x96" }]
     }
   ]
 }
