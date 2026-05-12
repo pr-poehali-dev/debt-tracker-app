@@ -808,7 +808,7 @@ export function CalendarSection({ contacts, t, debts, rentals = [], userId = 0 }
 }
 
 // ─── Section: Notifications ───────────────────────────────────────────────────
-export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, token = "", onOpenChat, onOpenSupport, onPaymentAccepted }: {
+export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, token = "", onOpenChat, onOpenSupport, onPaymentAccepted, contacts = [], allDebts = [] }: {
   notifs: Notification[];
   onMarkAllRead: () => void;
   onMarkRead: (id: number) => void;
@@ -817,6 +817,8 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
   onOpenChat?: (debtId: string | undefined, rentalId: number | undefined, title: string) => void;
   onOpenSupport?: (ticketId: number) => void;
   onPaymentAccepted?: (debtId: string, newAmount: number, fullyPaid: boolean) => void;
+  contacts?: Contact[];
+  allDebts?: Debt[];
 }) {
   const [replyText, setReplyText] = useState<Record<number, string>>({});
   const [sending, setSending] = useState<number | null>(null);
@@ -1021,9 +1023,17 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
                   notifs.forEach(x => { if (threadKey(x) === th.key && !x.read) onMarkRead(x.id); });
                 }}
               >
-                <div className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: isChat ? "linear-gradient(135deg, rgba(168,85,247,0.25), rgba(99,102,241,0.25))" : "linear-gradient(135deg, rgba(56,189,248,0.25), rgba(99,102,241,0.25))" }}>
-                  <Icon name={isChat ? "MessageCircle" : "LifeBuoy"} size={20} className={isChat ? "text-purple-300" : "text-sky-300"} />
-                </div>
+                {isChat ? (() => {
+                  const chatDebtId = n.chatMeta?.debtId;
+                  const debtForChat = chatDebtId ? allDebts.find(d => d.debtDbId === chatDebtId) : undefined;
+                  const chatContact = debtForChat ? contacts.find(c => c.id === debtForChat.contactId) : (th.subtitle ? contacts.find(c => c.name === th.subtitle) : undefined);
+                  const initials = (chatContact?.name || th.subtitle || "?").trim().charAt(0).toUpperCase() || "?";
+                  return <Avatar initials={initials} color={chatContact?.color} />;
+                })() : (
+                  <div className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "linear-gradient(135deg, rgba(56,189,248,0.25), rgba(99,102,241,0.25))" }}>
+                    <Icon name="LifeBuoy" size={20} className="text-sky-300" />
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
                     <p className="font-semibold text-sm text-foreground truncate">{th.title}</p>
