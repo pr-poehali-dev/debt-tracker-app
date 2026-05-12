@@ -2217,6 +2217,29 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
             <p className="font-semibold text-foreground">{t.aboutApp}</p>
           </div>
         </div>
+        <div className="flex flex-col items-center gap-3 py-4">
+          <img
+            src="https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/files/98b74c9b-2e18-44dc-82a6-42c5215f3b20.jpg"
+            alt="Debt-Debt"
+            className="w-24 h-24 rounded-[22px] shadow-2xl"
+            style={{ boxShadow: "0 0 40px rgba(168, 85, 247, 0.35)" }}
+          />
+          <p className="text-[11px] text-muted-foreground text-center">Так иконка выглядит на рабочем экране</p>
+          <div className="flex items-end gap-3 mt-1">
+            <div className="flex flex-col items-center gap-1">
+              <img src="https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/files/98b74c9b-2e18-44dc-82a6-42c5215f3b20.jpg" alt="" className="w-12 h-12 rounded-xl" />
+              <span className="text-[10px] text-muted-foreground">маленькая</span>
+            </div>
+            <div className="flex flex-col items-center gap-1">
+              <img src="https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/files/98b74c9b-2e18-44dc-82a6-42c5215f3b20.jpg" alt="" className="w-16 h-16 rounded-2xl" />
+              <span className="text-[10px] text-muted-foreground">средняя</span>
+            </div>
+            <div className="flex flex-col items-center gap-1">
+              <img src="https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/files/98b74c9b-2e18-44dc-82a6-42c5215f3b20.jpg" alt="" className="w-20 h-20 rounded-[20px]" />
+              <span className="text-[10px] text-muted-foreground">крупная</span>
+            </div>
+          </div>
+        </div>
         <div className="space-y-2 text-sm">
           {[
             { label: t.appNameLabel, value: "Debt-Debt" },
