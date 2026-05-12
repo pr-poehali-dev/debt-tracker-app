@@ -1726,6 +1726,7 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
     }
   }
 
+  const [showAndroidGuide, setShowAndroidGuide] = useState(false);
   const [diagReport, setDiagReport] = useState<string | null>(null);
   const [diagBusy, setDiagBusy] = useState(false);
   async function runDiagnostics() {
@@ -2119,6 +2120,14 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
               {diagBusy ? <Icon name="Loader2" size={12} className="animate-spin" /> : <Icon name="Stethoscope" size={12} />}
               Диагностика push
             </button>
+            <button
+              onClick={() => setShowAndroidGuide(true)}
+              className="mt-2 w-full py-2 rounded-xl text-xs font-semibold transition-all active:scale-95 flex items-center justify-center gap-2"
+              style={{ background: "rgba(59,130,246,0.12)", color: "#93c5fd", border: "1px solid rgba(59,130,246,0.25)" }}
+            >
+              <Icon name="Settings2" size={12} />
+              Настройки уведомлений Android
+            </button>
             {diagReport && (
               <div className="mt-2 p-3 rounded-xl text-[10px] font-mono whitespace-pre-wrap leading-relaxed" style={{ background: "rgba(0,0,0,0.4)", color: "#a7f3d0", border: "1px solid rgba(255,255,255,0.1)" }}>
                 {diagReport}
@@ -2221,6 +2230,121 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
             </button>
           )}
         </>
+      )}
+
+      {showAndroidGuide && (
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div
+            className="absolute inset-0 bg-black/75 backdrop-blur-md"
+            onClick={() => setShowAndroidGuide(false)}
+          />
+          <div
+            className="relative w-full max-w-md rounded-t-3xl sm:rounded-3xl overflow-hidden animate-fade-in border border-blue-500/30 shadow-2xl max-h-[90vh] overflow-y-auto"
+            style={{ background: "#1a1d2e" }}
+          >
+            <div className="sticky top-0 px-5 py-4 flex items-center justify-between border-b border-white/10" style={{ background: "#1a1d2e" }}>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-500/15 flex items-center justify-center">
+                  <Icon name="Settings2" size={20} className="text-blue-400" />
+                </div>
+                <div>
+                  <p className="font-semibold text-foreground">Настройки уведомлений</p>
+                  <p className="text-[11px] text-muted-foreground">Чтобы баннер появлялся сверху</p>
+                </div>
+              </div>
+              <button onClick={() => setShowAndroidGuide(false)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/5">
+                <Icon name="X" size={18} className="text-muted-foreground" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="p-3 rounded-xl flex gap-2 items-start" style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)" }}>
+                <Icon name="Lightbulb" size={16} className="text-amber-400 mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-amber-100/90 leading-relaxed">
+                  Звук есть, а баннер не появляется? Это значит, что Android поставил уведомлениям низкий приоритет. Сейчас покажем, что включить.
+                </p>
+              </div>
+
+              <button
+                onClick={() => {
+                  const url = "intent://settings/#Intent;scheme=android-app;package=com.android.settings;component=com.android.settings/.Settings$AppNotificationSettingsActivity;end";
+                  try { window.location.href = url; } catch (_e) { /* not supported */ }
+                }}
+                className="w-full py-3 rounded-xl text-sm font-semibold transition-all active:scale-95 flex items-center justify-center gap-2 text-white"
+                style={{ background: "linear-gradient(135deg, #3b82f6, #6366f1)" }}
+              >
+                <Icon name="ExternalLink" size={14} />
+                Попробовать открыть настройки
+              </button>
+              <p className="text-[10px] text-muted-foreground text-center -mt-2">
+                Если кнопка не сработает — следуй инструкции ниже
+              </p>
+
+              <div className="space-y-3">
+                <p className="text-xs font-bold text-foreground uppercase tracking-wider">Как сделать вручную</p>
+
+                {[
+                  { num: "1", title: "Открой настройки телефона", desc: "Шестерёнка на главном экране или в шторке" },
+                  { num: "2", title: "Найди «Приложения»", desc: "Иногда раздел называется «Программы»" },
+                  { num: "3", title: "Выбери Chrome или Debt-Debt", desc: "Если установил как PWA — ищи «Debt-Debt». Иначе — «Chrome»" },
+                  { num: "4", title: "Нажми «Уведомления»", desc: "Откроется список категорий" },
+                  { num: "5", title: "Найди «debt-debt.ru»", desc: "Может быть в подразделе «Сайты»" },
+                  { num: "6", title: "Включи «Всплывающие уведомления»", desc: "На Samsung: «Показ всплывающего окна». На Xiaomi: «Плавающие уведомления»" },
+                  { num: "7", title: "Поставь важность «Срочные»", desc: "НЕ «Средняя» — иначе баннер не покажется" },
+                  { num: "8", title: "Разреши «На экране блокировки»", desc: "Покажи всё содержимое" },
+                ].map(step => (
+                  <div key={step.num} className="flex gap-3 p-3 rounded-xl" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-bold" style={{ background: "rgba(59,130,246,0.2)", color: "#93c5fd" }}>
+                      {step.num}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground">{step.title}</p>
+                      <p className="text-[11px] text-muted-foreground leading-snug mt-0.5">{step.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="p-3 rounded-xl space-y-2" style={{ background: "rgba(168,85,247,0.08)", border: "1px solid rgba(168,85,247,0.2)" }}>
+                <div className="flex items-center gap-2">
+                  <Icon name="Smartphone" size={14} className="text-purple-400" />
+                  <p className="text-xs font-bold text-purple-300">Для Xiaomi / Redmi / Poco (MIUI)</p>
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  Дополнительно: Настройки → Приложения → Управление → Chrome → Автозапуск (включи) → Контроль активности → «Без ограничений»
+                </p>
+              </div>
+
+              <div className="p-3 rounded-xl space-y-2" style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)" }}>
+                <div className="flex items-center gap-2">
+                  <Icon name="Smartphone" size={14} className="text-green-400" />
+                  <p className="text-xs font-bold text-green-300">Для Samsung (One UI)</p>
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  Настройки → Уведомления → Дополнительно → «Показ всплывающих уведомлений» = ВКЛ. Проверь, что «Не беспокоить» выключен.
+                </p>
+              </div>
+
+              <div className="p-3 rounded-xl space-y-2" style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>
+                <div className="flex items-center gap-2">
+                  <Icon name="Smartphone" size={14} className="text-red-400" />
+                  <p className="text-xs font-bold text-red-300">Для Huawei / Honor</p>
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  Настройки → Приложения → Chrome → Батарея → «Запуск приложения» → выключи все автоматические переключатели и включи вручную.
+                </p>
+              </div>
+
+              <button
+                onClick={() => setShowAndroidGuide(false)}
+                className="w-full py-3 rounded-xl text-sm font-semibold transition-all active:scale-95"
+                style={{ background: "rgba(255,255,255,0.06)", color: "#fff", border: "1px solid rgba(255,255,255,0.1)" }}
+              >
+                Готово
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {showDeleteConfirm && (
