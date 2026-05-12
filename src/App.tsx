@@ -81,89 +81,35 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
           opacity: 0,
         }} />
 
-        {/* The actual app icon + rotating arrow on top */}
+        {/* The actual app icon */}
+        <img
+          src={ICON}
+          alt="Debt-Debt"
+          style={{
+            position: "relative",
+            width: 140, height: 140,
+            borderRadius: 32,
+            boxShadow: "0 0 50px rgba(168,85,247,0.45), 0 0 90px rgba(99,102,241,0.25)",
+            animation: "splashIconIn 0.9s cubic-bezier(0.34,1.56,0.64,1) both, splashIconFloat 3.2s 0.9s ease-in-out infinite",
+            willChange: "transform",
+          }}
+        />
+
+        {/* Shine sweep overlay */}
         <div style={{
-          position: "relative",
-          width: 140, height: 140,
-          animation: "splashIconIn 0.9s cubic-bezier(0.34,1.56,0.64,1) both, splashIconFloat 3.2s 0.9s ease-in-out infinite",
-          willChange: "transform",
+          position: "absolute",
+          width: 140, height: 140, borderRadius: 32,
+          overflow: "hidden",
+          pointerEvents: "none",
+          animation: "splashIconIn 0.9s cubic-bezier(0.34,1.56,0.64,1) both",
         }}>
-          <img
-            src={ICON}
-            alt="Debt-Debt"
-            style={{
-              width: 140, height: 140,
-              borderRadius: 32,
-              boxShadow: "0 0 50px rgba(168,85,247,0.45), 0 0 90px rgba(99,102,241,0.25)",
-              display: "block",
-            }}
-          />
-
-          {/* Cover original arrow with bg color of the icon */}
           <div style={{
             position: "absolute",
-            left: "50%", top: "50%",
-            width: 56, height: 26,
-            transform: "translate(-50%, -58%)",
-            background: "#1a1f5c",
-            borderRadius: 8,
-            filter: "blur(0.5px)",
-            pointerEvents: "none",
+            top: 0, left: "-60%",
+            width: "60%", height: "100%",
+            background: "linear-gradient(115deg, transparent 0%, rgba(255,255,255,0.0) 35%, rgba(255,255,255,0.55) 50%, rgba(255,255,255,0.0) 65%, transparent 100%)",
+            animation: "splashShine 2.6s 1.1s ease-in-out infinite",
           }} />
-
-          {/* Rotating arrow */}
-          <div style={{
-            position: "absolute",
-            left: "50%", top: "50%",
-            width: 70, height: 70,
-            transform: "translate(-50%, -50%)",
-            animation: "splashArrowSpin 1.6s 0.6s cubic-bezier(0.65,0,0.35,1) forwards",
-            transformOrigin: "50% 50%",
-          }}>
-            <svg viewBox="0 0 70 70" width="70" height="70" style={{ overflow: "visible" }}>
-              <defs>
-                <filter id="arrowGlow" x="-50%" y="-50%" width="200%" height="200%">
-                  <feGaussianBlur stdDeviation="1.4" result="b" />
-                  <feMerge>
-                    <feMergeNode in="b" />
-                    <feMergeNode in="SourceGraphic" />
-                  </feMerge>
-                </filter>
-              </defs>
-              {/* U-shaped arc */}
-              <path
-                d="M 14 38 A 21 21 0 0 1 56 38"
-                fill="none"
-                stroke="#ffffff"
-                strokeWidth="5"
-                strokeLinecap="round"
-                filter="url(#arrowGlow)"
-              />
-              {/* Arrow head on right end */}
-              <polygon
-                points="56,30 64,38 56,46"
-                fill="#ffffff"
-                filter="url(#arrowGlow)"
-              />
-            </svg>
-          </div>
-
-          {/* Shine sweep overlay */}
-          <div style={{
-            position: "absolute",
-            top: 0, left: 0,
-            width: 140, height: 140, borderRadius: 32,
-            overflow: "hidden",
-            pointerEvents: "none",
-          }}>
-            <div style={{
-              position: "absolute",
-              top: 0, left: "-60%",
-              width: "60%", height: "100%",
-              background: "linear-gradient(115deg, transparent 0%, rgba(255,255,255,0.0) 35%, rgba(255,255,255,0.55) 50%, rgba(255,255,255,0.0) 65%, transparent 100%)",
-              animation: "splashShine 2.6s 1.1s ease-in-out infinite",
-            }} />
-          </div>
         </div>
       </div>
 
@@ -218,10 +164,6 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
           0%   { left: -60%; }
           60%  { left: 120%; }
           100% { left: 120%; }
-        }
-        @keyframes splashArrowSpin {
-          0%   { transform: translate(-50%, -50%) rotate(0deg); }
-          100% { transform: translate(-50%, -50%) rotate(360deg); }
         }
         @keyframes splashFade {
           from { opacity: 0; transform: translateY(8px); }
