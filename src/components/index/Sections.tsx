@@ -33,7 +33,7 @@ function playPaymentSound() {
   } catch { /* ignore */ }
 }
 
-export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPaid, onDeleteDebt, onAddNew, personalLoans = [], onPersonalLoanUpdate, token = "", onPaymentAccepted }: { debts: Debt[]; dir: "lent" | "borrowed"; contacts: Contact[]; t: ReturnType<typeof getT>; locale: string; onOpenChat?: (debtId: string, title: string) => void; onMarkPaid?: (debtId: string) => void; onDeleteDebt?: (debtId: string) => Promise<void> | void; onAddNew?: () => void; personalLoans?: PersonalLoan[]; onPersonalLoanUpdate?: (loans: PersonalLoan[]) => void; token?: string; onPaymentAccepted?: (debtId: string, newAmount: number, fullyPaid: boolean) => void }) {
+export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPaid, onDeleteDebt, onAddNew, personalLoans = [], onPersonalLoanUpdate, token = "", userId, onPaymentAccepted }: { debts: Debt[]; dir: "lent" | "borrowed"; contacts: Contact[]; t: ReturnType<typeof getT>; locale: string; onOpenChat?: (debtId: string, title: string) => void; onMarkPaid?: (debtId: string) => void; onDeleteDebt?: (debtId: string) => Promise<void> | void; onAddNew?: () => void; personalLoans?: PersonalLoan[]; onPersonalLoanUpdate?: (loans: PersonalLoan[]) => void; token?: string; userId?: number; onPaymentAccepted?: (debtId: string, newAmount: number, fullyPaid: boolean) => void }) {
   const [selectedDebt, setSelectedDebt] = useState<Debt | null>(null);
   const [expandedLoan, setExpandedLoan] = useState<string | null>(null);
   const [extraLoan, setExtraLoan] = useState<PersonalLoan | null>(null);
@@ -75,6 +75,7 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
         onOpenChat={onOpenChat}
         onMarkPaid={onMarkPaid ? markPaidWithFeedback : undefined}
         token={token}
+        userId={userId}
         onPaymentAccepted={onPaymentAccepted}
       />
       {manualReturn && manualReturn.debtDbId && (

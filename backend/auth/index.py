@@ -328,7 +328,12 @@ def handler(event: dict, context) -> dict:
         with get_conn() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    f"SELECT u.id, u.full_name, u.phone, u.email FROM {SCHEMA}.sessions s JOIN {SCHEMA}.users u ON u.id = s.user_id WHERE s.token = %s AND s.expires_at > %s",
+                    f"""SELECT u.id, u.full_name, u.phone, u.email,
+                              u.passport_series, u.passport_number, u.passport_issued_by,
+                              u.passport_issued_date, u.passport_dept_code, u.birth_date,
+                              u.registration_address
+                       FROM {SCHEMA}.sessions s JOIN {SCHEMA}.users u ON u.id = s.user_id
+                       WHERE s.token = %s AND s.expires_at > %s""",
                     (token, now),
                 )
                 row = cur.fetchone()
@@ -337,7 +342,15 @@ def handler(event: dict, context) -> dict:
         email_val = row[3] or ""
         if email_val.startswith("no-email-"):
             email_val = ""
-        return resp({"id": row[0], "full_name": row[1], "phone": row[2], "email": email_val})
+        return resp({
+            "id": row[0], "full_name": row[1], "phone": row[2], "email": email_val,
+            "passport_series": row[4] or "", "passport_number": row[5] or "",
+            "passport_issued_by": row[6] or "",
+            "passport_issued_date": str(row[7]) if row[7] else "",
+            "passport_dept_code": row[8] or "",
+            "birth_date": str(row[9]) if row[9] else "",
+            "registration_address": row[10] or "",
+        })
 
     # ── POST check-email — проверить есть ли пользователь и есть ли у него PIN ──
     if method == "POST" and action == "check-email":
@@ -738,6 +751,24 @@ def handler(event: dict, context) -> dict:
                         (new_name, user_id),
                     )
                     cur_name = new_name
+
+                # Паспортные поля (все опциональны)
+                passport_fields = {
+                    "passport_series": body.get("passport_series"),
+                    "passport_number": body.get("passport_number"),
+                    "passport_issued_by": body.get("passport_issued_by"),
+                    "passport_issued_date": body.get("passport_issued_date") or None,
+                    "passport_dept_code": body.get("passport_dept_code"),
+                    "birth_date": body.get("birth_date") or None,
+                    "registration_address": body.get("registration_address"),
+                }
+                updates = {k: v for k, v in passport_fields.items() if v is not None}
+                if updates:
+                    sets = ", ".join([f"{k} = %s" for k in updates.keys()])
+                    cur.execute(
+                        f"UPDATE {SCHEMA}.users SET {sets} WHERE id = %s",
+                        (*updates.values(), user_id),
+                    )
 
                 conn.commit()
 

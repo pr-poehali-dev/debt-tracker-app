@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import Icon from "@/components/ui/icon";
+import ContractModal from "@/components/ContractModal";
 
 interface Debt {
   id: number;
@@ -25,6 +26,7 @@ interface Props {
   onOpenChat?: (debtId: string, title: string) => void;
   onMarkPaid?: (debtId: string) => void;
   token?: string;
+  userId?: number;
   onPaymentAccepted?: (debtId: string, newAmount: number, fullyPaid: boolean) => void;
 }
 
@@ -51,15 +53,17 @@ function calcTotalWithInterest(amount: number, rate: number, type: string, dueDa
   return Math.round(amount * (1 + (rate / 100) * years));
 }
 
-export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat, onMarkPaid, token, onPaymentAccepted }: Props) {
+export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat, onMarkPaid, token, userId, onPaymentAccepted }: Props) {
   const [history, setHistory] = useState<PaymentItem[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [decidingId, setDecidingId] = useState<number | null>(null);
   const [confirmClose, setConfirmClose] = useState(false);
+  const [showContract, setShowContract] = useState(false);
+  const [contractStatus, setContractStatus] = useState<"none" | "draft" | "active">("none");
 
   const debtDbId = debt?.debtDbId;
   useEffect(() => {
-    if (!debtDbId) { setHistory([]); return; }
+    if (!debtDbId) { setHistory([]); setContractStatus("none"); return; }
     const t = token || localStorage.getItem("df-token") || "";
     if (!t) return;
     let cancelled = false;
@@ -70,15 +74,32 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
         const res = await fetch(`${urls["debts"]}?action=pay&debt_id=${debtDbId}`, {
           headers: { Authorization: `Bearer ${t}` },
         });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (!cancelled) setHistory(Array.isArray(data.requests) ? data.requests : []);
+        if (res.ok) {
+          const data = await res.json();
+          if (!cancelled) setHistory(Array.isArray(data.requests) ? data.requests : []);
+        }
+        // Параллельно подтянем статус договора
+        try {
+          const cRes = await fetch(`${urls["contracts"]}?debt_id=${debtDbId}`, {
+            headers: { Authorization: `Bearer ${t}`, "X-Authorization": `Bearer ${t}` },
+          });
+          if (cRes.ok) {
+            const cd = await cRes.json();
+            if (!cancelled) {
+              if (cd.contract) {
+                setContractStatus(cd.contract.status === "active" ? "active" : "draft");
+              } else {
+                setContractStatus("none");
+              }
+            }
+          }
+        } catch { /* ignore */ }
       } finally {
         if (!cancelled) setLoadingHistory(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [debtDbId, token]);
+  }, [debtDbId, token, showContract]);
 
   async function decide(p: PaymentItem, decision: "accepted" | "rejected") {
     const t = token || localStorage.getItem("df-token") || "";
@@ -363,6 +384,41 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
             })()}
           </div>
 
+          {/* Договор */}
+          {debt.debtDbId && (
+            <button
+              onClick={() => setShowContract(true)}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-all"
+              style={{
+                background: contractStatus === "active"
+                  ? "rgba(34,197,94,0.10)"
+                  : contractStatus === "draft"
+                    ? "rgba(245,158,11,0.10)"
+                    : "rgba(168,85,247,0.10)",
+                borderColor: contractStatus === "active"
+                  ? "rgba(34,197,94,0.3)"
+                  : contractStatus === "draft"
+                    ? "rgba(245,158,11,0.3)"
+                    : "rgba(168,85,247,0.3)",
+              }}
+            >
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{
+                background: contractStatus === "active" ? "rgba(34,197,94,0.18)" : contractStatus === "draft" ? "rgba(245,158,11,0.18)" : "rgba(168,85,247,0.18)",
+              }}>
+                <Icon name="FileSignature" size={18} className={contractStatus === "active" ? "text-emerald-400" : contractStatus === "draft" ? "text-amber-400" : "text-purple-400"} />
+              </div>
+              <div className="flex-1 min-w-0 text-left">
+                <p className="font-semibold text-sm text-foreground">
+                  {contractStatus === "active" ? "Договор подписан" : contractStatus === "draft" ? "Договор: ожидает подписи" : "Создать договор займа"}
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  {contractStatus === "active" ? "Открыть и скачать PDF" : contractStatus === "draft" ? "Дополнить и подписать" : "Типовой шаблон с подписями"}
+                </p>
+              </div>
+              <Icon name="ChevronRight" size={16} className="text-muted-foreground flex-shrink-0" />
+            </button>
+          )}
+
           {/* Actions */}
           <div className="flex gap-2 pt-2 pb-6">
             {debt.debtDbId && onOpenChat && debt.borrowerDecision === "accepted" && (
@@ -440,6 +496,19 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
             </div>
           </div>
         </div>
+      )}
+
+      {showContract && debt.debtDbId && (token || localStorage.getItem("df-token")) && userId != null && (
+        <ContractModal
+          token={token || localStorage.getItem("df-token") || ""}
+          userId={userId}
+          debtId={debt.debtDbId}
+          defaultAmount={debt.amount}
+          defaultDueDate={debt.dueDate}
+          defaultInterest={debt.interestRate}
+          counterpartyName={debt.counterpartyName}
+          onClose={() => setShowContract(false)}
+        />
       )}
     </div>
   );
