@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 
-const ICON_URL = "https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/files/06ebc5e2-b802-4aeb-af0f-994592ccdbcb.jpg";
+const ICON_URL = "https://cdn.poehali.dev/projects/31787416-6a3a-4698-9696-0e05341c75e7/files/3c85fb56-a239-44e8-94ff-1f08ccc35bb7.jpg";
 const SIZES = [72, 96, 128, 144, 152, 192, 384, 512];
-const STORAGE_KEY = "pwa-icons-generated-v12";
+const STORAGE_KEY = "pwa-icons-generated-v13";
 
 function generateIcon(src: string, size: number): Promise<Blob> {
   return new Promise((resolve, reject) => {
