@@ -683,8 +683,13 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
     };
   }, [lentDebts, borrowedDebts, archiveDebts, rentals]);
 
-  // Pull-up-to-refresh: тянем снизу вверх, когда страница докручена до самого низа
+  // Pull-up-to-refresh: тянем снизу вверх, когда страница докручена до самого низа.
+  // Включаем только на вкладке "Главная" (dashboard), на остальных — отключаем.
   useEffect(() => {
+    if (section !== "dashboard") {
+      setPullUpDistance(0);
+      return;
+    }
     let startY = 0;
     let active = false;
     const THRESHOLD = 80;
@@ -737,7 +742,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
       window.removeEventListener("touchend", onTouchEnd);
       window.removeEventListener("touchcancel", onTouchEnd);
     };
-  }, [pullUpDistance, refreshing]);
+  }, [pullUpDistance, refreshing, section]);
 
   // Web Push: запрос разрешения при первом жесте пользователя
   useEffect(() => {
