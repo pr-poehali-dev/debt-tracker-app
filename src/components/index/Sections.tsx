@@ -1689,14 +1689,13 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
         await unsubscribeFromPush(token);
         setPushSubbed(false);
       } else {
-        // Сначала жёсткий сброс — снимаем «зависшую» подписку под старым ключом
         await hardResetPush(token);
         const res = await ensurePushSubscription(token);
         setPushStatus(res === "error" ? "default" : res);
         setPushSubbed(res === "granted");
         if (res !== "granted") {
           const reason = getLastPushError();
-          alert(reason ? `Push: ${reason}` : `Push: не удалось (${res})`);
+          alert(reason ? `Push: ${reason}` : `Push: не удалось (${res}).\nОткройте F12 → Console.`);
         }
       }
     } finally {

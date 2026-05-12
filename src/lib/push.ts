@@ -1,155 +1,22 @@
 import func2url from "../../backend/func2url.json";
 
 const CHAT_URL = func2url["chat"];
-const PUSH_RESET_VERSION = "v2-2026-05-12";
-const PUSH_RESET_KEY = "push_reset_version";
 
-function urlBase64ToUint8Array(base64: string): Uint8Array {
-  const padding = "=".repeat((4 - (base64.length % 4)) % 4);
-  const b64 = (base64 + padding).replace(/-/g, "+").replace(/_/g, "/");
-  const raw = atob(b64);
-  const arr = new Uint8Array(raw.length);
-  for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
-  return arr;
+function b64ToBytes(b64: string): Uint8Array {
+  const pad = "=".repeat((4 - (b64.length % 4)) % 4);
+  const s = (b64 + pad).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(s);
+  const out = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out;
 }
 
-export async function hardResetPush(token: string): Promise<boolean> {
-  try {
-    if (!("serviceWorker" in navigator)) return false;
-    const reg = await navigator.serviceWorker.ready;
-    const sub = await reg.pushManager.getSubscription();
-    if (sub) {
-      try { await sub.unsubscribe(); } catch { /* ignore */ }
-    }
-    // Удаляем ВСЕ подписки пользователя на backend (без endpoint в теле — чистит всё)
-    try {
-      await fetch(`${CHAT_URL}?action=unsubscribe`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({}),
-      });
-    } catch { /* ignore */ }
-    try { localStorage.removeItem(PUSH_RESET_KEY); } catch { /* ignore */ }
-    return true;
-  } catch {
-    return false;
-  }
+function log(...args: unknown[]) {
+  console.log("[push]", ...args);
 }
 
-let lastPushError = "";
-export function getLastPushError(): string { return lastPushError; }
-
-export async function ensurePushSubscription(
-  token: string,
-  opts: { silent?: boolean } = {}
-): Promise<"granted" | "denied" | "default" | "unsupported" | "error"> {
-  lastPushError = "";
-  try {
-    if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
-      lastPushError = "Браузер не поддерживает push";
-      return "unsupported";
-    }
-
-    let permission = Notification.permission;
-    if (permission === "default") {
-      if (opts.silent) return "default";
-      permission = await Notification.requestPermission();
-    }
-
-    if (permission !== "granted") return permission;
-
-    const reg = await navigator.serviceWorker.ready;
-    let sub = await reg.pushManager.getSubscription();
-
-    // Принудительный одноразовый сброс после смены VAPID-ключей
-    let storedVersion: string | null = null;
-    try { storedVersion = localStorage.getItem(PUSH_RESET_KEY); } catch { /* ignore */ }
-    if (storedVersion !== PUSH_RESET_VERSION && sub) {
-      const oldEndpoint = sub.endpoint;
-      try { await sub.unsubscribe(); } catch { /* ignore */ }
-      try {
-        await fetch(`${CHAT_URL}?action=unsubscribe`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ endpoint: oldEndpoint }),
-        });
-      } catch { /* ignore */ }
-      sub = null;
-    }
-
-    const keyRes = await fetch(`${CHAT_URL}?action=vapid-key`);
-    if (!keyRes.ok) return "error";
-    const { public_key } = await keyRes.json();
-    if (!public_key) return "error";
-    const serverKey = urlBase64ToUint8Array(public_key);
-
-    if (sub) {
-      const existingKey = sub.options?.applicationServerKey;
-      let same = false;
-      if (existingKey) {
-        const a = new Uint8Array(existingKey as ArrayBuffer);
-        if (a.length === serverKey.length) {
-          same = true;
-          for (let i = 0; i < a.length; i++) {
-            if (a[i] !== serverKey[i]) { same = false; break; }
-          }
-        }
-      }
-      if (!same) {
-        try { await sub.unsubscribe(); } catch { /* ignore */ }
-        sub = null;
-      }
-    }
-
-    if (!sub) {
-      try {
-        sub = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: serverKey,
-        });
-      } catch (subErr) {
-        lastPushError = `subscribe: ${(subErr as Error).name}: ${(subErr as Error).message}`.slice(0, 200);
-        // Попытка восстановления: если есть «зависшая» подписка — снимем и попробуем ещё раз
-        try {
-          const stuck = await reg.pushManager.getSubscription();
-          if (stuck) {
-            await stuck.unsubscribe();
-            sub = await reg.pushManager.subscribe({
-              userVisibleOnly: true,
-              applicationServerKey: serverKey,
-            });
-            lastPushError = "";
-          }
-        } catch (retryErr) {
-          lastPushError = `retry: ${(retryErr as Error).name}: ${(retryErr as Error).message}`.slice(0, 200);
-          return "error";
-        }
-        if (!sub) return "error";
-      }
-    }
-
-    const subJson = sub.toJSON() as { endpoint?: string; keys?: { p256dh?: string; auth?: string } };
-    const r = await fetch(`${CHAT_URL}?action=subscribe`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({
-        endpoint: subJson.endpoint,
-        p256dh: subJson.keys?.p256dh,
-        auth: subJson.keys?.auth,
-      }),
-    });
-    if (!r.ok) {
-      lastPushError = `backend save failed: ${r.status}`;
-      return "error";
-    }
-
-    try { localStorage.setItem(PUSH_RESET_KEY, PUSH_RESET_VERSION); } catch { /* ignore */ }
-    return "granted";
-  } catch (e) {
-    lastPushError = `${(e as Error).name}: ${(e as Error).message}`.slice(0, 200);
-    return "error";
-  }
-}
+let lastError = "";
+export function getLastPushError(): string { return lastError; }
 
 export async function getPushStatus(): Promise<"granted" | "denied" | "default" | "unsupported"> {
   if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
@@ -162,10 +29,138 @@ export async function isSubscribedToPush(): Promise<boolean> {
   try {
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) return false;
     const reg = await navigator.serviceWorker.ready;
-    const sub = await reg.pushManager.getSubscription();
-    return !!sub;
-  } catch {
+    return !!(await reg.pushManager.getSubscription());
+  } catch { return false; }
+}
+
+async function fetchVapidKey(): Promise<Uint8Array | null> {
+  try {
+    const r = await fetch(`${CHAT_URL}?action=vapid-key`);
+    if (!r.ok) { lastError = `vapid-key HTTP ${r.status}`; return null; }
+    const j = await r.json();
+    if (!j.public_key) { lastError = "vapid-key empty"; return null; }
+    log("got vapid_key len=", j.public_key.length);
+    return b64ToBytes(j.public_key);
+  } catch (e) {
+    lastError = `vapid-key fetch: ${(e as Error).message}`;
+    return null;
+  }
+}
+
+async function saveSubOnBackend(token: string, sub: PushSubscription): Promise<boolean> {
+  const j = sub.toJSON() as { endpoint?: string; keys?: { p256dh?: string; auth?: string } };
+  try {
+    const r = await fetch(`${CHAT_URL}?action=subscribe`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ endpoint: j.endpoint, p256dh: j.keys?.p256dh, auth: j.keys?.auth }),
+    });
+    if (!r.ok) { lastError = `subscribe save HTTP ${r.status}`; return false; }
+    log("saved on backend");
+    return true;
+  } catch (e) {
+    lastError = `subscribe save: ${(e as Error).message}`;
     return false;
+  }
+}
+
+/** Жёсткий сброс: снимает подписку с устройства и удаляет ВСЕ записи пользователя в БД. */
+export async function hardResetPush(token: string): Promise<void> {
+  lastError = "";
+  try {
+    if (!("serviceWorker" in navigator)) return;
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if (sub) {
+      try { await sub.unsubscribe(); log("unsubscribed local"); } catch (e) { log("local unsub err", e); }
+    }
+    try {
+      await fetch(`${CHAT_URL}?action=unsubscribe`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({}),
+      });
+      log("cleared backend subs");
+    } catch (e) { log("backend clear err", e); }
+  } catch (e) {
+    log("hardReset err", e);
+  }
+}
+
+/** Подписаться/обновить подписку. После hardResetPush создаёт новую под актуальный VAPID-ключ. */
+export async function ensurePushSubscription(
+  token: string,
+  opts: { silent?: boolean } = {}
+): Promise<"granted" | "denied" | "default" | "unsupported" | "error"> {
+  lastError = "";
+  try {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+      lastError = "no SW/Push/Notification API";
+      return "unsupported";
+    }
+
+    let permission = Notification.permission;
+    log("permission =", permission);
+    if (permission === "default") {
+      if (opts.silent) return "default";
+      permission = await Notification.requestPermission();
+      log("requested permission =", permission);
+    }
+    if (permission !== "granted") {
+      lastError = `permission ${permission}`;
+      return permission;
+    }
+
+    const reg = await navigator.serviceWorker.ready;
+    log("SW ready scope =", reg.scope);
+
+    const serverKey = await fetchVapidKey();
+    if (!serverKey) return "error";
+
+    let sub = await reg.pushManager.getSubscription();
+    log("existing sub =", !!sub);
+
+    if (sub) {
+      const existing = sub.options?.applicationServerKey;
+      let same = false;
+      if (existing) {
+        const a = new Uint8Array(existing as ArrayBuffer);
+        if (a.length === serverKey.length) {
+          same = true;
+          for (let i = 0; i < a.length; i++) if (a[i] !== serverKey[i]) { same = false; break; }
+        }
+      }
+      log("keys match =", same);
+      if (!same) {
+        try { await sub.unsubscribe(); log("unsub stale"); } catch (e) { log("unsub stale err", e); }
+        sub = null;
+      }
+    }
+
+    if (!sub) {
+      try {
+        log("subscribing…");
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: serverKey,
+        });
+        log("subscribed ok endpoint host =", new URL(sub.endpoint).host);
+      } catch (e) {
+        const err = e as Error;
+        lastError = `${err.name}: ${err.message}`.slice(0, 200);
+        log("subscribe FAILED", err.name, err.message);
+        return "error";
+      }
+    }
+
+    const ok = await saveSubOnBackend(token, sub);
+    if (!ok) return "error";
+    return "granted";
+  } catch (e) {
+    const err = e as Error;
+    lastError = `${err.name}: ${err.message}`.slice(0, 200);
+    log("FATAL", err);
+    return "error";
   }
 }
 
@@ -183,7 +178,5 @@ export async function unsubscribeFromPush(token: string): Promise<boolean> {
       body: JSON.stringify({ endpoint }),
     }).catch(() => {});
     return true;
-  } catch {
-    return false;
-  }
+  } catch { return false; }
 }
