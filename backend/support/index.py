@@ -41,6 +41,7 @@ def send_push(conn, recipient_user_id, title, body_text):
             return
         sent, removed, failed = 0, 0, 0
         dead_ids = []
+        extra_headers = {"Urgency": "high", "TTL": "86400"}
         for sub_id, endpoint, p256dh, auth_key in subs:
             try:
                 webpush(
@@ -48,6 +49,8 @@ def send_push(conn, recipient_user_id, title, body_text):
                     data=json.dumps({"title": title, "body": body_text}, ensure_ascii=False),
                     vapid_private_key=vapid_private,
                     vapid_claims={"sub": "mailto:noreply@debt-debt.ru"},
+                    headers=extra_headers,
+                    ttl=86400,
                     timeout=10,
                 )
                 sent += 1

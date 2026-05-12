@@ -17,7 +17,7 @@ SCHEMA = "t_p29977622_debt_tracker_app"
 def get_conn():
     return psycopg2.connect(os.environ["DATABASE_URL"])
 
-def send_push(conn, user_id, title, body_text, url="/"):
+def send_push(conn, user_id, title, body_text, url="/", topic=None):
     try:
         from pywebpush import webpush, WebPushException
         vapid_private = os.environ.get("VAPID_PRIVATE_KEY", "")
@@ -31,6 +31,14 @@ def send_push(conn, user_id, title, body_text, url="/"):
             subs = cur.fetchall()
         if not subs:
             return
+        # Headers: high urgency + 24h TTL + topic для дедупа
+        extra_headers = {"Urgency": "high", "TTL": "86400"}
+        if topic:
+            # FCM требует Base64URL без padding, ≤32 символов
+            import re
+            safe_topic = re.sub(r"[^A-Za-z0-9_-]", "", str(topic))[:32]
+            if safe_topic:
+                extra_headers["Topic"] = safe_topic
         dead_ids = []
         for sub_id, endpoint, p256dh, auth_key in subs:
             try:
@@ -39,6 +47,8 @@ def send_push(conn, user_id, title, body_text, url="/"):
                     data=json.dumps({"title": title, "body": body_text, "url": url}, ensure_ascii=False),
                     vapid_private_key=vapid_private,
                     vapid_claims={"sub": "mailto:noreply@debt-debt.ru"},
+                    headers=extra_headers,
+                    ttl=86400,
                     timeout=10,
                 )
             except WebPushException as e:

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'debtflow-v8';
+const CACHE_NAME = 'debtflow-v9';
 const STATIC_ASSETS = [
   '/manifest.json',
 ];
@@ -95,15 +95,16 @@ self.addEventListener('push', (event) => {
   } catch (e) {
     try { data = { body: event.data && event.data.text ? event.data.text() : '' }; } catch (_) { data = {}; }
   }
-  const title = data.title || 'DebtFlow';
+  const title = data.title || 'Debt-Debt';
   const options = {
     body: data.body || 'Новое уведомление',
     icon: '/icons/icon-192.png',
     badge: '/icons/icon-96.png',
     tag: data.tag || ('debtflow-' + Date.now()),
     renotify: true,
-    requireInteraction: false,
-    vibrate: [200, 100, 200],
+    requireInteraction: true,
+    silent: false,
+    vibrate: [200, 100, 200, 100, 200],
     data: { url: data.url || '/' },
     actions: [
       { action: 'open', title: 'Открыть' },

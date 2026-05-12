@@ -2048,6 +2048,14 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
 
         {pushStatus === "granted" && pushSubbed && (
           <>
+            {typeof window !== "undefined" && !window.matchMedia("(display-mode: standalone)").matches && (
+              <div className="mt-2 p-2.5 rounded-xl flex gap-2 items-start" style={{ background: "rgba(245,158,11,0.10)", border: "1px solid rgba(245,158,11,0.25)" }}>
+                <Icon name="Info" size={14} className="text-amber-400 mt-0.5 flex-shrink-0" />
+                <p className="text-[11px] text-amber-200 leading-snug">
+                  Для надёжной доставки уведомлений установи приложение на главный экран (кнопка «Установить» сверху). Иначе телефон может задерживать push, когда браузер закрыт.
+                </p>
+              </div>
+            )}
             <button
               onClick={sendTestPush}
               disabled={testPushBusy}

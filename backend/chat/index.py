@@ -69,6 +69,13 @@ def send_push_notification(conn, recipient_user_id, title, body_text, url=None, 
             payload["url"] = url
         if tag:
             payload["tag"] = tag
+        # high priority + 24h TTL + topic для дедупа
+        extra_headers = {"Urgency": "high", "TTL": "86400"}
+        if tag:
+            import re
+            safe_topic = re.sub(r"[^A-Za-z0-9_-]", "", str(tag))[:32]
+            if safe_topic:
+                extra_headers["Topic"] = safe_topic
         sent, removed, failed = 0, 0, 0
         dead_ids = []
         for sub_id, endpoint, p256dh, auth_key in subs:
@@ -78,6 +85,8 @@ def send_push_notification(conn, recipient_user_id, title, body_text, url=None, 
                     data=json.dumps(payload, ensure_ascii=False),
                     vapid_private_key=vapid_private,
                     vapid_claims={"sub": "mailto:noreply@debt-debt.ru"},
+                    headers=extra_headers,
+                    ttl=86400,
                     timeout=10,
                 )
                 sent += 1
