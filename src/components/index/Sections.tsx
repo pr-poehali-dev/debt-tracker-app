@@ -258,16 +258,33 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                       </p>
                     );
                   })()}
-                  {isOverdue && (
-                    <div
-                      className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
-                      style={{ background: "rgba(239,68,68,0.18)", border: "1px solid rgba(239,68,68,0.35)" }}
-                      aria-label="Просрочено"
-                      title="Просрочено"
-                    >
-                      <Icon name="AlertTriangle" size={12} className="text-red-400" />
-                    </div>
-                  )}
+                  {isOverdue && (() => {
+                    const today = new Date(); today.setHours(0, 0, 0, 0);
+                    const due = new Date(d.dueDate); due.setHours(0, 0, 0, 0);
+                    const daysLate = Math.max(1, Math.round((today.getTime() - due.getTime()) / 86400000));
+                    const plural = (n: number) => {
+                      const mod10 = n % 10;
+                      const mod100 = n % 100;
+                      if (mod10 === 1 && mod100 !== 11) return "день";
+                      if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return "дня";
+                      return "дней";
+                    };
+                    return (
+                      <div className="flex flex-col items-center gap-0.5">
+                        <div
+                          className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
+                          style={{ background: "rgba(239,68,68,0.18)", border: "1px solid rgba(239,68,68,0.35)" }}
+                          aria-label="Просрочено"
+                          title={`Просрочено на ${daysLate} ${plural(daysLate)}`}
+                        >
+                          <Icon name="AlertTriangle" size={12} className="text-red-400" />
+                        </div>
+                        <p className="text-[9px] font-semibold text-red-400 leading-none whitespace-nowrap">
+                          +{daysLate} {plural(daysLate)}
+                        </p>
+                      </div>
+                    );
+                  })()}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-foreground break-words leading-snug">{d.name}</p>
