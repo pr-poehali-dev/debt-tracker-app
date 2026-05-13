@@ -20,6 +20,13 @@ interface Debt {
   createdAt?: string;
 }
 
+interface ContactInfo {
+  name?: string;
+  phone?: string;
+  email?: string;
+  telegram?: string;
+}
+
 interface Props {
   debt: Debt | null;
   dir: "lent" | "borrowed";
@@ -31,6 +38,7 @@ interface Props {
   userId?: number;
   autoOpenContract?: boolean;
   onPaymentAccepted?: (debtId: string, newAmount: number, fullyPaid: boolean) => void;
+  contactInfo?: ContactInfo;
 }
 
 interface PaymentItem {
@@ -56,11 +64,13 @@ function calcTotalWithInterest(amount: number, rate: number, type: string, dueDa
   return Math.round(amount * (1 + (rate / 100) * years));
 }
 
-export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat, onMarkPaid, token, userId, autoOpenContract, onPaymentAccepted }: Props) {
+export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat, onMarkPaid, token, userId, autoOpenContract, onPaymentAccepted, contactInfo }: Props) {
   const [history, setHistory] = useState<PaymentItem[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [decidingId, setDecidingId] = useState<number | null>(null);
   const [confirmClose, setConfirmClose] = useState(false);
+  const [showContact, setShowContact] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [showContract, setShowContract] = useState(false);
   const [contractStatus, setContractStatus] = useState<"none" | "draft" | "active">("none");
   const [contractWipToast, setContractWipToast] = useState(false);
@@ -199,11 +209,6 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
         <div className="px-5 pb-6 space-y-3">
           <div className="text-center mb-4">
             <p className="font-semibold text-foreground text-lg">{debt.name}</p>
-            {debt.counterpartyName && (
-              <p className="text-sm text-muted-foreground mt-1">
-                {dir === "lent" ? "Должник" : "Кредитор"}: <span className="text-foreground font-medium">{debt.counterpartyName}</span>
-              </p>
-            )}
           </div>
 
           <div className="space-y-2">
@@ -218,6 +223,78 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
                     <span className="text-sm text-foreground">Тело: <span className="font-medium">{fmt(debt.amount)}</span></span>
                     <span className="text-sm text-violet-400">Проценты: <span className="font-medium">+{fmt(interest ?? 0)}</span></span>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {debt.counterpartyName && (
+              <div className="glass rounded-2xl overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setShowContact(v => !v)}
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.04] active:scale-[0.99] transition text-left"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-cyan-500/15 flex items-center justify-center flex-shrink-0">
+                    <Icon name="UserCheck" size={16} className="text-cyan-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-muted-foreground">{dir === "lent" ? "Кому выдан долг" : "Кто выдал долг"}</p>
+                    <p className="text-sm font-medium text-foreground truncate">{debt.counterpartyName}</p>
+                  </div>
+                  <Icon name={showContact ? "ChevronUp" : "ChevronDown"} size={16} className="text-muted-foreground flex-shrink-0" />
+                </button>
+                {showContact && (
+                  <div className="px-4 pb-3 pt-1 space-y-2 border-t border-white/5">
+                    {contactInfo?.phone ? (
+                      <div className="flex items-center gap-2">
+                        <a href={`tel:${contactInfo.phone}`} className="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-sm">
+                          <Icon name="Phone" size={14} />
+                          <span className="truncate">{contactInfo.phone}</span>
+                        </a>
+                        <a href={`sms:${contactInfo.phone}`} className="px-3 py-2 rounded-xl bg-purple-500/10 border border-purple-500/25 text-purple-300 text-sm flex items-center gap-1">
+                          <Icon name="MessageSquare" size={14} /> SMS
+                        </a>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">Телефон не указан</p>
+                    )}
+                    {contactInfo?.telegram && (
+                      <a href={`https://t.me/${contactInfo.telegram.replace(/^@/, "")}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-3 py-2 rounded-xl bg-sky-500/10 border border-sky-500/25 text-sky-300 text-sm">
+                        <Icon name="Send" size={14} />
+                        <span className="truncate">@{contactInfo.telegram.replace(/^@/, "")}</span>
+                      </a>
+                    )}
+                    {contactInfo?.email && (
+                      <a href={`mailto:${contactInfo.email}`} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-300 text-sm">
+                        <Icon name="Mail" size={14} />
+                        <span className="truncate">{contactInfo.email}</span>
+                      </a>
+                    )}
+                    {debt.debtDbId && onOpenChat && (
+                      <button
+                        type="button"
+                        onClick={() => onOpenChat(debt.debtDbId!, debt.name)}
+                        className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-sm font-medium"
+                      >
+                        <Icon name="MessageCircle" size={14} />
+                        Написать в чат
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {debt.createdAt && (
+              <div className="flex items-center gap-3 glass rounded-2xl px-4 py-3">
+                <div className="w-8 h-8 rounded-xl bg-indigo-500/15 flex items-center justify-center flex-shrink-0">
+                  <Icon name="CalendarClock" size={16} className="text-indigo-400" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs text-muted-foreground">Дата выдачи долга</p>
+                  <p className="text-sm font-medium text-foreground">
+                    {new Date(debt.createdAt).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" })}
+                  </p>
                 </div>
               </div>
             )}
@@ -260,32 +337,6 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
                 </div>
               );
             })()}
-
-            {dir === "borrowed" && debt.counterpartyName && (
-              <div className="flex items-center gap-3 glass rounded-2xl px-4 py-3">
-                <div className="w-8 h-8 rounded-xl bg-cyan-500/15 flex items-center justify-center flex-shrink-0">
-                  <Icon name="UserCheck" size={16} className="text-cyan-400" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-xs text-muted-foreground">Кто выдал долг</p>
-                  <p className="text-sm font-medium text-foreground">{debt.counterpartyName}</p>
-                </div>
-              </div>
-            )}
-
-            {debt.createdAt && (
-              <div className="flex items-center gap-3 glass rounded-2xl px-4 py-3">
-                <div className="w-8 h-8 rounded-xl bg-indigo-500/15 flex items-center justify-center flex-shrink-0">
-                  <Icon name="CalendarClock" size={16} className="text-indigo-400" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-xs text-muted-foreground">Дата выдачи долга</p>
-                  <p className="text-sm font-medium text-foreground">
-                    {new Date(debt.createdAt).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" })}
-                  </p>
-                </div>
-              </div>
-            )}
 
             {debt.note && dir === "lent" && (
               <div className="flex items-start gap-3 glass rounded-2xl px-4 py-3">
@@ -335,17 +386,18 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
               const hasPayments = history.filter(h => h.status === "accepted").length > 0;
               return (
               <div className="glass rounded-2xl px-4 py-3">
-                <div className="flex items-center gap-2 mb-2">
+                <button type="button" onClick={() => setShowHistory(v => !v)} className="w-full flex items-center gap-2 mb-2 text-left">
                   <div className="w-8 h-8 rounded-xl bg-emerald-500/15 flex items-center justify-center flex-shrink-0">
                     <Icon name="History" size={16} className="text-emerald-400" />
                   </div>
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <p className="text-xs text-muted-foreground">История платежей</p>
-                    <p className="text-sm font-medium text-foreground">
+                    <p className="text-sm font-medium text-foreground truncate">
                       {hasPayments ? `Остаток: ${fmt(remaining)}` : "Ещё нет платежей"}
                     </p>
                   </div>
-                </div>
+                  <Icon name={showHistory ? "ChevronUp" : "ChevronDown"} size={16} className="text-muted-foreground flex-shrink-0" />
+                </button>
                 {hasPayments && (
                   <div className="mb-2">
                     <div className="h-2 rounded-full bg-emerald-500/10 overflow-hidden">
@@ -360,7 +412,7 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
                     </div>
                   </div>
                 )}
-                {loadingHistory && history.length === 0 ? (
+                {showHistory && (loadingHistory && history.length === 0 ? (
                   <p className="text-xs text-muted-foreground text-center py-2">Загрузка…</p>
                 ) : history.length === 0 ? (
                   <p className="text-xs text-muted-foreground text-center py-2">Платежей пока нет</p>
@@ -421,7 +473,7 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
                       );
                     })}
                   </div>
-                )}
+                ))}
               </div>
               );
             })()}

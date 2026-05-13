@@ -93,6 +93,7 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
         userId={userId}
         autoOpenContract={openContractOnSelect}
         onPaymentAccepted={onPaymentAccepted}
+        contactInfo={selectedDebt ? (() => { const c = contacts.find(x => x.id === selectedDebt.contactId); return c ? { name: c.name, phone: c.phone, email: c.email, telegram: c.telegram } : undefined; })() : undefined}
       />
       {manualReturn && manualReturn.debtDbId && (
         <ManualReturnModal
@@ -818,6 +819,7 @@ export function CalendarSection({ contacts, t, debts, rentals = [], userId = 0, 
         token={token}
         userId={userId}
         onPaymentAccepted={onPaymentAccepted}
+        contactInfo={selectedDebt ? (() => { const c = contacts.find(x => x.id === selectedDebt.contactId); return c ? { name: c.name, phone: c.phone, email: c.email, telegram: c.telegram } : undefined; })() : undefined}
       />
     </div>
   );
