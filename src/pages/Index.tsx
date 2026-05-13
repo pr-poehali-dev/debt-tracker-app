@@ -152,6 +152,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
               deletedByLenderName: isDeleted && !isLender ? String(d.lender_name || "Кредитор") : undefined,
               borrowerDismissed: isLender && d.borrower_dismissed ? true : undefined,
               pendingPaymentsCount: d.pending_payments_count != null ? Number(d.pending_payments_count) : 0,
+              pendingTopUpsCount: d.pending_topups_count != null ? Number(d.pending_topups_count) : 0,
               counterpartyName: String(isLender ? (d.borrower_name || "") : (d.lender_name || "")) || undefined,
               archivedDir: (status === "archived" || isDeleted) ? (isLender ? "lent" : "borrowed") : undefined,
               createdAt: d.created_at ? String(d.created_at) : undefined,

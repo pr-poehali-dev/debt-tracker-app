@@ -332,10 +332,18 @@ def handler(event: dict, context) -> dict:
                     (uid, uid)
                 )
                 pending_map = {str(r[0]): int(r[1]) for r in cur.fetchall()}
+                cur.execute(
+                    f"""SELECT debt_id, COUNT(*) FROM {SCHEMA}.topup_requests
+                        WHERE status = 'pending' AND (from_user_id = %s OR to_user_id = %s)
+                        GROUP BY debt_id""",
+                    (uid, uid)
+                )
+                topup_map = {str(r[0]): int(r[1]) for r in cur.fetchall()}
         result = []
         for r in rows:
             d = row_to_debt(r)
             d["pending_payments_count"] = pending_map.get(d["id"], 0)
+            d["pending_topups_count"] = topup_map.get(d["id"], 0)
             result.append(d)
         return json_resp(result)
 

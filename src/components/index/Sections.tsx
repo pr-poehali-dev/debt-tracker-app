@@ -336,6 +336,14 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                         {d.pendingPaymentsCount === 1 ? "Запрос на возврат" : `${d.pendingPaymentsCount} запроса`}
                       </span>
                     )}
+                    {(d.pendingTopUpsCount || 0) > 0 && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold animate-pulse" style={{ background: "linear-gradient(135deg, #a855f7, #6366f1)", color: "#fff", boxShadow: "0 0 12px rgba(168,85,247,0.5)" }}>
+                        <Icon name="TrendingUp" size={10} />
+                        {dir === "borrowed"
+                          ? (d.pendingTopUpsCount === 1 ? "Запрос на увеличение" : `${d.pendingTopUpsCount} запроса`)
+                          : "Ждёт ответа"}
+                      </span>
+                    )}
                   </div>
                   {d.note && <p className="text-xs text-muted-foreground mt-1 break-words">{d.note}</p>}
                   {d.deletedByLender && (
