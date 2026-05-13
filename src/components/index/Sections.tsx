@@ -2006,26 +2006,36 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
         im.onerror = () => rej(new Error("img"));
         im.src = objectUrl;
       });
-      const TARGET = 512;
       const canvas = document.createElement("canvas");
-      canvas.width = TARGET; canvas.height = TARGET;
       const ctx = canvas.getContext("2d");
       if (!ctx) throw new Error("ctx");
       const side = Math.min(img.naturalWidth, img.naturalHeight);
       const sx = (img.naturalWidth - side) / 2;
       const sy = (img.naturalHeight - side) / 2;
-      ctx.drawImage(img, sx, sy, side, side, 0, 0, TARGET, TARGET);
+      // Подбираем размер и качество так, чтобы итог ≤ 24 КБ (запас под лимит body провайдера)
+      const sizes = [320, 256, 192];
+      const qualities = [0.78, 0.65, 0.5];
+      let b64 = "";
+      outer: for (const sz of sizes) {
+        canvas.width = sz; canvas.height = sz;
+        ctx.clearRect(0, 0, sz, sz);
+        ctx.drawImage(img, sx, sy, side, side, 0, 0, sz, sz);
+        for (const q of qualities) {
+          const blob: Blob = await new Promise((res, rej) => {
+            canvas.toBlob(b => b ? res(b) : rej(new Error("blob")), "image/jpeg", q);
+          });
+          const dataUrl: string = await new Promise((res, rej) => {
+            const r = new FileReader();
+            r.onload = () => res(String(r.result || ""));
+            r.onerror = () => rej(new Error("read"));
+            r.readAsDataURL(blob);
+          });
+          const candidate = dataUrl.split(",")[1] || "";
+          if (candidate.length <= 24 * 1024) { b64 = candidate; break outer; }
+          b64 = candidate;
+        }
+      }
       URL.revokeObjectURL(objectUrl);
-      const blob: Blob = await new Promise((res, rej) => {
-        canvas.toBlob(b => b ? res(b) : rej(new Error("blob")), "image/jpeg", 0.85);
-      });
-      const dataUrl: string = await new Promise((res, rej) => {
-        const r = new FileReader();
-        r.onload = () => res(String(r.result || ""));
-        r.onerror = () => rej(new Error("read"));
-        r.readAsDataURL(blob);
-      });
-      const b64 = dataUrl.split(",")[1] || "";
       const body = JSON.stringify({ image_base64: b64, content_type: "image/jpeg", token });
       let resp: Response;
       try {
