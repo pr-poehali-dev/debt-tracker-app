@@ -801,6 +801,21 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
     avatarUrl: (user as { avatar_url?: string }).avatar_url || undefined,
   });
 
+  // Подтягиваем актуальный avatar_url с /me при загрузке (если user был получен ДО появления avatar_url)
+  useEffect(() => {
+    const t = localStorage.getItem("df-token");
+    if (!t) return;
+    fetch(`${func2url.auth}?action=me`, { headers: { Authorization: `Bearer ${t}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d?.avatar_url) {
+          setProfile(p => ({ ...p, avatarUrl: d.avatar_url }));
+        }
+      })
+      .catch(() => {});
+     
+  }, []);
+
   const [lang, setLang] = useState<Lang>(() => {
     const saved = localStorage.getItem("df-lang");
     return saved === "en" || saved === "ru" ? saved : "ru";
