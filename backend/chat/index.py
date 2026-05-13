@@ -198,10 +198,20 @@ def handler(event: dict, context) -> dict:
             "chats": chats
         })
 
-    # GET ?debt_id=UUID или ?rental_id=N — получить сообщения
+    # GET ?debt_id=UUID или ?rental_id=N — получить сообщения (с пагинацией)
     if method == "GET" and (qs.get("debt_id") or qs.get("rental_id")):
         debt_id = qs.get("debt_id")
         rental_id = qs.get("rental_id")
+        try:
+            limit = int(qs.get("limit") or 30)
+        except Exception:
+            limit = 30
+        limit = max(1, min(limit, 200))
+        before_id = qs.get("before_id")
+        try:
+            before_id_int = int(before_id) if before_id else None
+        except Exception:
+            before_id_int = None
 
         with get_conn() as conn:
             user_id, _ = get_user_from_token(auth, conn)
@@ -217,16 +227,28 @@ def handler(event: dict, context) -> dict:
                     )
                     if not cur.fetchone():
                         return err("Нет доступа к чату", 403)
-                    cur.execute(
-                        f"""SELECT m.id, m.sender_user_id, m.sender_name, m.text, m.created_at, m.is_read,
-                                   m.attachment_url, m.attachment_type, m.attachment_name, m.attachment_size,
-                                   u.avatar_url
-                            FROM {SCHEMA}.messages m
-                            LEFT JOIN {SCHEMA}.users u ON u.id = m.sender_user_id
-                            WHERE m.debt_id = %s
-                            ORDER BY m.created_at ASC LIMIT 200""",
-                        (debt_id,)
-                    )
+                    if before_id_int:
+                        cur.execute(
+                            f"""SELECT m.id, m.sender_user_id, m.sender_name, m.text, m.created_at, m.is_read,
+                                       m.attachment_url, m.attachment_type, m.attachment_name, m.attachment_size,
+                                       u.avatar_url
+                                FROM {SCHEMA}.messages m
+                                LEFT JOIN {SCHEMA}.users u ON u.id = m.sender_user_id
+                                WHERE m.debt_id = %s AND m.id < %s
+                                ORDER BY m.id DESC LIMIT %s""",
+                            (debt_id, before_id_int, limit + 1)
+                        )
+                    else:
+                        cur.execute(
+                            f"""SELECT m.id, m.sender_user_id, m.sender_name, m.text, m.created_at, m.is_read,
+                                       m.attachment_url, m.attachment_type, m.attachment_name, m.attachment_size,
+                                       u.avatar_url
+                                FROM {SCHEMA}.messages m
+                                LEFT JOIN {SCHEMA}.users u ON u.id = m.sender_user_id
+                                WHERE m.debt_id = %s
+                                ORDER BY m.id DESC LIMIT %s""",
+                            (debt_id, limit + 1)
+                        )
                 else:
                     cur.execute(
                         f"""SELECT id FROM {SCHEMA}.rentals
@@ -235,31 +257,50 @@ def handler(event: dict, context) -> dict:
                     )
                     if not cur.fetchone():
                         return err("Нет доступа к чату", 403)
-                    cur.execute(
-                        f"""SELECT m.id, m.sender_user_id, m.sender_name, m.text, m.created_at, m.is_read,
-                                   m.attachment_url, m.attachment_type, m.attachment_name, m.attachment_size,
-                                   u.avatar_url
-                            FROM {SCHEMA}.messages m
-                            LEFT JOIN {SCHEMA}.users u ON u.id = m.sender_user_id
-                            WHERE m.rental_id = %s
-                            ORDER BY m.created_at ASC LIMIT 200""",
-                        (int(rental_id),)
-                    )
+                    if before_id_int:
+                        cur.execute(
+                            f"""SELECT m.id, m.sender_user_id, m.sender_name, m.text, m.created_at, m.is_read,
+                                       m.attachment_url, m.attachment_type, m.attachment_name, m.attachment_size,
+                                       u.avatar_url
+                                FROM {SCHEMA}.messages m
+                                LEFT JOIN {SCHEMA}.users u ON u.id = m.sender_user_id
+                                WHERE m.rental_id = %s AND m.id < %s
+                                ORDER BY m.id DESC LIMIT %s""",
+                            (int(rental_id), before_id_int, limit + 1)
+                        )
+                    else:
+                        cur.execute(
+                            f"""SELECT m.id, m.sender_user_id, m.sender_name, m.text, m.created_at, m.is_read,
+                                       m.attachment_url, m.attachment_type, m.attachment_name, m.attachment_size,
+                                       u.avatar_url
+                                FROM {SCHEMA}.messages m
+                                LEFT JOIN {SCHEMA}.users u ON u.id = m.sender_user_id
+                                WHERE m.rental_id = %s
+                                ORDER BY m.id DESC LIMIT %s""",
+                            (int(rental_id), limit + 1)
+                        )
                 rows = cur.fetchall()
 
-                # Отмечаем прочитанными чужие сообщения
-                if debt_id:
-                    cur.execute(
-                        f"""UPDATE {SCHEMA}.messages SET is_read = true
-                            WHERE debt_id = %s AND sender_user_id != %s AND is_read = false""",
-                        (debt_id, user_id)
-                    )
-                else:
-                    cur.execute(
-                        f"""UPDATE {SCHEMA}.messages SET is_read = true
-                            WHERE rental_id = %s AND sender_user_id != %s AND is_read = false""",
-                        (int(rental_id), user_id)
-                    )
+                has_more = len(rows) > limit
+                if has_more:
+                    rows = rows[:limit]
+                # Возвращаем в хронологическом порядке (старые сверху)
+                rows = list(reversed(rows))
+
+                # Отмечаем прочитанными чужие сообщения только при первой загрузке
+                if not before_id_int:
+                    if debt_id:
+                        cur.execute(
+                            f"""UPDATE {SCHEMA}.messages SET is_read = true
+                                WHERE debt_id = %s AND sender_user_id != %s AND is_read = false""",
+                            (debt_id, user_id)
+                        )
+                    else:
+                        cur.execute(
+                            f"""UPDATE {SCHEMA}.messages SET is_read = true
+                                WHERE rental_id = %s AND sender_user_id != %s AND is_read = false""",
+                            (int(rental_id), user_id)
+                        )
             conn.commit()
 
         messages = [
@@ -279,7 +320,7 @@ def handler(event: dict, context) -> dict:
             }
             for r in rows
         ]
-        return json_resp({"messages": messages, "user_id": user_id})
+        return json_resp({"messages": messages, "user_id": user_id, "has_more": has_more})
 
     # POST / — отправить сообщение
     if method == "POST" and not qs.get("action"):

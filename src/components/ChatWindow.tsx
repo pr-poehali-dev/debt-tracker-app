@@ -69,6 +69,9 @@ export default function ChatWindow({ debtId, rentalId, title, contactName, conta
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const didInitialScrollRef = useRef(false);
+  const loadingOlderRef = useRef(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -204,22 +207,68 @@ export default function ChatWindow({ debtId, rentalId, title, contactName, conta
 
   async function loadMessages(silent = false) {
     if (!silent) setLoading(true);
-    const res = await fetch(`${CHAT_URL}${buildQuery()}`, {
+    const res = await fetch(`${CHAT_URL}${buildQuery()}&limit=30`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (res.ok) {
       const d = await res.json();
       const newMsgs: Message[] = d.messages;
+      setHasMore(Boolean(d.has_more));
       setMessages(prev => {
         const prevIds = new Set(prev.map(m => m.id));
         const incoming = newMsgs.filter(m => !m.is_mine && !prevIds.has(m.id));
         if (incoming.length > 0 && prev.length > 0) {
           playNotifSound();
         }
+        // При тихой подгрузке (поллинг) — мерджим новые в конец, не теряя старые подгруженные
+        if (silent && prev.length > 0) {
+          const merged = [...prev];
+          const existing = new Set(prev.map(m => m.id));
+          for (const m of newMsgs) {
+            if (!existing.has(m.id)) merged.push(m);
+          }
+          merged.sort((a, b) => a.id - b.id);
+          return merged;
+        }
         return newMsgs;
       });
     }
     if (!silent) setLoading(false);
+  }
+
+  async function loadOlder() {
+    if (loadingOlderRef.current || !hasMore || messages.length === 0) return;
+    loadingOlderRef.current = true;
+    setLoadingOlder(true);
+    const el = scrollRef.current;
+    const prevScrollHeight = el?.scrollHeight ?? 0;
+    const prevScrollTop = el?.scrollTop ?? 0;
+    const oldestId = messages[0].id;
+    try {
+      const res = await fetch(`${CHAT_URL}${buildQuery()}&limit=30&before_id=${oldestId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const d = await res.json();
+        const older: Message[] = d.messages || [];
+        setHasMore(Boolean(d.has_more));
+        if (older.length > 0) {
+          setMessages(prev => {
+            const ids = new Set(prev.map(m => m.id));
+            const fresh = older.filter(m => !ids.has(m.id));
+            return [...fresh, ...prev];
+          });
+          // Сохраняем позицию скролла после prepend
+          requestAnimationFrame(() => {
+            const node = scrollRef.current;
+            if (node) node.scrollTop = node.scrollHeight - prevScrollHeight + prevScrollTop;
+          });
+        }
+      }
+    } finally {
+      setLoadingOlder(false);
+      loadingOlderRef.current = false;
+    }
   }
 
   useEffect(() => {
@@ -242,7 +291,16 @@ export default function ChatWindow({ debtId, rentalId, title, contactName, conta
 
   useEffect(() => {
     didInitialScrollRef.current = false;
+    setHasMore(false);
+    setMessages([]);
   }, [debtId, rentalId]);
+
+  function handleMessagesScroll(e: React.UIEvent<HTMLDivElement>) {
+    const el = e.currentTarget;
+    if (el.scrollTop < 80 && hasMore && !loadingOlderRef.current) {
+      loadOlder();
+    }
+  }
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -524,7 +582,12 @@ export default function ChatWindow({ debtId, rentalId, title, contactName, conta
         </div>
 
       {/* Messages */}
-      <div ref={scrollRef} className="relative z-10 flex-1 overflow-y-auto overscroll-contain px-4 py-4">
+      <div ref={scrollRef} onScroll={handleMessagesScroll} className="relative z-10 flex-1 overflow-y-auto overscroll-contain px-4 py-4">
+        {loadingOlder && (
+          <div className="flex justify-center py-2">
+            <div className="w-5 h-5 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+          </div>
+        )}
         {loading ? (
           <div className="flex justify-center pt-10">
             <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
