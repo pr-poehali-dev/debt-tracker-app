@@ -1987,38 +1987,60 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
 
   async function handleAvatarFile(file: File) {
     if (!token || !authUrl) return;
-    if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
+    if (!/^image\/(jpeg|png|webp|heic|heif)$/i.test(file.type) && !/\.(jpe?g|png|webp|heic|heif)$/i.test(file.name)) {
       setAvatarError("Только JPG, PNG или WebP");
       return;
     }
-    if (file.size > 6 * 1024 * 1024) {
-      setAvatarError("Файл больше 6 МБ");
+    if (file.size > 20 * 1024 * 1024) {
+      setAvatarError("Файл больше 20 МБ");
       return;
     }
     setAvatarBusy(true);
     setAvatarError(null);
     try {
-      const dataUrl: string = await new Promise((res, rej) => {
-        const r = new FileReader();
-        r.onload = () => res(String(r.result || ""));
-        r.onerror = () => rej(new Error("read"));
-        r.readAsDataURL(file);
+      // Сжимаем картинку в квадрат 512×512 JPEG, чтобы не упереться в лимит body
+      const objectUrl = URL.createObjectURL(file);
+      const img: HTMLImageElement = await new Promise((res, rej) => {
+        const im = new Image();
+        im.onload = () => res(im);
+        im.onerror = () => rej(new Error("img"));
+        im.src = objectUrl;
       });
-      const b64 = dataUrl.split(",")[1] || "";
+      const TARGET = 512;
+      const canvas = document.createElement("canvas");
+      canvas.width = TARGET; canvas.height = TARGET;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("ctx");
+      const side = Math.min(img.naturalWidth, img.naturalHeight);
+      const sx = (img.naturalWidth - side) / 2;
+      const sy = (img.naturalHeight - side) / 2;
+      ctx.drawImage(img, sx, sy, side, side, 0, 0, TARGET, TARGET);
+      URL.revokeObjectURL(objectUrl);
+      const blob: Blob = await new Promise((res, rej) => {
+        canvas.toBlob(b => b ? res(b) : rej(new Error("blob")), "image/jpeg", 0.85);
+      });
+      const buf = await blob.arrayBuffer();
+      let bin = "";
+      const bytes = new Uint8Array(buf);
+      const CHUNK = 0x8000;
+      for (let i = 0; i < bytes.length; i += CHUNK) {
+        bin += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + CHUNK)));
+      }
+      const b64 = btoa(bin);
       const r = await fetch(`${authUrl}?action=upload-avatar`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Authorization": `Bearer ${token}` },
-        body: JSON.stringify({ image_base64: b64, content_type: file.type }),
+        body: JSON.stringify({ image_base64: b64, content_type: "image/jpeg" }),
       });
-      const data = await r.json();
+      const data = await r.json().catch(() => ({}));
       if (!r.ok || !data.avatar_url) {
-        setAvatarError(data.error || "Не удалось загрузить");
+        setAvatarError(data.error || `Ошибка ${r.status}`);
         setAvatarBusy(false);
         return;
       }
       onProfileChange({ ...profile, avatarUrl: data.avatar_url });
-    } catch {
-      setAvatarError("Сеть недоступна");
+    } catch (e) {
+      setAvatarError(`Не удалось: ${(e as Error).message || "сеть"}`);
     } finally {
       setAvatarBusy(false);
     }
@@ -2144,7 +2166,7 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
                 {profile.avatarUrl ? "Сменить фото" : "Загрузить фото"}
                 <input
                   type="file"
-                  accept="image/jpeg,image/png,image/webp"
+                  accept="image/*"
                   className="hidden"
                   disabled={avatarBusy}
                   onChange={(e) => { const f = e.target.files?.[0]; if (f) handleAvatarFile(f); e.target.value = ""; }}
