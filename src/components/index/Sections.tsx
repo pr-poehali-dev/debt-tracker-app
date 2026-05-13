@@ -1861,6 +1861,41 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
   }
 
   const [showAndroidGuide, setShowAndroidGuide] = useState(false);
+  const [showInstallApp, setShowInstallApp] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState<Event | null>(null);
+  const [isAppInstalled, setIsAppInstalled] = useState(false);
+  const installPlatform: "ios" | "android" | "desktop" = (() => {
+    if (typeof navigator === "undefined") return "desktop";
+    const ua = navigator.userAgent;
+    if (/iphone|ipad|ipod/i.test(ua)) return "ios";
+    if (/android/i.test(ua)) return "android";
+    return "desktop";
+  })();
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      if (window.matchMedia('(display-mode: standalone)').matches) setIsAppInstalled(true);
+      if ((window.navigator as { standalone?: boolean }).standalone) setIsAppInstalled(true);
+    } catch { /* ignore */ }
+    const handler = (e: Event) => { e.preventDefault(); setInstallPrompt(e); };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+  async function triggerNativeInstall() {
+    if (!installPrompt) return false;
+    try {
+      const p = installPrompt as { prompt: () => void; userChoice: Promise<{ outcome: string }> };
+      p.prompt();
+      const { outcome } = await p.userChoice;
+      if (outcome === "accepted") {
+        try { localStorage.setItem("dd_install_banner_dismissed_at", String(Date.now())); } catch { /* ignore */ }
+        setIsAppInstalled(true);
+        setShowInstallApp(false);
+        return true;
+      }
+    } catch { /* ignore */ }
+    return false;
+  }
   const [diagReport, setDiagReport] = useState<string | null>(null);
   const [diagBusy, setDiagBusy] = useState(false);
   const [resetBusy, setResetBusy] = useState(false);
@@ -2494,6 +2529,28 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
         )}
       </div>
 
+      {!isAppInstalled && (
+        <button
+          onClick={async () => {
+            if (installPrompt && installPlatform !== "ios") {
+              const ok = await triggerNativeInstall();
+              if (ok) return;
+            }
+            setShowInstallApp(true);
+          }}
+          className="w-full glass rounded-2xl p-5 flex items-center gap-3 hover:bg-white/[0.06] active:scale-[0.99] transition text-left"
+        >
+          <div className="w-9 h-9 bg-blue-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
+            <Icon name="Download" size={18} className="text-blue-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-foreground">Установить приложение</p>
+            <p className="text-xs text-muted-foreground">Добавить на главный экран</p>
+          </div>
+          <Icon name="ChevronRight" size={18} className="text-muted-foreground flex-shrink-0" />
+        </button>
+      )}
+
       <button
         onClick={() => setShowInvite(true)}
         className="w-full glass rounded-2xl p-5 flex items-center gap-3 hover:bg-white/[0.06] active:scale-[0.99] transition text-left"
@@ -2509,6 +2566,122 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
       </button>
 
       <InviteFriendModal open={showInvite} onClose={() => setShowInvite(false)} inviteUrl={inviteUrl} />
+
+      {showInstallApp && (
+        <div
+          className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={() => setShowInstallApp(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-3xl p-5 bg-background border border-white/10 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-2xl overflow-hidden flex-shrink-0">
+                <img src="/icons/icon-192.png" alt="Debt-Debt" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display='none'; }} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-heading font-bold text-base">Установить Debt-Debt</p>
+                <p className="text-xs text-muted-foreground">Работает как обычное приложение</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowInstallApp(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-white/10 transition-colors"
+              >
+                <Icon name="X" size={16} />
+              </button>
+            </div>
+
+            {installPlatform === "ios" && (
+              <div className="space-y-3">
+                <div className="flex items-start gap-3 p-3 rounded-2xl bg-white/5">
+                  <div className="w-7 h-7 rounded-full bg-purple-500/20 text-purple-300 flex items-center justify-center text-xs font-bold flex-shrink-0">1</div>
+                  <div className="flex-1 text-sm">Откройте сайт в <b>Safari</b>.</div>
+                </div>
+                <div className="flex items-start gap-3 p-3 rounded-2xl bg-white/5">
+                  <div className="w-7 h-7 rounded-full bg-purple-500/20 text-purple-300 flex items-center justify-center text-xs font-bold flex-shrink-0">2</div>
+                  <div className="flex-1 text-sm flex items-center gap-2 flex-wrap">
+                    Нажмите
+                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-white/10">
+                      <Icon name="Share" size={14} /> Поделиться
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 p-3 rounded-2xl bg-white/5">
+                  <div className="w-7 h-7 rounded-full bg-purple-500/20 text-purple-300 flex items-center justify-center text-xs font-bold flex-shrink-0">3</div>
+                  <div className="flex-1 text-sm flex items-center gap-2 flex-wrap">
+                    Выберите
+                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-white/10">
+                      <Icon name="SquarePlus" size={14} /> На экран «Домой»
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {installPlatform === "android" && (
+              <div className="space-y-3">
+                <div className="flex items-start gap-3 p-3 rounded-2xl bg-white/5">
+                  <div className="w-7 h-7 rounded-full bg-purple-500/20 text-purple-300 flex items-center justify-center text-xs font-bold flex-shrink-0">1</div>
+                  <div className="flex-1 text-sm">Откройте сайт в <b>Chrome</b>.</div>
+                </div>
+                <div className="flex items-start gap-3 p-3 rounded-2xl bg-white/5">
+                  <div className="w-7 h-7 rounded-full bg-purple-500/20 text-purple-300 flex items-center justify-center text-xs font-bold flex-shrink-0">2</div>
+                  <div className="flex-1 text-sm flex items-center gap-2 flex-wrap">
+                    Нажмите
+                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-white/10">
+                      <Icon name="MoreVertical" size={14} />
+                    </span>
+                    в правом верхнем углу.
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 p-3 rounded-2xl bg-white/5">
+                  <div className="w-7 h-7 rounded-full bg-purple-500/20 text-purple-300 flex items-center justify-center text-xs font-bold flex-shrink-0">3</div>
+                  <div className="flex-1 text-sm">Выберите <b>«Установить приложение»</b> или <b>«Добавить на главный экран»</b>.</div>
+                </div>
+              </div>
+            )}
+
+            {installPlatform === "desktop" && (
+              <div className="space-y-3">
+                <div className="flex items-start gap-3 p-3 rounded-2xl bg-white/5">
+                  <div className="w-7 h-7 rounded-full bg-purple-500/20 text-purple-300 flex items-center justify-center text-xs font-bold flex-shrink-0">1</div>
+                  <div className="flex-1 text-sm">В адресной строке Chrome/Edge нажмите иконку
+                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-white/10 ml-1">
+                      <Icon name="MonitorDown" size={14} />
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 p-3 rounded-2xl bg-white/5">
+                  <div className="w-7 h-7 rounded-full bg-purple-500/20 text-purple-300 flex items-center justify-center text-xs font-bold flex-shrink-0">2</div>
+                  <div className="flex-1 text-sm">Нажмите <b>«Установить»</b> — приложение появится на рабочем столе.</div>
+                </div>
+              </div>
+            )}
+
+            {installPrompt && installPlatform !== "ios" ? (
+              <button
+                type="button"
+                onClick={triggerNativeInstall}
+                className="mt-5 w-full py-3 rounded-2xl text-white font-semibold"
+                style={{ background: "linear-gradient(135deg, #a855f7, #6366f1)" }}
+              >
+                Установить сейчас
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowInstallApp(false)}
+                className="mt-5 w-full py-3 rounded-2xl text-white font-semibold"
+                style={{ background: "linear-gradient(135deg, #a855f7, #6366f1)" }}
+              >
+                Понятно
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="glass rounded-2xl p-5 space-y-3">
         <div className="flex items-center gap-3">
