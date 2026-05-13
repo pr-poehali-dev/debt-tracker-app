@@ -2036,27 +2036,20 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
         }
       }
       URL.revokeObjectURL(objectUrl);
-      const body = JSON.stringify({ image_base64: b64, content_type: "image/jpeg", token });
-      let resp: Response;
-      try {
-        resp = await fetch(`${authUrl}?action=set-avatar`, {
-          method: "POST",
-          mode: "cors",
-          cache: "no-store",
-          credentials: "omit",
-          headers: { "Content-Type": "application/json" },
-          body,
-        });
-      } catch (fe) {
-        setAvatarError(`Сеть: ${(fe as Error).message} (body=${body.length})`);
-        setAvatarBusy(false);
-        return;
-      }
-      const text = await resp.text();
+      const result: { status: number; text: string } = await new Promise((res, rej) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", `${authUrl}?action=set-avatar`, true);
+        xhr.setRequestHeader("Content-Type", "text/plain");
+        xhr.timeout = 60000;
+        xhr.onload = () => res({ status: xhr.status, text: xhr.responseText });
+        xhr.onerror = () => rej(new Error("network"));
+        xhr.ontimeout = () => rej(new Error("timeout"));
+        xhr.send(JSON.stringify({ image_base64: b64, content_type: "image/jpeg", token }));
+      });
       let data: { avatar_url?: string; error?: string } = {};
-      try { data = JSON.parse(text); } catch { /* ignore */ }
-      if (!resp.ok || !data.avatar_url) {
-        setAvatarError(data.error || `HTTP ${resp.status}: ${text.slice(0, 120)}`);
+      try { data = JSON.parse(result.text); } catch { /* ignore */ }
+      if (result.status < 200 || result.status >= 300 || !data.avatar_url) {
+        setAvatarError(data.error || `HTTP ${result.status}: ${result.text.slice(0, 120)}`);
         setAvatarBusy(false);
         return;
       }
