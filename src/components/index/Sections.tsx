@@ -2766,11 +2766,27 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
 
 // ─── PWA Install Banner ───────────────────────────────────────────────────────
 export function InstallBanner({ t }: { t: ReturnType<typeof getT> }) {
+  const DISMISS_KEY = "dd_install_banner_dismissed_at";
+  const DISMISS_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
   const [prompt, setPrompt] = useState<Event | null>(null);
-  const [dismissed, setDismissed] = useState(false);
+  const [dismissed, setDismissed] = useState(() => {
+    try {
+      const v = localStorage.getItem(DISMISS_KEY);
+      if (!v) return false;
+      const ts = Number(v);
+      if (!ts) return true;
+      return Date.now() - ts < DISMISS_TTL_MS;
+    } catch { return false; }
+  });
   const [isIos, setIsIos] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
   const [showIosGuide, setShowIosGuide] = useState(false);
+
+  function dismiss() {
+    try { localStorage.setItem(DISMISS_KEY, String(Date.now())); } catch { /* ignore */ }
+    setDismissed(true);
+  }
 
   useEffect(() => {
     const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) && !(window.navigator as { standalone?: boolean }).standalone;
@@ -2790,7 +2806,7 @@ export function InstallBanner({ t }: { t: ReturnType<typeof getT> }) {
       const deferredPrompt = prompt as { prompt: () => void; userChoice: Promise<{ outcome: string }> };
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') setDismissed(true);
+      if (outcome === 'accepted') dismiss();
     }
   }
 
@@ -2841,7 +2857,7 @@ export function InstallBanner({ t }: { t: ReturnType<typeof getT> }) {
               )}
               <button
                 type="button"
-                onClick={(e) => { e.stopPropagation(); setDismissed(true); }}
+                onClick={(e) => { e.stopPropagation(); dismiss(); }}
                 className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white/10 transition-colors"
               >
                 <Icon name="X" size={14} className="text-muted-foreground" />
