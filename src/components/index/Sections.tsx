@@ -642,8 +642,9 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
 // ─── Section: Calendar ────────────────────────────────────────────────────────
 type CalendarRental = { id: string; title: string; amount: number; payment_day: number; landlord_user_id?: number; tenant_user_id?: number; landlord_name?: string; tenant_name?: string; status: string };
 
-export function CalendarSection({ contacts, t, debts, rentals = [], userId = 0 }: { contacts: Contact[]; t: ReturnType<typeof getT>; debts: Debt[]; rentals?: CalendarRental[]; userId?: number }) {
+export function CalendarSection({ contacts, t, debts, rentals = [], userId = 0, locale = "ru", token, onNav, onOpenChat, onMarkPaid, onPaymentAccepted }: { contacts: Contact[]; t: ReturnType<typeof getT>; debts: Debt[]; rentals?: CalendarRental[]; userId?: number; locale?: string; token?: string; onNav?: (s: Section) => void; onOpenChat?: (debtId: string, title: string) => void; onMarkPaid?: (debtId: string) => void; onPaymentAccepted?: (debtId: string, newAmount: number, fullyPaid: boolean) => void }) {
   const [calDate, setCalDate] = useState(() => { const n = new Date(); return { year: n.getFullYear(), month: n.getMonth() }; });
+  const [selectedDebt, setSelectedDebt] = useState<Debt | null>(null);
   const daysInMonth = new Date(calDate.year, calDate.month + 1, 0).getDate();
   const firstDayOfWeek = (new Date(calDate.year, calDate.month, 1).getDay() + 6) % 7;
   const todayRef = new Date();
@@ -756,7 +757,7 @@ export function CalendarSection({ contacts, t, debts, rentals = [], userId = 0 }
           const col = contact ? getColor(contact.color) : getColor("purple");
           const dd = new Date(d.dueDate);
           return (
-            <div key={i} className="glass rounded-2xl p-4 flex items-center gap-3" style={{ borderLeft: `3px solid ${col.hex}` }}>
+            <button key={i} type="button" onClick={() => setSelectedDebt(d)} className="w-full text-left glass rounded-2xl p-4 flex items-center gap-3 hover:bg-white/[0.06] active:scale-[0.99] transition" style={{ borderLeft: `3px solid ${col.hex}` }}>
               <div className="w-12 h-12 rounded-2xl flex flex-col items-center justify-center flex-shrink-0"
                 style={{ background: col.bg, border: `1px solid ${col.border}` }}>
                 <span className="text-base font-bold text-foreground leading-none">{dd.getDate()}</span>
@@ -774,7 +775,7 @@ export function CalendarSection({ contacts, t, debts, rentals = [], userId = 0 }
               <div className="font-bold font-heading text-base flex-shrink-0" style={{ color: col.text }}>
                 {fmt(d.amount)}
               </div>
-            </div>
+            </button>
           );
         })}
 
@@ -785,7 +786,7 @@ export function CalendarSection({ contacts, t, debts, rentals = [], userId = 0 }
           const bg = isLandlord ? "rgba(192,132,252,0.12)" : "rgba(125,211,252,0.12)";
           const border = isLandlord ? "rgba(192,132,252,0.25)" : "rgba(125,211,252,0.25)";
           return (
-            <div key={`rent-${i}`} className="glass rounded-2xl p-4 flex items-center gap-3" style={{ borderLeft: `3px solid ${color}` }}>
+            <button key={`rent-${i}`} type="button" onClick={() => onNav?.("rental")} className="w-full text-left glass rounded-2xl p-4 flex items-center gap-3 hover:bg-white/[0.06] active:scale-[0.99] transition" style={{ borderLeft: `3px solid ${color}` }}>
               <div className="w-12 h-12 rounded-2xl flex flex-col items-center justify-center flex-shrink-0"
                 style={{ background: bg, border: `1px solid ${border}` }}>
                 <span className="text-base font-bold leading-none" style={{ color }}>{r.payment_day}</span>
@@ -803,10 +804,21 @@ export function CalendarSection({ contacts, t, debts, rentals = [], userId = 0 }
               <div className="font-bold font-heading text-base flex-shrink-0" style={{ color }}>
                 {fmt(r.amount)}
               </div>
-            </div>
+            </button>
           );
         })}
       </div>
+      <DebtDetailModal
+        debt={selectedDebt}
+        dir={selectedDebt?.archivedDir === "borrowed" ? "borrowed" : "lent"}
+        locale={locale}
+        onClose={() => setSelectedDebt(null)}
+        onOpenChat={onOpenChat}
+        onMarkPaid={onMarkPaid}
+        token={token}
+        userId={userId}
+        onPaymentAccepted={onPaymentAccepted}
+      />
     </div>
   );
 }
