@@ -207,6 +207,8 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
             payment_day: Number(r.payment_day),
             landlord_user_id: r.landlord_user_id ? Number(r.landlord_user_id) : undefined,
             tenant_user_id: r.tenant_user_id ? Number(r.tenant_user_id) : undefined,
+            landlord_name: r.landlord_name ? String(r.landlord_name) : undefined,
+            tenant_name: r.tenant_name ? String(r.tenant_name) : undefined,
             status: String(r.status),
           })));
         });

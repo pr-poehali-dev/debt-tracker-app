@@ -640,7 +640,7 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
 }
 
 // ─── Section: Calendar ────────────────────────────────────────────────────────
-type CalendarRental = { id: string; title: string; amount: number; payment_day: number; landlord_user_id?: number; tenant_user_id?: number; status: string };
+type CalendarRental = { id: string; title: string; amount: number; payment_day: number; landlord_user_id?: number; tenant_user_id?: number; landlord_name?: string; tenant_name?: string; status: string };
 
 export function CalendarSection({ contacts, t, debts, rentals = [], userId = 0 }: { contacts: Contact[]; t: ReturnType<typeof getT>; debts: Debt[]; rentals?: CalendarRental[]; userId?: number }) {
   const [calDate, setCalDate] = useState(() => { const n = new Date(); return { year: n.getFullYear(), month: n.getMonth() }; });
@@ -762,12 +762,14 @@ export function CalendarSection({ contacts, t, debts, rentals = [], userId = 0 }
                 <span className="text-base font-bold text-foreground leading-none">{dd.getDate()}</span>
                 <span className="text-[9px] text-muted-foreground">{t.months[dd.getMonth()]}</span>
               </div>
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: col.hex }} />
-                  <p className="font-medium text-foreground">{d.name}</p>
+                  <p className="font-medium text-foreground truncate">{d.name}</p>
                 </div>
-                <p className="text-xs text-muted-foreground">{t.eventPay}</p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {t.eventPay}{(contact?.name || d.counterpartyName) ? ` • ${contact?.name || d.counterpartyName}` : ""}
+                </p>
               </div>
               <div className="font-bold font-heading text-base flex-shrink-0" style={{ color: col.text }}>
                 {fmt(d.amount)}
@@ -789,12 +791,15 @@ export function CalendarSection({ contacts, t, debts, rentals = [], userId = 0 }
                 <span className="text-base font-bold leading-none" style={{ color }}>{r.payment_day}</span>
                 <span className="text-[9px] text-muted-foreground">{t.months[calDate.month]}</span>
               </div>
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <Icon name={isLandlord ? "KeyRound" : "Home"} size={12} style={{ color }} />
-                  <p className="font-medium text-foreground">{r.title}</p>
+                  <p className="font-medium text-foreground truncate">{r.title}</p>
                 </div>
-                <p className="text-xs text-muted-foreground">{isLandlord ? t.receive : t.eventPay}</p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {isLandlord ? t.receive : t.eventPay}
+                  {(isLandlord ? r.tenant_name : r.landlord_name) ? ` • ${isLandlord ? r.tenant_name : r.landlord_name}` : ""}
+                </p>
               </div>
               <div className="font-bold font-heading text-base flex-shrink-0" style={{ color }}>
                 {fmt(r.amount)}
