@@ -50,6 +50,15 @@ interface PaymentItem {
   from_name: string;
 }
 
+interface TopUpItem {
+  id: number;
+  amount: number;
+  note: string | null;
+  status: "pending" | "accepted" | "rejected";
+  created_at: string;
+  from_name: string;
+}
+
 function fmt(n: number) {
   return n.toLocaleString("ru-RU") + " ₽";
 }
@@ -75,6 +84,8 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
   const [contractStatus, setContractStatus] = useState<"none" | "draft" | "active">("none");
   const [contractWipToast, setContractWipToast] = useState(false);
   const [showTopUp, setShowTopUp] = useState(false);
+  const [topUps, setTopUps] = useState<TopUpItem[]>([]);
+  const [decidingTopUpId, setDecidingTopUpId] = useState<number | null>(null);
 
   useEffect(() => {
     if (!contractWipToast) return;
@@ -89,8 +100,9 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
   }, [autoOpenContract, debt?.debtDbId]);
 
   const debtDbId = debt?.debtDbId;
+  const [topUpReloadTick, setTopUpReloadTick] = useState(0);
   useEffect(() => {
-    if (!debtDbId) { setHistory([]); setContractStatus("none"); return; }
+    if (!debtDbId) { setHistory([]); setContractStatus("none"); setTopUps([]); return; }
     const t = token || localStorage.getItem("df-token") || "";
     if (!t) return;
     let cancelled = false;
@@ -105,6 +117,16 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
           const data = await res.json();
           if (!cancelled) setHistory(Array.isArray(data.requests) ? data.requests : []);
         }
+        // Загрузим запросы на увеличение долга
+        try {
+          const tRes = await fetch(`${urls["debts"]}?action=topup&debt_id=${debtDbId}`, {
+            headers: { Authorization: `Bearer ${t}` },
+          });
+          if (tRes.ok) {
+            const tData = await tRes.json();
+            if (!cancelled) setTopUps(Array.isArray(tData.requests) ? tData.requests : []);
+          }
+        } catch { /* ignore */ }
         // Параллельно подтянем статус договора
         try {
           const cRes = await fetch(`${urls["contracts"]}?debt_id=${debtDbId}`, {
@@ -126,7 +148,29 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
       }
     })();
     return () => { cancelled = true; };
-  }, [debtDbId, token, showContract]);
+  }, [debtDbId, token, showContract, topUpReloadTick]);
+
+  async function decideTopUp(item: TopUpItem, decision: "accepted" | "rejected") {
+    const t = token || localStorage.getItem("df-token") || "";
+    if (!t || !debtDbId) return;
+    setDecidingTopUpId(item.id);
+    try {
+      const { default: urls } = await import("../../backend/func2url.json");
+      const res = await fetch(`${urls["debts"]}?action=topup`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` },
+        body: JSON.stringify({ topup_request_id: item.id, decision }),
+      });
+      if (!res.ok) return;
+      const data = await res.json().catch(() => ({}));
+      setTopUps(prev => prev.map(x => x.id === item.id ? { ...x, status: decision } : x));
+      if (decision === "accepted" && typeof data.new_amount === "number" && onPaymentAccepted && debtDbId) {
+        onPaymentAccepted(debtDbId, data.new_amount, false);
+      }
+    } finally {
+      setDecidingTopUpId(null);
+    }
+  }
 
   async function decide(p: PaymentItem, decision: "accepted" | "rejected") {
     const t = token || localStorage.getItem("df-token") || "";
@@ -477,6 +521,80 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
               </div>
               );
             })()}
+
+            {debt.debtDbId && topUps.length > 0 && (
+              <div className="glass rounded-2xl px-4 py-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-8 h-8 rounded-xl bg-indigo-500/15 flex items-center justify-center flex-shrink-0">
+                    <Icon name="TrendingUp" size={16} className="text-indigo-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-muted-foreground">Запросы на увеличение долга</p>
+                    <p className="text-sm font-medium text-foreground">
+                      {topUps.filter(t => t.status === "pending").length > 0
+                        ? `${topUps.filter(t => t.status === "pending").length} ожидает подтверждения`
+                        : `Всего: ${topUps.length}`}
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  {topUps.map(item => {
+                    const isAcc = item.status === "accepted";
+                    const isRej = item.status === "rejected";
+                    const isPend = item.status === "pending";
+                    const color = isAcc ? "#818cf8" : isRej ? "#f87171" : "#fbbf24";
+                    const bg = isAcc ? "rgba(129,140,248,0.10)" : isRej ? "rgba(248,113,113,0.10)" : "rgba(251,191,36,0.10)";
+                    const border = isAcc ? "rgba(129,140,248,0.25)" : isRej ? "rgba(248,113,113,0.25)" : "rgba(251,191,36,0.25)";
+                    const iconName = isAcc ? "CheckCircle2" : isRej ? "XCircle" : "Clock";
+                    const statusLabel = isAcc ? "принято" : isRej ? "отклонено" : "ожидает";
+                    const d = new Date(item.created_at);
+                    const dateStr = d.toLocaleDateString(locale, { day: "numeric", month: "short" }) + ", " + d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
+                    return (
+                      <div key={item.id} className="rounded-xl px-3 py-2 flex items-start gap-2" style={{ background: bg, border: `1px solid ${border}` }}>
+                        <Icon name={iconName} size={14} style={{ color, marginTop: 2 }} />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-sm font-semibold" style={{ color }}>+{fmt(item.amount)}</span>
+                            <span className="text-[10px] text-muted-foreground">{dateStr}</span>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground">
+                            {item.from_name} • {statusLabel}
+                          </p>
+                          {item.note && <p className="text-[11px] text-foreground/80 mt-0.5 italic">«{item.note}»</p>}
+                          {isPend && dir === "lent" && (
+                            <p className="text-[10px] mt-0.5" style={{ color: "#fbbf24" }}>Ждёт подтверждения заёмщика</p>
+                          )}
+                          {isPend && dir === "borrowed" && (
+                            <div className="flex gap-2 mt-2">
+                              <button
+                                onClick={() => decideTopUp(item, "rejected")}
+                                disabled={decidingTopUpId === item.id}
+                                className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[11px] font-medium disabled:opacity-50 active:scale-95 transition-transform"
+                                style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", color: "#f87171" }}
+                              >
+                                <Icon name="X" size={12} /> Отклонить
+                              </button>
+                              <button
+                                onClick={() => decideTopUp(item, "accepted")}
+                                disabled={decidingTopUpId === item.id}
+                                className="flex-[1.4] flex items-center justify-center gap-1 py-1.5 rounded-lg text-[11px] font-semibold disabled:opacity-50 active:scale-95 transition-transform"
+                                style={{ background: "linear-gradient(135deg,#6366f1,#4f46e5)", color: "#fff" }}
+                              >
+                                {decidingTopUpId === item.id ? (
+                                  <Icon name="Loader2" size={12} className="animate-spin" />
+                                ) : (
+                                  <><Icon name="Check" size={12} /> Принять +{fmt(item.amount)}</>
+                                )}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Договор */}
@@ -618,6 +736,7 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
           currentAmount={debt.amount}
           token={token || localStorage.getItem("df-token") || ""}
           onClose={() => setShowTopUp(false)}
+          onSent={() => setTopUpReloadTick(t => t + 1)}
         />
       )}
     </div>
