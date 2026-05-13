@@ -2026,7 +2026,7 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
         r.readAsDataURL(blob);
       });
       const b64 = dataUrl.split(",")[1] || "";
-      const body = JSON.stringify({ image_base64: b64, content_type: "image/jpeg" });
+      const body = JSON.stringify({ image_base64: b64, content_type: "image/jpeg", token });
       let resp: Response;
       try {
         resp = await fetch(`${authUrl}?action=set-avatar`, {
@@ -2034,7 +2034,7 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
           mode: "cors",
           cache: "no-store",
           credentials: "omit",
-          headers: { "Content-Type": "application/json", "X-Authorization": `Bearer ${token}` },
+          headers: { "Content-Type": "application/json" },
           body,
         });
       } catch (fe) {

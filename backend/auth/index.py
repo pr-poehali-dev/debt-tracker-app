@@ -781,11 +781,11 @@ def handler(event: dict, context) -> dict:
     # ── POST set-avatar — загрузка фото аватара в S3 ──
     if method == "POST" and action in ("set-avatar", "upload-avatar"):
         headers = event.get("headers") or {}
+        body = json.loads(event.get("body") or "{}")
         auth = headers.get("X-Authorization") or headers.get("Authorization") or ""
-        token = auth.replace("Bearer ", "").strip()
+        token = auth.replace("Bearer ", "").strip() or (body.get("token") or "").strip()
         if not token:
             return err("Не авторизован", 401)
-        body = json.loads(event.get("body") or "{}")
         image_b64 = body.get("image_base64") or ""
         content_type = body.get("content_type") or "image/jpeg"
         if not image_b64:
