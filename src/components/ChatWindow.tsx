@@ -213,22 +213,25 @@ export default function ChatWindow({ debtId, rentalId, title, contactName, conta
     if (res.ok) {
       const d = await res.json();
       const newMsgs: Message[] = d.messages;
-      setHasMore(Boolean(d.has_more));
+      setHasMore(prev => prev !== Boolean(d.has_more) ? Boolean(d.has_more) : prev);
       setMessages(prev => {
         const prevIds = new Set(prev.map(m => m.id));
         const incoming = newMsgs.filter(m => !m.is_mine && !prevIds.has(m.id));
         if (incoming.length > 0 && prev.length > 0) {
           playNotifSound();
         }
-        // При тихой подгрузке (поллинг) — мерджим новые в конец, не теряя старые подгруженные
+        // При тихой подгрузке — добавляем ТОЛЬКО новые сообщения, не пересоздавая массив,
+        // если ничего нового нет (чтобы избежать ремоунта аватарок и «моргания»).
         if (silent && prev.length > 0) {
-          const merged = [...prev];
-          const existing = new Set(prev.map(m => m.id));
-          for (const m of newMsgs) {
-            if (!existing.has(m.id)) merged.push(m);
-          }
+          const toAppend = newMsgs.filter(m => !prevIds.has(m.id));
+          if (toAppend.length === 0) return prev;
+          const merged = [...prev, ...toAppend];
           merged.sort((a, b) => a.id - b.id);
           return merged;
+        }
+        // Первая загрузка / явный refresh: если набор и порядок ID совпадают — не меняем ссылку
+        if (prev.length === newMsgs.length && prev.every((m, i) => m.id === newMsgs[i].id)) {
+          return prev;
         }
         return newMsgs;
       });
