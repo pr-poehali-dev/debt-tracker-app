@@ -8,6 +8,7 @@ import SupportModal from "@/components/SupportModal";
 import BalanceReportModal from "@/components/BalanceReportModal";
 import ContactModal from "@/components/ContactModal";
 import ContactDetailModal from "@/components/ContactDetailModal";
+import PullToRefresh from "@/components/PullToRefresh";
 import { type Lang, getT } from "@/i18n";
 import {
   type Section, type Theme, type Contact, type Debt, type Notification, type ContactColor, type ChatMeta,
@@ -61,6 +62,8 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [viewingContact, setViewingContact] = useState<Contact | null>(null);
   const [contactSaving, setContactSaving] = useState(false);
+  const [refreshTick, setRefreshTick] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     if (isDemo) return;
@@ -190,7 +193,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
           if (newNotifs.length > 0) setNotifs(prev => [...newNotifs, ...prev]);
         });
     });
-  }, [isDemo, user.id, token, contacts]);
+  }, [isDemo, user.id, token, contacts, refreshTick]);
 
   useEffect(() => {
     if (isDemo) return;
@@ -214,7 +217,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
           })));
         });
     });
-  }, [isDemo, user.id, token]);
+  }, [isDemo, user.id, token, refreshTick]);
 
   useEffect(() => {
     if (isDemo) return;
@@ -1073,6 +1076,14 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
     setBorrowedDebts(prev => prev.map(d => d.debtDbId === debtDbId ? { ...d, amount: newAmount, pendingPaymentsCount: Math.max(0, (d.pendingPaymentsCount || 1) - 1) } : d));
   }
 
+  async function doRefresh() {
+    if (refreshing) return;
+    setRefreshing(true);
+    setRefreshTick(t => t + 1);
+    await new Promise(r => setTimeout(r, 800));
+    setRefreshing(false);
+  }
+
   function handleTopUpDecided(debtDbId: string, decision: "accepted" | "rejected", newAmount: number | null) {
     const upd = (d: Debt) => d.debtDbId === debtDbId
       ? {
@@ -1246,6 +1257,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
           setSection(navItems[nextIdx].id);
         }}
       >
+        <PullToRefresh onRefresh={doRefresh} refreshing={refreshing}>
         <div key={section} className={`max-w-lg mx-auto ${swipeDir === "left" ? "animate-slide-in-right" : swipeDir === "right" ? "animate-slide-in-left" : ""}`}>
           {section === "dashboard"     && <Dashboard onNav={setSection} contacts={contactsWithTotals} t={t} lentDebts={lentDebts} borrowedDebts={borrowedDebts} activeRentalCount={activeRentalCount} totalRentalAmount={totalRentalAmount} personalLoans={personalLoans} onOpenReport={() => setShowReport(true)} />}
           {section === "lent"          && <DebtList debts={lentDebts} dir="lent" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => { const d = lentDebts.find(x => x.debtDbId === id); const cn = d ? (contacts.find(c => c.id === d.contactId)?.name || d.counterpartyName) : undefined; setActiveChat({ debtId: id, title, contactName: cn }); }} onMarkPaid={handleMarkPaid} onDeleteDebt={handleDeleteDebt} onAddNew={() => setShowNewDebt(true)} token={token} userId={user.id} onPaymentAccepted={handlePaymentAccepted} onTopUpDecided={handleTopUpDecided} />}
@@ -1265,6 +1277,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
           )}
           {section === "settings"      && <SettingsSection theme={theme} onThemeChange={setTheme} profile={profile} onProfileChange={handleProfileChange} t={t} lang={lang} onLangChange={handleLangChange} onLogout={onLogout} isDemo={isDemo} onOpenSupport={() => setShowSupport(true)} token={token} authUrl={func2url.auth} />}
         </div>
+        </PullToRefresh>
       </main>
 
       {inAppToast && (
