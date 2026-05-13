@@ -7,6 +7,22 @@
       "expectedStatus": 401,
       "expectedBody": {"error": "string"},
       "bodyMatcher": "partial"
+    },
+    {
+      "name": "GET ?action=invite-info without ref returns found=false",
+      "method": "GET",
+      "path": "/?action=invite-info",
+      "expectedStatus": 200,
+      "expectedBody": {"found": false},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "GET ?action=invite-info with bad phone returns found=false",
+      "method": "GET",
+      "path": "/?action=invite-info&ref=123",
+      "expectedStatus": 200,
+      "expectedBody": {"found": false},
+      "bodyMatcher": "partial"
     }
   ]
 }

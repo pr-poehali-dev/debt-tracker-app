@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import Icon from "@/components/ui/icon";
 import func2url from "../../backend/func2url.json";
 import { DEMO_USER } from "../App";
+import InviteWelcome from "@/components/InviteWelcome";
 
 const AUTH_URL = func2url["auth"];
 
@@ -276,6 +277,7 @@ export default function Auth({ onAuth }: Props) {
     <div className="min-h-screen flex flex-col items-center justify-center px-4" style={{ background: "var(--app-bg)" }}>
       <div className="mesh-bg" />
       <div className="relative z-10 w-full max-w-sm">
+        <InviteWelcome />
         <div className="text-center mb-8">
           <div className="auth-dd-logo mx-auto mb-4">
             <div className="auth-dd-glow" />

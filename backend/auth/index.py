@@ -353,6 +353,27 @@ def handler(event: dict, context) -> dict:
             "avatar_url": row[11] or "",
         })
 
+    # ── GET invite-info — публичная инфо о пригласившем по телефону (для лендинга по ссылке-приглашению) ──
+    if method == "GET" and action == "invite-info":
+        ref_phone = (qs.get("ref") or "").strip()
+        phone_norm = normalize_phone(ref_phone)
+        if not phone_norm:
+            return resp({"found": False})
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"SELECT full_name, avatar_url FROM {SCHEMA}.users WHERE phone = %s LIMIT 1",
+                    (phone_norm,),
+                )
+                row = cur.fetchone()
+        if not row:
+            return resp({"found": False})
+        return resp({
+            "found": True,
+            "full_name": row[0] or "Друг",
+            "avatar_url": row[1] or "",
+        })
+
     # ── POST check-email — проверить есть ли пользователь и есть ли у него PIN ──
     if method == "POST" and action == "check-email":
         body = json.loads(event.get("body") or "{}")
