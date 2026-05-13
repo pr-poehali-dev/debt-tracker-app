@@ -2770,6 +2770,7 @@ export function InstallBanner({ t }: { t: ReturnType<typeof getT> }) {
   const [dismissed, setDismissed] = useState(false);
   const [isIos, setIsIos] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
+  const [showIosGuide, setShowIosGuide] = useState(false);
 
   useEffect(() => {
     const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) && !(window.navigator as { standalone?: boolean }).standalone;
@@ -2793,38 +2794,136 @@ export function InstallBanner({ t }: { t: ReturnType<typeof getT> }) {
     }
   }
 
+  function handleCardClick() {
+    if (isIos) setShowIosGuide(true);
+    else install();
+  }
+
   return (
-    <div className="relative z-10 px-4 pb-2">
-      <div className="max-w-lg mx-auto">
-        <div
-          className="rounded-2xl p-3 flex items-center gap-3"
-          style={{ background: "linear-gradient(135deg, rgba(168,85,247,0.2), rgba(56,189,248,0.15))", border: "1px solid rgba(168,85,247,0.3)" }}
-        >
-          <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0">
-            <img src="/icons/icon-192.png" alt="Debt-Debt" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display='none'; }} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-semibold text-sm text-foreground">{t.installApp}</p>
-            <p className="text-xs text-muted-foreground">
-              {isIos ? t.iosHint : t.installDesc}
-            </p>
-          </div>
-          <div className="flex gap-1.5">
-            {!isIos && (
+    <>
+      <div className="relative z-10 px-4 pb-2">
+        <div className="max-w-lg mx-auto">
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={handleCardClick}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleCardClick(); } }}
+            className="rounded-2xl p-3 flex items-center gap-3 cursor-pointer active:scale-[0.99] transition-transform select-none"
+            style={{ background: "linear-gradient(135deg, rgba(168,85,247,0.2), rgba(56,189,248,0.15))", border: "1px solid rgba(168,85,247,0.3)", WebkitTapHighlightColor: "transparent" }}
+          >
+            <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0">
+              <img src="/icons/icon-192.png" alt="Debt-Debt" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display='none'; }} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-sm text-foreground">{t.installApp}</p>
+              <p className="text-xs text-muted-foreground">
+                {isIos ? t.iosHint : t.installDesc}
+              </p>
+            </div>
+            <div className="flex gap-1.5 items-center" onClick={(e) => e.stopPropagation()}>
+              {!isIos && (
+                <button
+                  type="button"
+                  onClick={install}
+                  className="text-xs font-semibold px-3 py-1.5 rounded-xl text-white"
+                  style={{ background: "linear-gradient(135deg, #a855f7, #6366f1)" }}
+                >
+                  {t.install}
+                </button>
+              )}
+              {isIos && (
+                <span
+                  className="text-xs font-semibold px-3 py-1.5 rounded-xl text-white"
+                  style={{ background: "linear-gradient(135deg, #a855f7, #6366f1)" }}
+                >
+                  {t.install}
+                </span>
+              )}
               <button
-                onClick={install}
-                className="text-xs font-semibold px-3 py-1.5 rounded-xl text-white"
-                style={{ background: "linear-gradient(135deg, #a855f7, #6366f1)" }}
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setDismissed(true); }}
+                className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white/10 transition-colors"
               >
-                {t.install}
+                <Icon name="X" size={14} className="text-muted-foreground" />
               </button>
-            )}
-            <button onClick={() => setDismissed(true)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white/10 transition-colors">
-              <Icon name="X" size={14} className="text-muted-foreground" />
-            </button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+
+      {showIosGuide && (
+        <div
+          className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={() => setShowIosGuide(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-3xl p-5 bg-background border border-white/10 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-2xl overflow-hidden flex-shrink-0">
+                <img src="/icons/icon-192.png" alt="Debt-Debt" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display='none'; }} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-heading font-bold text-base">{t.installApp}</p>
+                <p className="text-xs text-muted-foreground">{t.installDesc}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowIosGuide(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-white/10 transition-colors"
+              >
+                <Icon name="X" size={16} />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-start gap-3 p-3 rounded-2xl bg-white/5">
+                <div className="w-7 h-7 rounded-full bg-purple-500/20 text-purple-300 flex items-center justify-center text-xs font-bold flex-shrink-0">1</div>
+                <div className="flex-1 text-sm">
+                  Откройте сайт в <b>Safari</b> (не Chrome).
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-3 rounded-2xl bg-white/5">
+                <div className="w-7 h-7 rounded-full bg-purple-500/20 text-purple-300 flex items-center justify-center text-xs font-bold flex-shrink-0">2</div>
+                <div className="flex-1 text-sm flex items-center gap-2 flex-wrap">
+                  Нажмите кнопку
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-white/10">
+                    <Icon name="Share" size={14} />
+                    Поделиться
+                  </span>
+                  внизу экрана.
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-3 rounded-2xl bg-white/5">
+                <div className="w-7 h-7 rounded-full bg-purple-500/20 text-purple-300 flex items-center justify-center text-xs font-bold flex-shrink-0">3</div>
+                <div className="flex-1 text-sm flex items-center gap-2 flex-wrap">
+                  Выберите
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-white/10">
+                    <Icon name="SquarePlus" size={14} />
+                    На экран «Домой»
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-3 rounded-2xl bg-white/5">
+                <div className="w-7 h-7 rounded-full bg-purple-500/20 text-purple-300 flex items-center justify-center text-xs font-bold flex-shrink-0">4</div>
+                <div className="flex-1 text-sm">
+                  Подтвердите — иконка появится на главном экране.
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowIosGuide(false)}
+              className="mt-5 w-full py-3 rounded-2xl text-white font-semibold"
+              style={{ background: "linear-gradient(135deg, #a855f7, #6366f1)" }}
+            >
+              Понятно
+            </button>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
