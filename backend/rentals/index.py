@@ -163,6 +163,8 @@ def row_to_rental(row):
         "pending_amount": float(row[17]) if row[17] is not None else None,
         "created_at": str(row[18]),
         "updated_at": str(row[19]),
+        "landlord_avatar_url": row[20] if len(row) > 20 else None,
+        "tenant_avatar_url": row[21] if len(row) > 21 else None,
     }
 
 
@@ -313,12 +315,16 @@ def handler(event: dict, context) -> dict:
         with get_conn() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    f"""SELECT id, share_token, title, amount, note, payment_day,
-                               landlord_name, landlord_phone, tenant_name, tenant_phone,
-                               landlord_user_id, tenant_user_id, tenant_decision, status,
-                               current_month_status_landlord, current_month_status_tenant,
-                               last_payment_month, pending_amount, created_at, updated_at
-                        FROM {SCHEMA}.rentals WHERE share_token = %s""",
+                    f"""SELECT r.id, r.share_token, r.title, r.amount, r.note, r.payment_day,
+                               r.landlord_name, r.landlord_phone, r.tenant_name, r.tenant_phone,
+                               r.landlord_user_id, r.tenant_user_id, r.tenant_decision, r.status,
+                               r.current_month_status_landlord, r.current_month_status_tenant,
+                               r.last_payment_month, r.pending_amount, r.created_at, r.updated_at,
+                               lu.avatar_url, tu.avatar_url
+                        FROM {SCHEMA}.rentals r
+                        LEFT JOIN {SCHEMA}.users lu ON lu.id = r.landlord_user_id
+                        LEFT JOIN {SCHEMA}.users tu ON tu.id = r.tenant_user_id
+                        WHERE r.share_token = %s""",
                     (token,)
                 )
                 row = cur.fetchone()
@@ -338,14 +344,17 @@ def handler(event: dict, context) -> dict:
                 return err("Нет доступа", 403)
             with conn.cursor() as cur:
                 cur.execute(
-                    f"""SELECT id, share_token, title, amount, note, payment_day,
-                               landlord_name, landlord_phone, tenant_name, tenant_phone,
-                               landlord_user_id, tenant_user_id, tenant_decision, status,
-                               current_month_status_landlord, current_month_status_tenant,
-                               last_payment_month, pending_amount, created_at, updated_at
-                        FROM {SCHEMA}.rentals
-                        WHERE landlord_user_id = %s OR tenant_user_id = %s
-                        ORDER BY created_at DESC""",
+                    f"""SELECT r.id, r.share_token, r.title, r.amount, r.note, r.payment_day,
+                               r.landlord_name, r.landlord_phone, r.tenant_name, r.tenant_phone,
+                               r.landlord_user_id, r.tenant_user_id, r.tenant_decision, r.status,
+                               r.current_month_status_landlord, r.current_month_status_tenant,
+                               r.last_payment_month, r.pending_amount, r.created_at, r.updated_at,
+                               lu.avatar_url, tu.avatar_url
+                        FROM {SCHEMA}.rentals r
+                        LEFT JOIN {SCHEMA}.users lu ON lu.id = r.landlord_user_id
+                        LEFT JOIN {SCHEMA}.users tu ON tu.id = r.tenant_user_id
+                        WHERE r.landlord_user_id = %s OR r.tenant_user_id = %s
+                        ORDER BY r.created_at DESC""",
                     (user_id, user_id)
                 )
                 rows = cur.fetchall()
@@ -360,12 +369,16 @@ def handler(event: dict, context) -> dict:
             auth_user_id = get_user_id_from_token(auth_header, conn)
             with conn.cursor() as cur:
                 cur.execute(
-                    f"""SELECT id, share_token, title, amount, note, payment_day,
-                               landlord_name, landlord_phone, tenant_name, tenant_phone,
-                               landlord_user_id, tenant_user_id, tenant_decision, status,
-                               current_month_status_landlord, current_month_status_tenant,
-                               last_payment_month, pending_amount, created_at, updated_at
-                        FROM {SCHEMA}.rentals WHERE share_token = %s""",
+                    f"""SELECT r.id, r.share_token, r.title, r.amount, r.note, r.payment_day,
+                               r.landlord_name, r.landlord_phone, r.tenant_name, r.tenant_phone,
+                               r.landlord_user_id, r.tenant_user_id, r.tenant_decision, r.status,
+                               r.current_month_status_landlord, r.current_month_status_tenant,
+                               r.last_payment_month, r.pending_amount, r.created_at, r.updated_at,
+                               lu.avatar_url, tu.avatar_url
+                        FROM {SCHEMA}.rentals r
+                        LEFT JOIN {SCHEMA}.users lu ON lu.id = r.landlord_user_id
+                        LEFT JOIN {SCHEMA}.users tu ON tu.id = r.tenant_user_id
+                        WHERE r.share_token = %s""",
                     (token,)
                 )
                 row = cur.fetchone()
@@ -466,7 +479,19 @@ def handler(event: dict, context) -> dict:
                     updates.append("updated_at = NOW()")
                     params.append(token)
                     cur.execute(
-                        f"UPDATE {SCHEMA}.rentals SET {', '.join(updates)} WHERE share_token = %s RETURNING id, share_token, title, amount, note, payment_day, landlord_name, landlord_phone, tenant_name, tenant_phone, landlord_user_id, tenant_user_id, tenant_decision, status, current_month_status_landlord, current_month_status_tenant, last_payment_month, pending_amount, created_at, updated_at",
+                        f"""WITH upd AS (
+                                UPDATE {SCHEMA}.rentals SET {', '.join(updates)} WHERE share_token = %s
+                                RETURNING *
+                            )
+                            SELECT r.id, r.share_token, r.title, r.amount, r.note, r.payment_day,
+                                   r.landlord_name, r.landlord_phone, r.tenant_name, r.tenant_phone,
+                                   r.landlord_user_id, r.tenant_user_id, r.tenant_decision, r.status,
+                                   r.current_month_status_landlord, r.current_month_status_tenant,
+                                   r.last_payment_month, r.pending_amount, r.created_at, r.updated_at,
+                                   lu.avatar_url, tu.avatar_url
+                            FROM upd r
+                            LEFT JOIN {SCHEMA}.users lu ON lu.id = r.landlord_user_id
+                            LEFT JOIN {SCHEMA}.users tu ON tu.id = r.tenant_user_id""",
                         params
                     )
                     updated = cur.fetchone()

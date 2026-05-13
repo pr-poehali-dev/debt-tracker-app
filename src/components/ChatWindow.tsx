@@ -24,6 +24,7 @@ interface Props {
   rentalId?: number;
   title: string;
   contactName?: string;
+  contactAvatarUrl?: string;
   token: string;
   onClose: () => void;
 }
@@ -49,7 +50,7 @@ function playNotifSound() {
   } catch (_e) { /* звук не поддерживается */ }
 }
 
-export default function ChatWindow({ debtId, rentalId, title, contactName, token, onClose }: Props) {
+export default function ChatWindow({ debtId, rentalId, title, contactName, contactAvatarUrl, token, onClose }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(true);
@@ -470,11 +471,20 @@ export default function ChatWindow({ debtId, rentalId, title, contactName, token
         {/* Header */}
         <div className="relative z-10 px-4 pt-1 pb-3 flex items-center gap-3 border-b border-white/5">
           {contactName && (
-            <div className="w-9 h-9 rounded-full bg-purple-500/20 border border-purple-400/30 flex items-center justify-center flex-shrink-0">
-              <span className="text-sm font-semibold text-purple-300">
-                {contactName.trim().charAt(0).toUpperCase() || "?"}
-              </span>
-            </div>
+            contactAvatarUrl ? (
+              <img
+                src={contactAvatarUrl}
+                alt={contactName}
+                className="w-9 h-9 rounded-full object-cover border border-purple-400/30 flex-shrink-0"
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+              />
+            ) : (
+              <div className="w-9 h-9 rounded-full bg-purple-500/20 border border-purple-400/30 flex items-center justify-center flex-shrink-0">
+                <span className="text-sm font-semibold text-purple-300">
+                  {contactName.trim().charAt(0).toUpperCase() || "?"}
+                </span>
+              </div>
+            )
           )}
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-foreground truncate">

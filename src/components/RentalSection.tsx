@@ -30,6 +30,8 @@ interface Rental {
   last_payment_month?: string;
   pending_amount?: number;
   created_at: string;
+  landlord_avatar_url?: string;
+  tenant_avatar_url?: string;
 }
 
 interface Props {
@@ -189,9 +191,25 @@ function RentalCard({ rental, userId, token, onUpdate, onDelete, t }: { rental: 
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <div className="relative flex-shrink-0">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: roleColor.bg }}>
-              <Icon name={isLandlord ? "KeyRound" : "Home"} size={20} style={{ color: roleColor.icon }} />
-            </div>
+            {(() => {
+              const counterpartyAvatar = isLandlord ? rental.tenant_avatar_url : rental.landlord_avatar_url;
+              const counterpartyName = isLandlord ? (rental.tenant_name || "?") : rental.landlord_name;
+              if (counterpartyAvatar) {
+                return (
+                  <img
+                    src={counterpartyAvatar}
+                    alt={counterpartyName}
+                    className="w-10 h-10 rounded-xl object-cover"
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                  />
+                );
+              }
+              return (
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: roleColor.bg }}>
+                  <Icon name={isLandlord ? "KeyRound" : "Home"} size={20} style={{ color: roleColor.icon }} />
+                </div>
+              );
+            })()}
             <span className="absolute -bottom-1 -right-1 text-[8px] font-bold px-1 py-0.5 rounded-full leading-none"
               style={{ background: roleColor.badge, color: roleColor.badgeText, border: `1px solid ${roleColor.border}` }}>
               {isLandlord ? (t?.rentalAsLandlord ?? "Сдаю") : (t?.rentalAsTenant ?? "Снимаю")}
@@ -357,6 +375,8 @@ function RentalCard({ rental, userId, token, onUpdate, onDelete, t }: { rental: 
         <ChatWindow
           rentalId={Number(rental.id)}
           title={rental.title}
+          contactName={isLandlord ? rental.tenant_name : rental.landlord_name}
+          contactAvatarUrl={isLandlord ? rental.tenant_avatar_url : rental.landlord_avatar_url}
           token={token}
           onClose={() => setShowChat(false)}
         />
