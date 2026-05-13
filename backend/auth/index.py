@@ -778,27 +778,19 @@ def handler(event: dict, context) -> dict:
             out_email = ""
         return resp({"ok": True, "user": {"id": user_id, "full_name": cur_name, "phone": cur_phone, "email": out_email}})
 
-    # ── POST set-avatar — загрузка фото аватара в S3 ──
-    if method == "POST" and action in ("set-avatar", "upload-avatar"):
+    # ── POST set-avatar-url — сохранить ссылку на уже загруженный аватар ──
+    if method == "POST" and action in ("set-avatar-url", "set-avatar", "upload-avatar"):
         headers = event.get("headers") or {}
         body = json.loads(event.get("body") or "{}")
         auth = headers.get("X-Authorization") or headers.get("Authorization") or ""
         token = auth.replace("Bearer ", "").strip() or (body.get("token") or "").strip()
         if not token:
             return err("Не авторизован", 401)
-        image_b64 = body.get("image_base64") or ""
-        content_type = body.get("content_type") or "image/jpeg"
-        if not image_b64:
-            return err("Нет изображения")
-        if content_type not in ("image/jpeg", "image/png", "image/webp"):
-            return err("Недопустимый формат")
-        import base64
-        try:
-            raw = base64.b64decode(image_b64, validate=True)
-        except Exception:
-            return err("Битая base64-строка")
-        if len(raw) > 6 * 1024 * 1024:
-            return err("Файл больше 6 МБ")
+        avatar_url = (body.get("avatar_url") or "").strip()
+        if not avatar_url or not avatar_url.startswith("https://"):
+            return err("Некорректная ссылка")
+        if len(avatar_url) > 500:
+            return err("Слишком длинная ссылка")
 
         now = datetime.now(timezone.utc)
         with get_conn() as conn:
@@ -810,26 +802,9 @@ def handler(event: dict, context) -> dict:
                 row = cur.fetchone()
                 if not row:
                     return err("Сессия истекла", 401)
-                user_id = row[0]
-
-                ext = "jpg" if content_type == "image/jpeg" else ("png" if content_type == "image/png" else "webp")
-                key = f"avatars/user-{user_id}-{secrets.token_hex(6)}.{ext}"
-                try:
-                    import boto3
-                    s3 = boto3.client(
-                        "s3",
-                        endpoint_url="https://bucket.poehali.dev",
-                        aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
-                        aws_secret_access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
-                    )
-                    s3.put_object(Bucket="files", Key=key, Body=raw, ContentType=content_type)
-                except Exception as e:
-                    return err(f"Ошибка загрузки: {e}", 500)
-
-                avatar_url = f"https://cdn.poehali.dev/projects/{os.environ['AWS_ACCESS_KEY_ID']}/bucket/{key}"
                 cur.execute(
                     f"UPDATE {SCHEMA}.users SET avatar_url = %s WHERE id = %s",
-                    (avatar_url, user_id),
+                    (avatar_url, row[0]),
                 )
                 conn.commit()
         return resp({"ok": True, "avatar_url": avatar_url})

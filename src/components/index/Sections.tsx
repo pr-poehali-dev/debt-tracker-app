@@ -2036,24 +2036,48 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
         }
       }
       URL.revokeObjectURL(objectUrl);
-      const result: { status: number; text: string } = await new Promise((res, rej) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open("POST", `${authUrl}?action=set-avatar`, true);
-        xhr.setRequestHeader("Content-Type", "text/plain");
-        xhr.timeout = 60000;
-        xhr.onload = () => res({ status: xhr.status, text: xhr.responseText });
-        xhr.onerror = () => rej(new Error("network"));
-        xhr.ontimeout = () => rej(new Error("timeout"));
-        xhr.send(JSON.stringify({ image_base64: b64, content_type: "image/jpeg", token }));
-      });
-      let data: { avatar_url?: string; error?: string } = {};
-      try { data = JSON.parse(result.text); } catch { /* ignore */ }
-      if (result.status < 200 || result.status >= 300 || !data.avatar_url) {
-        setAvatarError(data.error || `HTTP ${result.status}: ${result.text.slice(0, 120)}`);
+      const { default: urls } = await import("../../../backend/func2url.json");
+      const chatUrl = (urls as Record<string, string>)["chat"];
+      if (!chatUrl) {
+        setAvatarError("Загрузка файлов недоступна");
         setAvatarBusy(false);
         return;
       }
-      onProfileChange({ ...profile, avatarUrl: data.avatar_url });
+      // 1) Загружаем фото через рабочий чат-аплоадер
+      const upRes = await fetch(`${chatUrl}?action=upload`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          file_base64: b64,
+          file_name: `avatar-${Date.now()}.jpg`,
+          content_type: "image/jpeg",
+        }),
+      });
+      if (!upRes.ok) {
+        const d = await upRes.json().catch(() => ({}));
+        setAvatarError(d.error || `Ошибка ${upRes.status}`);
+        setAvatarBusy(false);
+        return;
+      }
+      const uploaded = await upRes.json() as { url?: string };
+      if (!uploaded.url) {
+        setAvatarError("Не получили URL фото");
+        setAvatarBusy(false);
+        return;
+      }
+      // 2) Сохраняем ссылку в auth
+      const saveRes = await fetch(`${authUrl}?action=set-avatar-url`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ avatar_url: uploaded.url }),
+      });
+      if (!saveRes.ok) {
+        const d = await saveRes.json().catch(() => ({}));
+        setAvatarError(d.error || `Ошибка ${saveRes.status}`);
+        setAvatarBusy(false);
+        return;
+      }
+      onProfileChange({ ...profile, avatarUrl: uploaded.url });
     } catch (e) {
       setAvatarError(`Не удалось: ${(e as Error).message || "сеть"}`);
     } finally {
