@@ -829,7 +829,6 @@ export function CalendarSection({ contacts, t, debts, rentals = [], userId = 0, 
         token={token}
         userId={userId}
         onPaymentAccepted={onPaymentAccepted}
-        onTopUpDecided={onTopUpDecided}
         contactInfo={selectedDebt ? (() => { const c = contacts.find(x => x.id === selectedDebt.contactId); return c ? { name: c.name, phone: c.phone, email: c.email, telegram: c.telegram } : undefined; })() : undefined}
       />
     </div>
