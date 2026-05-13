@@ -768,7 +768,7 @@ export function CalendarSection({ contacts, t, debts, rentals = [], userId = 0 }
                   <p className="font-medium text-foreground truncate">{d.name}</p>
                 </div>
                 <p className="text-xs text-muted-foreground truncate">
-                  {t.eventPay}{(contact?.name || d.counterpartyName) ? ` • ${contact?.name || d.counterpartyName}` : ""}
+                  {d.archivedDir === "lent" ? "Выданный займ" : "Мой займ"}{(contact?.name || d.counterpartyName) ? ` • ${contact?.name || d.counterpartyName}` : ""}
                 </p>
               </div>
               <div className="font-bold font-heading text-base flex-shrink-0" style={{ color: col.text }}>
@@ -797,8 +797,7 @@ export function CalendarSection({ contacts, t, debts, rentals = [], userId = 0 }
                   <p className="font-medium text-foreground truncate">{r.title}</p>
                 </div>
                 <p className="text-xs text-muted-foreground truncate">
-                  {isLandlord ? t.receive : t.eventPay}
-                  {(isLandlord ? r.tenant_name : r.landlord_name) ? ` • ${isLandlord ? r.tenant_name : r.landlord_name}` : ""}
+                  Аренда{(isLandlord ? r.tenant_name : r.landlord_name) ? ` • ${isLandlord ? r.tenant_name : r.landlord_name}` : ""}
                 </p>
               </div>
               <div className="font-bold font-heading text-base flex-shrink-0" style={{ color }}>
