@@ -36,6 +36,7 @@ export interface Debt {
   counterpartyName?: string;
   archivedDir?: "lent" | "borrowed";
   createdAt?: string;
+  counterpartyAvatarUrl?: string;
 }
 
 export interface ChatMeta {

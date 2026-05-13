@@ -259,7 +259,7 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                 }}
               >
                 <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
-                  <Avatar initials={d.avatar} color={contact?.color} />
+                  <Avatar initials={d.avatar} color={contact?.color} imageUrl={d.counterpartyAvatarUrl} />
                   {(() => {
                     const today = new Date(); today.setHours(0, 0, 0, 0);
                     const due = new Date(d.dueDate); due.setHours(0, 0, 0, 0);
@@ -1475,7 +1475,7 @@ export function ArchiveSection({ contacts, t, locale, archiveDebts, token = "", 
               className="glass rounded-2xl p-4 flex items-center gap-4 opacity-80 hover:opacity-100 hover:bg-white/[0.06] transition-all cursor-pointer active:scale-[0.99]"
               style={{ animationDelay: `${i * 0.05}s`, borderLeft: isDeleted ? "3px solid #f87171" : undefined }}
             >
-              <Avatar initials={d.avatar} color={contact?.color} />
+              <Avatar initials={d.avatar} color={contact?.color} imageUrl={d.counterpartyAvatarUrl} />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <p className={`font-semibold truncate ${isDeleted ? "text-muted-foreground line-through" : "text-foreground"}`}>{d.name}</p>

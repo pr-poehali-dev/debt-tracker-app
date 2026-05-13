@@ -159,6 +159,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
               counterpartyName: String(isLender ? (d.borrower_name || "") : (d.lender_name || "")) || undefined,
               archivedDir: (status === "archived" || isDeleted) ? (isLender ? "lent" : "borrowed") : undefined,
               createdAt: d.created_at ? String(d.created_at) : undefined,
+              counterpartyAvatarUrl: (isLender ? d.borrower_avatar_url : d.lender_avatar_url) ? String(isLender ? d.borrower_avatar_url : d.lender_avatar_url) : undefined,
             };
 
             if (status === "archived") {

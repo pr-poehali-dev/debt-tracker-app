@@ -24,9 +24,20 @@ export function ColorPicker({ value, onChange }: { value: ContactColor; onChange
   );
 }
 
-export function Avatar({ initials, color, size = "md" }: { initials: string; color?: ContactColor; size?: "sm" | "md" | "lg" }) {
+export function Avatar({ initials, color, size = "md", imageUrl }: { initials: string; color?: ContactColor; size?: "sm" | "md" | "lg"; imageUrl?: string | null }) {
   const sizes = { sm: "w-8 h-8 text-xs", md: "w-10 h-10 text-sm", lg: "w-12 h-12 text-base" };
   const c = color ? getColor(color) : null;
+
+  if (imageUrl) {
+    return (
+      <img
+        src={imageUrl}
+        alt={initials}
+        className={`${sizes[size]} rounded-2xl object-cover flex-shrink-0`}
+        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+      />
+    );
+  }
 
   if (c) {
     return (
