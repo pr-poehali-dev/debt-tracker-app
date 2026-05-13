@@ -242,7 +242,9 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
             const contact = contacts.find(c => c.id === d.contactId);
             const col = contact ? getColor(contact.color) : null;
             const isOverdue = d.status === "overdue";
-            const hasPending = (d.pendingPaymentsCount || 0) > 0 || (d.pendingTopUpsCount || 0) > 0;
+            const hasPending = dir === "lent"
+              ? (d.pendingPaymentsCount || 0) > 0
+              : (d.pendingTopUpsCount || 0) > 0;
             return (
               <div
                 key={d.id}
@@ -1647,8 +1649,10 @@ export function Dashboard({ onNav, contacts, t, lentDebts, borrowedDebts, active
   const borrowedActiveCount = borrowedDebts.filter(d => d.status !== "paid").length + activePersonalLoans;
   const balance = totalLent - totalBorrowed;
   const overdueCount = [...lentDebts, ...borrowedDebts].filter(d => d.status === "overdue").length;
-  const lentPendingCount = lentDebts.reduce((s, d) => s + (d.pendingPaymentsCount || 0) + (d.pendingTopUpsCount || 0), 0);
-  const borrowedPendingCount = borrowedDebts.reduce((s, d) => s + (d.pendingPaymentsCount || 0) + (d.pendingTopUpsCount || 0), 0);
+  // На lent (я кредитор) ждёт моего действия — подтвердить возврат
+  const lentPendingCount = lentDebts.reduce((s, d) => s + (d.pendingPaymentsCount || 0), 0);
+  // На borrowed (я должник) ждёт моего действия — ответить на изменение суммы
+  const borrowedPendingCount = borrowedDebts.reduce((s, d) => s + (d.pendingTopUpsCount || 0), 0);
   const allDebts = [...lentDebts, ...borrowedDebts];
   const isEmpty = allDebts.length === 0 && personalLoans.length === 0;
 

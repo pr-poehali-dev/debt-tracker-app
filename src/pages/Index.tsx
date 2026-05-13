@@ -1210,7 +1210,11 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
               </button>
             )}
             {section !== "notifications" && (() => {
-              const pendingTotal = [...lentDebts, ...borrowedDebts].reduce((s, d) => s + (d.pendingPaymentsCount || 0) + (d.pendingTopUpsCount || 0), 0);
+              // На стороне кредитора ждёт моего действия запрос на возврат (pendingPayments).
+              // На стороне должника — запрос на изменение суммы (pendingTopUps).
+              const pendingTotal =
+                lentDebts.reduce((s, d) => s + (d.pendingPaymentsCount || 0), 0) +
+                borrowedDebts.reduce((s, d) => s + (d.pendingTopUpsCount || 0), 0);
               return (
                 <button onClick={() => setSection("notifications")} className={`relative w-9 h-9 glass rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors ${pendingTotal > 0 ? "pending-green-pulse" : ""}`}>
                   <Icon name="Bell" size={17} className={pendingTotal > 0 ? "text-emerald-300" : ""} />
