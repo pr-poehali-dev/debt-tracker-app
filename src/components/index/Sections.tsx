@@ -2019,22 +2019,29 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
       const blob: Blob = await new Promise((res, rej) => {
         canvas.toBlob(b => b ? res(b) : rej(new Error("blob")), "image/jpeg", 0.85);
       });
-      const buf = await blob.arrayBuffer();
-      let bin = "";
-      const bytes = new Uint8Array(buf);
-      const CHUNK = 0x8000;
-      for (let i = 0; i < bytes.length; i += CHUNK) {
-        bin += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + CHUNK)));
-      }
-      const b64 = btoa(bin);
-      const r = await fetch(`${authUrl}?action=upload-avatar`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Authorization": `Bearer ${token}` },
-        body: JSON.stringify({ image_base64: b64, content_type: "image/jpeg" }),
+      const dataUrl: string = await new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload = () => res(String(r.result || ""));
+        r.onerror = () => rej(new Error("read"));
+        r.readAsDataURL(blob);
       });
-      const data = await r.json().catch(() => ({}));
-      if (!r.ok || !data.avatar_url) {
-        setAvatarError(data.error || `Ошибка ${r.status}`);
+      const b64 = dataUrl.split(",")[1] || "";
+      // XHR вместо fetch — даёт более понятные ошибки и работает в WebView/PWA
+      const result: { status: number; text: string } = await new Promise((res, rej) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", `${authUrl}?action=upload-avatar`, true);
+        xhr.setRequestHeader("Content-Type", "application/json");
+        xhr.setRequestHeader("X-Authorization", `Bearer ${token}`);
+        xhr.timeout = 60000;
+        xhr.onload = () => res({ status: xhr.status, text: xhr.responseText });
+        xhr.onerror = () => rej(new Error(`net err (size=${b64.length})`));
+        xhr.ontimeout = () => rej(new Error("timeout 60s"));
+        xhr.send(JSON.stringify({ image_base64: b64, content_type: "image/jpeg" }));
+      });
+      let data: { avatar_url?: string; error?: string } = {};
+      try { data = JSON.parse(result.text); } catch { /* ignore */ }
+      if (result.status < 200 || result.status >= 300 || !data.avatar_url) {
+        setAvatarError(data.error || `Ошибка ${result.status}: ${result.text.slice(0, 100)}`);
         setAvatarBusy(false);
         return;
       }
