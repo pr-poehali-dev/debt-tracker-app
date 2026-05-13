@@ -67,6 +67,8 @@ export default function ChatWindow({ debtId, rentalId, title, contactName, conta
   const longPressTimerRef = useRef<number | null>(null);
   const longPressFiredRef = useRef(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const didInitialScrollRef = useRef(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -239,7 +241,21 @@ export default function ChatWindow({ debtId, rentalId, title, contactName, conta
   }, [debtId, rentalId]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    didInitialScrollRef.current = false;
+  }, [debtId, rentalId]);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    if (!didInitialScrollRef.current) {
+      el.scrollTop = el.scrollHeight;
+      didInitialScrollRef.current = true;
+    } else {
+      const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+      if (nearBottom) {
+        el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+      }
+    }
   }, [messages]);
 
   function readAsBase64(file: File | Blob): Promise<string> {
@@ -508,7 +524,7 @@ export default function ChatWindow({ debtId, rentalId, title, contactName, conta
         </div>
 
       {/* Messages */}
-      <div className="relative z-10 flex-1 overflow-y-auto overscroll-contain px-4 py-4">
+      <div ref={scrollRef} className="relative z-10 flex-1 overflow-y-auto overscroll-contain px-4 py-4">
         {loading ? (
           <div className="flex justify-center pt-10">
             <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
@@ -545,6 +561,8 @@ export default function ChatWindow({ debtId, rentalId, title, contactName, conta
                               <img
                                 src={m.sender_avatar_url}
                                 alt={m.sender_name}
+                                width={28}
+                                height={28}
                                 className="w-7 h-7 rounded-full object-cover flex-shrink-0"
                                 onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
                               />
