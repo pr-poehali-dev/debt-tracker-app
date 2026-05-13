@@ -1250,7 +1250,7 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
                       <div className="mt-3 flex items-center gap-2 text-xs">
                         <Icon name={decided === "accepted" ? "CheckCircle2" : "XCircle"} size={14} className={decided === "accepted" ? "text-purple-400" : "text-red-400"} />
                         <span className={decided === "accepted" ? "text-purple-400" : "text-red-400"}>
-                          {decided === "accepted" ? "Доложение принято" : "Доложение отклонено"}
+                          {decided === "accepted" ? "Увеличение принято" : "Увеличение отклонено"}
                         </span>
                       </div>
                     </div>

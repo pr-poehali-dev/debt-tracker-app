@@ -475,7 +475,7 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
                 className="flex-1 min-w-[140px] flex items-center justify-center gap-2 py-3 rounded-2xl bg-indigo-500/15 text-indigo-300 hover:bg-indigo-500/25 transition-colors font-medium text-sm border border-indigo-500/20"
               >
                 <Icon name="Plus" size={16} />
-                Доложить долг
+                Увеличить долг
               </button>
             )}
             {debt.debtDbId && debt.status !== "paid" && onMarkPaid && dir === "lent" && !pendingPayment && (

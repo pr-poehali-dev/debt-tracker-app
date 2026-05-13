@@ -602,15 +602,15 @@ def handler(event: dict, context) -> dict:
                     f"""INSERT INTO {SCHEMA}.notifications (user_id, type, title, body, data)
                         VALUES (%s, 'topup_request', %s, %s, %s)""",
                     (borrower_id,
-                     f"➕ {lender_name} хочет доложить долг",
+                     f"➕ {lender_name} хочет увеличить долг",
                      f"«{title}» — +{amount_val:,.0f} ₽".replace(",", " "),
                      json.dumps({"topup_request_id": req_id, "debt_id": str(debt_id), "amount": amount_val, "from_name": lender_name, "debt_title": title, "note": note or None}))
                 )
-            send_push(conn, borrower_id, f"➕ {lender_name} хочет доложить долг", f"«{title}» — +{amount_val:,.0f} ₽".replace(",", " "), "/?section=notifications")
+            send_push(conn, borrower_id, f"➕ {lender_name} хочет увеличить долг", f"«{title}» — +{amount_val:,.0f} ₽".replace(",", " "), "/?section=notifications")
             conn.commit()
         return json_resp({"ok": True, "topup_request_id": req_id}, 201)
 
-    # PUT ?action=topup — заёмщик принимает или отклоняет доложение
+    # PUT ?action=topup — заёмщик принимает или отклоняет увеличение долга
     if method == "PUT" and qs.get("action") == "topup":
         body = json.loads(event.get("body") or "{}")
         req_id = body.get("topup_request_id")
@@ -653,7 +653,7 @@ def handler(event: dict, context) -> dict:
                             (new_amount, debt_id, from_user_id)
                         )
                 emoji = "✅" if decision == "accepted" else "❌"
-                status_text = "принял доложение" if decision == "accepted" else "отклонил доложение"
+                status_text = "принял увеличение долга" if decision == "accepted" else "отклонил увеличение долга"
                 if decision == "accepted":
                     body_text = f"«{title}» — +{amount_val:,.0f} ₽, итого {new_amount:,.0f} ₽".replace(",", " ")
                 else:

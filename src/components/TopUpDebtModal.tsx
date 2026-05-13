@@ -64,7 +64,7 @@ export default function TopUpDebtModal({ debtId, debtTitle, currentAmount, token
             <button onClick={onClose} disabled={loading} className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center hover:bg-white/30 transition-colors disabled:opacity-50">
               <Icon name="ChevronLeft" size={18} className="text-white" />
             </button>
-            <span className="text-xs px-3 py-1 rounded-full font-medium bg-white/20 text-white">Доложить к долгу</span>
+            <span className="text-xs px-3 py-1 rounded-full font-medium bg-white/20 text-white">Увеличить долг</span>
           </div>
           <p className="text-white/80 text-sm mt-3">Текущая сумма: {fmt(Math.round(currentAmount))}</p>
           <p className="text-xl font-bold text-white font-heading mt-1 truncate">{debtTitle}</p>
@@ -77,12 +77,12 @@ export default function TopUpDebtModal({ debtId, debtTitle, currentAmount, token
                 <Icon name="Check" size={28} className="text-purple-400" />
               </div>
               <p className="font-semibold text-foreground">Запрос отправлен</p>
-              <p className="text-xs text-muted-foreground max-w-xs">Заёмщик увидит уведомление и подтвердит или отклонит доложение</p>
+              <p className="text-xs text-muted-foreground max-w-xs">Заёмщик увидит уведомление и подтвердит или отклонит увеличение долга</p>
             </div>
           ) : (
             <>
               <div>
-                <label className="text-xs text-muted-foreground mb-1.5 block">Сумма доложения</label>
+                <label className="text-xs text-muted-foreground mb-1.5 block">Сумма увеличения</label>
                 <div className="relative">
                   <input
                     type="text"
