@@ -2026,22 +2026,27 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
         r.readAsDataURL(blob);
       });
       const b64 = dataUrl.split(",")[1] || "";
-      // XHR вместо fetch — даёт более понятные ошибки и работает в WebView/PWA
-      const result: { status: number; text: string } = await new Promise((res, rej) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open("POST", `${authUrl}?action=upload-avatar`, true);
-        xhr.setRequestHeader("Content-Type", "application/json");
-        xhr.setRequestHeader("X-Authorization", `Bearer ${token}`);
-        xhr.timeout = 60000;
-        xhr.onload = () => res({ status: xhr.status, text: xhr.responseText });
-        xhr.onerror = () => rej(new Error(`net err (size=${b64.length})`));
-        xhr.ontimeout = () => rej(new Error("timeout 60s"));
-        xhr.send(JSON.stringify({ image_base64: b64, content_type: "image/jpeg" }));
-      });
+      const body = JSON.stringify({ image_base64: b64, content_type: "image/jpeg" });
+      let resp: Response;
+      try {
+        resp = await fetch(`${authUrl}?action=set-avatar`, {
+          method: "POST",
+          mode: "cors",
+          cache: "no-store",
+          credentials: "omit",
+          headers: { "Content-Type": "application/json", "X-Authorization": `Bearer ${token}` },
+          body,
+        });
+      } catch (fe) {
+        setAvatarError(`Сеть: ${(fe as Error).message} (body=${body.length})`);
+        setAvatarBusy(false);
+        return;
+      }
+      const text = await resp.text();
       let data: { avatar_url?: string; error?: string } = {};
-      try { data = JSON.parse(result.text); } catch { /* ignore */ }
-      if (result.status < 200 || result.status >= 300 || !data.avatar_url) {
-        setAvatarError(data.error || `Ошибка ${result.status}: ${result.text.slice(0, 100)}`);
+      try { data = JSON.parse(text); } catch { /* ignore */ }
+      if (!resp.ok || !data.avatar_url) {
+        setAvatarError(data.error || `HTTP ${resp.status}: ${text.slice(0, 120)}`);
         setAvatarBusy(false);
         return;
       }

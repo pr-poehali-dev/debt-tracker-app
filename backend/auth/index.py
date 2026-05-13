@@ -778,8 +778,8 @@ def handler(event: dict, context) -> dict:
             out_email = ""
         return resp({"ok": True, "user": {"id": user_id, "full_name": cur_name, "phone": cur_phone, "email": out_email}})
 
-    # ── POST upload-avatar — загрузка фото аватара в S3 ──
-    if method == "POST" and action == "upload-avatar":
+    # ── POST set-avatar — загрузка фото аватара в S3 ──
+    if method == "POST" and action in ("set-avatar", "upload-avatar"):
         headers = event.get("headers") or {}
         auth = headers.get("X-Authorization") or headers.get("Authorization") or ""
         token = auth.replace("Bearer ", "").strip()
