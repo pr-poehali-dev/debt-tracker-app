@@ -242,19 +242,24 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
             const contact = contacts.find(c => c.id === d.contactId);
             const col = contact ? getColor(contact.color) : null;
             const isOverdue = d.status === "overdue";
+            const hasPending = (d.pendingPaymentsCount || 0) > 0 || (d.pendingTopUpsCount || 0) > 0;
             return (
               <div
                 key={d.id}
                 onClick={() => setSelectedDebt(d)}
-                className={`relative glass rounded-2xl p-4 flex items-start gap-4 hover:bg-white/[0.06] transition-all duration-200 cursor-pointer group ${isOverdue ? "overdue-pulse" : ""}`}
+                className={`relative glass rounded-2xl p-4 flex items-start gap-4 hover:bg-white/[0.06] transition-all duration-200 cursor-pointer group ${isOverdue ? "overdue-pulse" : ""} ${hasPending && !isOverdue ? "pending-green-pulse" : ""}`}
                 style={{
                   animationDelay: `${i * 0.05}s`,
                   borderLeft: isOverdue
                     ? "3px solid #ef4444"
-                    : col ? `3px solid ${col.hex}` : undefined,
+                    : hasPending
+                      ? "3px solid #10b981"
+                      : col ? `3px solid ${col.hex}` : undefined,
                   background: isOverdue
                     ? "linear-gradient(135deg, rgba(239,68,68,0.10), rgba(239,68,68,0.02))"
-                    : undefined,
+                    : hasPending
+                      ? "linear-gradient(135deg, rgba(16,185,129,0.10), rgba(16,185,129,0.02))"
+                      : undefined,
                   boxShadow: isOverdue ? "0 0 0 1px rgba(239,68,68,0.25) inset" : undefined,
                 }}
               >
@@ -1642,6 +1647,8 @@ export function Dashboard({ onNav, contacts, t, lentDebts, borrowedDebts, active
   const borrowedActiveCount = borrowedDebts.filter(d => d.status !== "paid").length + activePersonalLoans;
   const balance = totalLent - totalBorrowed;
   const overdueCount = [...lentDebts, ...borrowedDebts].filter(d => d.status === "overdue").length;
+  const lentPendingCount = lentDebts.reduce((s, d) => s + (d.pendingPaymentsCount || 0) + (d.pendingTopUpsCount || 0), 0);
+  const borrowedPendingCount = borrowedDebts.reduce((s, d) => s + (d.pendingPaymentsCount || 0) + (d.pendingTopUpsCount || 0), 0);
   const allDebts = [...lentDebts, ...borrowedDebts];
   const isEmpty = allDebts.length === 0 && personalLoans.length === 0;
 
@@ -1687,7 +1694,12 @@ export function Dashboard({ onNav, contacts, t, lentDebts, borrowedDebts, active
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <button onClick={() => onNav("lent")} className="glass rounded-2xl p-4 text-left hover:bg-white/[0.07] transition-all duration-200 glow-purple">
+        <button onClick={() => onNav("lent")} className={`relative glass rounded-2xl p-4 text-left hover:bg-white/[0.07] transition-all duration-200 ${lentPendingCount > 0 ? "pending-green-pulse" : "glow-purple"}`}>
+          {lentPendingCount > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 min-w-[22px] h-[22px] px-1.5 rounded-full text-[11px] font-bold text-white flex items-center justify-center shadow-lg animate-pulse" style={{ background: "linear-gradient(135deg, #10b981, #059669)", boxShadow: "0 0 12px rgba(16,185,129,0.6)" }}>
+              {lentPendingCount}
+            </span>
+          )}
           <div className="flex items-center gap-2 mb-2">
             <div className="w-8 h-8 gradient-purple rounded-xl flex items-center justify-center"><Icon name="TrendingUp" size={16} className="text-white" /></div>
             <span className="text-xs text-muted-foreground">{t.navLent}</span>
@@ -1696,7 +1708,12 @@ export function Dashboard({ onNav, contacts, t, lentDebts, borrowedDebts, active
           <p className="text-xs text-muted-foreground mt-1">{lentDebts.filter(d => d.status !== "paid").length} {t.activeDebts.toLowerCase()}</p>
         </button>
 
-        <button onClick={() => onNav("borrowed")} className="glass rounded-2xl p-4 text-left hover:bg-white/[0.07] transition-all duration-200 glow-blue">
+        <button onClick={() => onNav("borrowed")} className={`relative glass rounded-2xl p-4 text-left hover:bg-white/[0.07] transition-all duration-200 ${borrowedPendingCount > 0 ? "pending-green-pulse" : "glow-blue"}`}>
+          {borrowedPendingCount > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 min-w-[22px] h-[22px] px-1.5 rounded-full text-[11px] font-bold text-white flex items-center justify-center shadow-lg animate-pulse" style={{ background: "linear-gradient(135deg, #10b981, #059669)", boxShadow: "0 0 12px rgba(16,185,129,0.6)" }}>
+              {borrowedPendingCount}
+            </span>
+          )}
           <div className="flex items-center gap-2 mb-2">
             <div className="w-8 h-8 gradient-blue rounded-xl flex items-center justify-center"><Icon name="TrendingDown" size={16} className="text-white" /></div>
             <span className="text-xs text-muted-foreground">{t.navBorrowed}</span>

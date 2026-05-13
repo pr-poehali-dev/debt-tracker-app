@@ -1209,16 +1209,19 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
                 {unreadMessages} новых
               </button>
             )}
-            {section !== "notifications" && (
-              <button onClick={() => setSection("notifications")} className="relative w-9 h-9 glass rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors">
-                <Icon name="Bell" size={17} />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white leading-none">
-                    {unreadCount > 9 ? "9+" : unreadCount}
-                  </span>
-                )}
-              </button>
-            )}
+            {section !== "notifications" && (() => {
+              const pendingTotal = [...lentDebts, ...borrowedDebts].reduce((s, d) => s + (d.pendingPaymentsCount || 0) + (d.pendingTopUpsCount || 0), 0);
+              return (
+                <button onClick={() => setSection("notifications")} className={`relative w-9 h-9 glass rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors ${pendingTotal > 0 ? "pending-green-pulse" : ""}`}>
+                  <Icon name="Bell" size={17} className={pendingTotal > 0 ? "text-emerald-300" : ""} />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white leading-none">
+                      {unreadCount > 9 ? "9+" : unreadCount}
+                    </span>
+                  )}
+                </button>
+              );
+            })()}
             <button onClick={() => setSection("settings")} className={`w-9 h-9 glass rounded-xl flex items-center justify-center transition-colors ${section === "settings" ? "gradient-purple" : "hover:bg-white/10"}`}>
               <Icon name="Settings" size={17} className={section === "settings" ? "text-white" : ""} />
             </button>
