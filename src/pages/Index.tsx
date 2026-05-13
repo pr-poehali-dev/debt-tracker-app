@@ -357,13 +357,19 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
                 resolvedType = "info";
               } else if (ntype === "topup_response") {
                 resolvedType = String(data.decision) === "accepted" ? "success" : "warning";
-                if (String(data.decision) === "accepted") {
-                  const tDebtId = String(data.debt_id || "");
+                const tDebtId = String(data.debt_id || "");
+                if (tDebtId) {
                   const newAmt = Number(data.new_amount);
-                  if (tDebtId && !Number.isNaN(newAmt)) {
-                    setLentDebts(prev => prev.map(d => d.debtDbId === tDebtId ? { ...d, amount: newAmt } : d));
-                    setBorrowedDebts(prev => prev.map(d => d.debtDbId === tDebtId ? { ...d, amount: newAmt } : d));
-                  }
+                  const isAccepted = String(data.decision) === "accepted";
+                  const dec = (d: Debt) => d.debtDbId === tDebtId
+                    ? {
+                        ...d,
+                        amount: isAccepted && !Number.isNaN(newAmt) ? newAmt : d.amount,
+                        pendingTopUpsCount: Math.max(0, (d.pendingTopUpsCount || 0) - 1),
+                      }
+                    : d;
+                  setLentDebts(prev => prev.map(dec));
+                  setBorrowedDebts(prev => prev.map(dec));
                 }
               } else if (ntype === "debt_deleted") {
                 resolvedType = "warning";
@@ -1067,6 +1073,18 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
     setBorrowedDebts(prev => prev.map(d => d.debtDbId === debtDbId ? { ...d, amount: newAmount, pendingPaymentsCount: Math.max(0, (d.pendingPaymentsCount || 1) - 1) } : d));
   }
 
+  function handleTopUpDecided(debtDbId: string, decision: "accepted" | "rejected", newAmount: number | null) {
+    const upd = (d: Debt) => d.debtDbId === debtDbId
+      ? {
+          ...d,
+          amount: decision === "accepted" && newAmount !== null ? newAmount : d.amount,
+          pendingTopUpsCount: Math.max(0, (d.pendingTopUpsCount || 1) - 1),
+        }
+      : d;
+    setLentDebts(prev => prev.map(upd));
+    setBorrowedDebts(prev => prev.map(upd));
+  }
+
   async function handleDeleteDebt(debtDbId: string) {
     const { default: urls } = await import("../../backend/func2url.json");
     const debt = [...lentDebts, ...borrowedDebts].find(d => d.debtDbId === debtDbId);
@@ -1230,8 +1248,8 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
       >
         <div key={section} className={`max-w-lg mx-auto ${swipeDir === "left" ? "animate-slide-in-right" : swipeDir === "right" ? "animate-slide-in-left" : ""}`}>
           {section === "dashboard"     && <Dashboard onNav={setSection} contacts={contactsWithTotals} t={t} lentDebts={lentDebts} borrowedDebts={borrowedDebts} activeRentalCount={activeRentalCount} totalRentalAmount={totalRentalAmount} personalLoans={personalLoans} onOpenReport={() => setShowReport(true)} />}
-          {section === "lent"          && <DebtList debts={lentDebts} dir="lent" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => { const d = lentDebts.find(x => x.debtDbId === id); const cn = d ? (contacts.find(c => c.id === d.contactId)?.name || d.counterpartyName) : undefined; setActiveChat({ debtId: id, title, contactName: cn }); }} onMarkPaid={handleMarkPaid} onDeleteDebt={handleDeleteDebt} onAddNew={() => setShowNewDebt(true)} token={token} userId={user.id} onPaymentAccepted={handlePaymentAccepted} />}
-          {section === "borrowed"      && <DebtList debts={borrowedDebts} dir="borrowed" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => { const d = borrowedDebts.find(x => x.debtDbId === id); const cn = d ? (contacts.find(c => c.id === d.contactId)?.name || d.counterpartyName) : undefined; setActiveChat({ debtId: id, title, contactName: cn }); }} onMarkPaid={handleMarkPaid} onDeleteDebt={handleDeleteDebt} onAddNew={() => setShowPersonalLoan(true)} personalLoans={personalLoans} onPersonalLoanUpdate={(loans) => { setPersonalLoans(loans); localStorage.setItem("df-personal-loans", JSON.stringify(loans)); }} token={token} userId={user.id} onPaymentAccepted={handlePaymentAccepted} />}
+          {section === "lent"          && <DebtList debts={lentDebts} dir="lent" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => { const d = lentDebts.find(x => x.debtDbId === id); const cn = d ? (contacts.find(c => c.id === d.contactId)?.name || d.counterpartyName) : undefined; setActiveChat({ debtId: id, title, contactName: cn }); }} onMarkPaid={handleMarkPaid} onDeleteDebt={handleDeleteDebt} onAddNew={() => setShowNewDebt(true)} token={token} userId={user.id} onPaymentAccepted={handlePaymentAccepted} onTopUpDecided={handleTopUpDecided} />}
+          {section === "borrowed"      && <DebtList debts={borrowedDebts} dir="borrowed" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => { const d = borrowedDebts.find(x => x.debtDbId === id); const cn = d ? (contacts.find(c => c.id === d.contactId)?.name || d.counterpartyName) : undefined; setActiveChat({ debtId: id, title, contactName: cn }); }} onMarkPaid={handleMarkPaid} onDeleteDebt={handleDeleteDebt} onAddNew={() => setShowPersonalLoan(true)} personalLoans={personalLoans} onPersonalLoanUpdate={(loans) => { setPersonalLoans(loans); localStorage.setItem("df-personal-loans", JSON.stringify(loans)); }} token={token} userId={user.id} onPaymentAccepted={handlePaymentAccepted} onTopUpDecided={handleTopUpDecided} />}
           {section === "calendar"      && <CalendarSection contacts={contacts} t={t} debts={[...lentDebts.map(d => ({ ...d, archivedDir: "lent" as const })), ...borrowedDebts.map(d => ({ ...d, archivedDir: "borrowed" as const }))]} rentals={rentals} userId={user.id} locale={locale} token={token} onNav={setSection} onOpenChat={(id, title) => { const d = [...lentDebts, ...borrowedDebts].find(x => x.debtDbId === id); const cn = d ? (contacts.find(c => c.id === d.contactId)?.name || d.counterpartyName) : undefined; setActiveChat({ debtId: id, title, contactName: cn }); }} onMarkPaid={handleMarkPaid} onPaymentAccepted={handlePaymentAccepted} />}
           {section === "notifications" && <NotificationsSection notifs={notifs} onMarkAllRead={handleMarkAllRead} onMarkRead={handleMarkRead} t={t} token={token} contacts={contacts} allDebts={[...lentDebts, ...borrowedDebts, ...archiveDebts]} onOpenChat={(debtId, rentalId, title) => { const d = debtId ? [...lentDebts, ...borrowedDebts, ...archiveDebts].find(x => x.debtDbId === debtId) : undefined; const cn = d ? (contacts.find(c => c.id === d.contactId)?.name || d.counterpartyName) : undefined; setActiveChat({ debtId: debtId || undefined, rentalId: rentalId || undefined, title, contactName: cn }); }} onOpenSupport={(ticketId) => { setSupportTicketId(ticketId); setShowSupport(true); }} onPaymentAccepted={handlePaymentAccepted} />}
           {section === "archive"       && <ArchiveSection contacts={contacts} t={t} locale={locale} archiveDebts={archiveDebts} token={token} onOpenChat={(id, title) => { const d = archiveDebts.find(x => x.debtDbId === id); const cn = d ? (contacts.find(c => c.id === d.contactId)?.name || d.counterpartyName) : undefined; setActiveChat({ debtId: id, title, contactName: cn }); }} />}

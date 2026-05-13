@@ -34,7 +34,7 @@ function playPaymentSound() {
   } catch { /* ignore */ }
 }
 
-export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPaid, onDeleteDebt, onAddNew, personalLoans = [], onPersonalLoanUpdate, token = "", userId, onPaymentAccepted }: { debts: Debt[]; dir: "lent" | "borrowed"; contacts: Contact[]; t: ReturnType<typeof getT>; locale: string; onOpenChat?: (debtId: string, title: string) => void; onMarkPaid?: (debtId: string) => void; onDeleteDebt?: (debtId: string) => Promise<void> | void; onAddNew?: () => void; personalLoans?: PersonalLoan[]; onPersonalLoanUpdate?: (loans: PersonalLoan[]) => void; token?: string; userId?: number; onPaymentAccepted?: (debtId: string, newAmount: number, fullyPaid: boolean) => void }) {
+export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPaid, onDeleteDebt, onAddNew, personalLoans = [], onPersonalLoanUpdate, token = "", userId, onPaymentAccepted, onTopUpDecided }: { debts: Debt[]; dir: "lent" | "borrowed"; contacts: Contact[]; t: ReturnType<typeof getT>; locale: string; onOpenChat?: (debtId: string, title: string) => void; onMarkPaid?: (debtId: string) => void; onDeleteDebt?: (debtId: string) => Promise<void> | void; onAddNew?: () => void; personalLoans?: PersonalLoan[]; onPersonalLoanUpdate?: (loans: PersonalLoan[]) => void; token?: string; userId?: number; onPaymentAccepted?: (debtId: string, newAmount: number, fullyPaid: boolean) => void; onTopUpDecided?: (debtId: string, decision: "accepted" | "rejected", newAmount: number | null) => void }) {
   const [selectedDebt, setSelectedDebt] = useState<Debt | null>(null);
   const [expandedLoan, setExpandedLoan] = useState<string | null>(null);
   const [extraLoan, setExtraLoan] = useState<PersonalLoan | null>(null);
@@ -94,6 +94,7 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
         userId={userId}
         autoOpenContract={openContractOnSelect}
         onPaymentAccepted={onPaymentAccepted}
+        onTopUpDecided={onTopUpDecided}
         contactInfo={selectedDebt ? (() => { const c = contacts.find(x => x.id === selectedDebt.contactId); return c ? { name: c.name, phone: c.phone, email: c.email, telegram: c.telegram } : undefined; })() : undefined}
       />
       {manualReturn && manualReturn.debtDbId && (
@@ -828,6 +829,7 @@ export function CalendarSection({ contacts, t, debts, rentals = [], userId = 0, 
         token={token}
         userId={userId}
         onPaymentAccepted={onPaymentAccepted}
+        onTopUpDecided={onTopUpDecided}
         contactInfo={selectedDebt ? (() => { const c = contacts.find(x => x.id === selectedDebt.contactId); return c ? { name: c.name, phone: c.phone, email: c.email, telegram: c.telegram } : undefined; })() : undefined}
       />
     </div>

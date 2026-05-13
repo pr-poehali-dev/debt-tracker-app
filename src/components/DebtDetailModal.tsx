@@ -38,6 +38,7 @@ interface Props {
   userId?: number;
   autoOpenContract?: boolean;
   onPaymentAccepted?: (debtId: string, newAmount: number, fullyPaid: boolean) => void;
+  onTopUpDecided?: (debtId: string, decision: "accepted" | "rejected", newAmount: number | null) => void;
   contactInfo?: ContactInfo;
 }
 
@@ -73,7 +74,7 @@ function calcTotalWithInterest(amount: number, rate: number, type: string, dueDa
   return Math.round(amount * (1 + (rate / 100) * years));
 }
 
-export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat, onMarkPaid, token, userId, autoOpenContract, onPaymentAccepted, contactInfo }: Props) {
+export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat, onMarkPaid, token, userId, autoOpenContract, onPaymentAccepted, onTopUpDecided, contactInfo }: Props) {
   const [history, setHistory] = useState<PaymentItem[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [decidingId, setDecidingId] = useState<number | null>(null);
@@ -164,8 +165,9 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
       if (!res.ok) return;
       const data = await res.json().catch(() => ({}));
       setTopUps(prev => prev.map(x => x.id === item.id ? { ...x, status: decision } : x));
-      if (decision === "accepted" && typeof data.new_amount === "number" && onPaymentAccepted && debtDbId) {
-        onPaymentAccepted(debtDbId, data.new_amount, false);
+      const newAmt = decision === "accepted" && typeof data.new_amount === "number" ? data.new_amount : null;
+      if (debtDbId && onTopUpDecided) {
+        onTopUpDecided(debtDbId, decision, newAmt);
       }
     } finally {
       setDecidingTopUpId(null);
