@@ -218,11 +218,13 @@ def handler(event: dict, context) -> dict:
                     if not cur.fetchone():
                         return err("Нет доступа к чату", 403)
                     cur.execute(
-                        f"""SELECT id, sender_user_id, sender_name, text, created_at, is_read,
-                                   attachment_url, attachment_type, attachment_name, attachment_size
-                            FROM {SCHEMA}.messages
-                            WHERE debt_id = %s
-                            ORDER BY created_at ASC LIMIT 200""",
+                        f"""SELECT m.id, m.sender_user_id, m.sender_name, m.text, m.created_at, m.is_read,
+                                   m.attachment_url, m.attachment_type, m.attachment_name, m.attachment_size,
+                                   u.avatar_url
+                            FROM {SCHEMA}.messages m
+                            LEFT JOIN {SCHEMA}.users u ON u.id = m.sender_user_id
+                            WHERE m.debt_id = %s
+                            ORDER BY m.created_at ASC LIMIT 200""",
                         (debt_id,)
                     )
                 else:
@@ -234,11 +236,13 @@ def handler(event: dict, context) -> dict:
                     if not cur.fetchone():
                         return err("Нет доступа к чату", 403)
                     cur.execute(
-                        f"""SELECT id, sender_user_id, sender_name, text, created_at, is_read,
-                                   attachment_url, attachment_type, attachment_name, attachment_size
-                            FROM {SCHEMA}.messages
-                            WHERE rental_id = %s
-                            ORDER BY created_at ASC LIMIT 200""",
+                        f"""SELECT m.id, m.sender_user_id, m.sender_name, m.text, m.created_at, m.is_read,
+                                   m.attachment_url, m.attachment_type, m.attachment_name, m.attachment_size,
+                                   u.avatar_url
+                            FROM {SCHEMA}.messages m
+                            LEFT JOIN {SCHEMA}.users u ON u.id = m.sender_user_id
+                            WHERE m.rental_id = %s
+                            ORDER BY m.created_at ASC LIMIT 200""",
                         (int(rental_id),)
                     )
                 rows = cur.fetchall()
@@ -271,6 +275,7 @@ def handler(event: dict, context) -> dict:
                 "attachment_type": r[7],
                 "attachment_name": r[8],
                 "attachment_size": r[9],
+                "sender_avatar_url": r[10] if len(r) > 10 else None,
             }
             for r in rows
         ]
@@ -312,11 +317,17 @@ def handler(event: dict, context) -> dict:
                     recipient_id = debt_row[1] if debt_row[0] == user_id else debt_row[0]
                     chat_title = debt_row[2]
                     cur.execute(
-                        f"""INSERT INTO {SCHEMA}.messages (debt_id, sender_user_id, sender_name, text,
-                                                           attachment_url, attachment_type, attachment_name, attachment_size)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                            RETURNING id, sender_user_id, sender_name, text, created_at,
-                                      attachment_url, attachment_type, attachment_name, attachment_size""",
+                        f"""WITH ins AS (
+                                INSERT INTO {SCHEMA}.messages (debt_id, sender_user_id, sender_name, text,
+                                                               attachment_url, attachment_type, attachment_name, attachment_size)
+                                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                                RETURNING *
+                            )
+                            SELECT m.id, m.sender_user_id, m.sender_name, m.text, m.created_at,
+                                   m.attachment_url, m.attachment_type, m.attachment_name, m.attachment_size,
+                                   u.avatar_url
+                            FROM ins m
+                            LEFT JOIN {SCHEMA}.users u ON u.id = m.sender_user_id""",
                         (debt_id, user_id, user_name, text,
                          attachment_url, attachment_type, attachment_name, attachment_size)
                     )
@@ -332,11 +343,17 @@ def handler(event: dict, context) -> dict:
                     recipient_id = rental_row[1] if rental_row[0] == user_id else rental_row[0]
                     chat_title = rental_row[2]
                     cur.execute(
-                        f"""INSERT INTO {SCHEMA}.messages (rental_id, sender_user_id, sender_name, text,
-                                                           attachment_url, attachment_type, attachment_name, attachment_size)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                            RETURNING id, sender_user_id, sender_name, text, created_at,
-                                      attachment_url, attachment_type, attachment_name, attachment_size""",
+                        f"""WITH ins AS (
+                                INSERT INTO {SCHEMA}.messages (rental_id, sender_user_id, sender_name, text,
+                                                               attachment_url, attachment_type, attachment_name, attachment_size)
+                                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                                RETURNING *
+                            )
+                            SELECT m.id, m.sender_user_id, m.sender_name, m.text, m.created_at,
+                                   m.attachment_url, m.attachment_type, m.attachment_name, m.attachment_size,
+                                   u.avatar_url
+                            FROM ins m
+                            LEFT JOIN {SCHEMA}.users u ON u.id = m.sender_user_id""",
                         (int(rental_id), user_id, user_name, text,
                          attachment_url, attachment_type, attachment_name, attachment_size)
                     )
@@ -387,6 +404,7 @@ def handler(event: dict, context) -> dict:
             "attachment_type": r[6],
             "attachment_name": r[7],
             "attachment_size": r[8],
+            "sender_avatar_url": r[9] if len(r) > 9 else None,
         }, 201)
 
     # PUT / — отметить прочитанными

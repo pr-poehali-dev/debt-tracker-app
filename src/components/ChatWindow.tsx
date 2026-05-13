@@ -17,6 +17,7 @@ interface Message {
   attachment_type?: string | null;
   attachment_name?: string | null;
   attachment_size?: number | null;
+  sender_avatar_url?: string | null;
 }
 
 interface Props {
@@ -533,9 +534,31 @@ export default function ChatWindow({ debtId, rentalId, title, contactName, conta
                 <div className="space-y-2">
                   {group.msgs.map((m, i) => {
                     const prev = group.msgs[i - 1];
+                    const next = group.msgs[i + 1];
                     const showName = !m.is_mine && prev?.sender_user_id !== m.sender_user_id;
+                    const isLastInBlock = !m.is_mine && next?.sender_user_id !== m.sender_user_id;
                     return (
-                      <div key={m.id} className={`flex ${m.is_mine ? "justify-end" : "justify-start"}`}>
+                      <div key={m.id} className={`flex items-end gap-2 ${m.is_mine ? "justify-end" : "justify-start"}`}>
+                        {!m.is_mine && (
+                          isLastInBlock ? (
+                            m.sender_avatar_url ? (
+                              <img
+                                src={m.sender_avatar_url}
+                                alt={m.sender_name}
+                                className="w-7 h-7 rounded-full object-cover flex-shrink-0"
+                                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                              />
+                            ) : (
+                              <div className="w-7 h-7 rounded-full bg-purple-500/20 border border-purple-400/30 flex items-center justify-center flex-shrink-0">
+                                <span className="text-[10px] font-semibold text-purple-300">
+                                  {(m.sender_name || "?").trim().charAt(0).toUpperCase()}
+                                </span>
+                              </div>
+                            )
+                          ) : (
+                            <div className="w-7 flex-shrink-0" />
+                          )
+                        )}
                         <div className={`max-w-[78%] flex flex-col gap-0.5 ${m.is_mine ? "items-end" : "items-start"}`}>
                           {showName && (
                             <p className="text-[10px] text-purple-400 px-1 font-medium">{m.sender_name}</p>
