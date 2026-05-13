@@ -446,7 +446,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
       while (!cancelled) {
         try {
           const ctrl = new AbortController();
-          const timeoutId = setTimeout(() => ctrl.abort(), 30000);
+          const timeoutId = setTimeout(() => ctrl.abort(), 35000);
           const res = await fetch(`${urls["realtime"]}?since=${encodeURIComponent(since)}`, {
             headers: { Authorization: `Bearer ${token}`, "X-Authorization": `Bearer ${token}` },
             signal: ctrl.signal,

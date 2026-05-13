@@ -273,7 +273,7 @@ export default function ChatWindow({ debtId, rentalId, title, contactName, conta
 
   useEffect(() => {
     loadMessages();
-    const interval = setInterval(() => loadMessages(true), 15000);
+    const interval = setInterval(() => loadMessages(true), 60000);
     function onRealtimeMessage(e: Event) {
       const detail = (e as CustomEvent).detail as Array<{ debt_id?: string | null; rental_id?: number | null }>;
       const match = detail?.some(m =>

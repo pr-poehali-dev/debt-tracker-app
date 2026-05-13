@@ -7,8 +7,8 @@ from datetime import datetime, timezone
 
 SCHEMA = "t_p29977622_debt_tracker_app"
 
-POLL_INTERVAL_SEC = 1.5
-MAX_WAIT_SEC = 22
+POLL_INTERVAL_SEC = 0.6
+MAX_WAIT_SEC = 25
 
 
 def get_conn():
