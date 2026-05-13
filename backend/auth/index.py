@@ -331,7 +331,7 @@ def handler(event: dict, context) -> dict:
                     f"""SELECT u.id, u.full_name, u.phone, u.email,
                               u.passport_series, u.passport_number, u.passport_issued_by,
                               u.passport_issued_date, u.passport_dept_code, u.birth_date,
-                              u.registration_address
+                              u.registration_address, u.avatar_url
                        FROM {SCHEMA}.sessions s JOIN {SCHEMA}.users u ON u.id = s.user_id
                        WHERE s.token = %s AND s.expires_at > %s""",
                     (token, now),
@@ -350,6 +350,7 @@ def handler(event: dict, context) -> dict:
             "passport_dept_code": row[8] or "",
             "birth_date": str(row[9]) if row[9] else "",
             "registration_address": row[10] or "",
+            "avatar_url": row[11] or "",
         })
 
     # ── POST check-email — проверить есть ли пользователь и есть ли у него PIN ──
@@ -776,5 +777,82 @@ def handler(event: dict, context) -> dict:
         if out_email.startswith("no-email-"):
             out_email = ""
         return resp({"ok": True, "user": {"id": user_id, "full_name": cur_name, "phone": cur_phone, "email": out_email}})
+
+    # ── POST upload-avatar — загрузка фото аватара в S3 ──
+    if method == "POST" and action == "upload-avatar":
+        headers = event.get("headers") or {}
+        auth = headers.get("X-Authorization") or headers.get("Authorization") or ""
+        token = auth.replace("Bearer ", "").strip()
+        if not token:
+            return err("Не авторизован", 401)
+        body = json.loads(event.get("body") or "{}")
+        image_b64 = body.get("image_base64") or ""
+        content_type = body.get("content_type") or "image/jpeg"
+        if not image_b64:
+            return err("Нет изображения")
+        if content_type not in ("image/jpeg", "image/png", "image/webp"):
+            return err("Недопустимый формат")
+        import base64
+        try:
+            raw = base64.b64decode(image_b64, validate=True)
+        except Exception:
+            return err("Битая base64-строка")
+        if len(raw) > 6 * 1024 * 1024:
+            return err("Файл больше 6 МБ")
+
+        now = datetime.now(timezone.utc)
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"SELECT u.id FROM {SCHEMA}.sessions s JOIN {SCHEMA}.users u ON u.id = s.user_id WHERE s.token = %s AND s.expires_at > %s",
+                    (token, now),
+                )
+                row = cur.fetchone()
+                if not row:
+                    return err("Сессия истекла", 401)
+                user_id = row[0]
+
+                ext = "jpg" if content_type == "image/jpeg" else ("png" if content_type == "image/png" else "webp")
+                key = f"avatars/user-{user_id}-{secrets.token_hex(6)}.{ext}"
+                try:
+                    import boto3
+                    s3 = boto3.client(
+                        "s3",
+                        endpoint_url="https://bucket.poehali.dev",
+                        aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
+                        aws_secret_access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
+                    )
+                    s3.put_object(Bucket="files", Key=key, Body=raw, ContentType=content_type)
+                except Exception as e:
+                    return err(f"Ошибка загрузки: {e}", 500)
+
+                avatar_url = f"https://cdn.poehali.dev/projects/{os.environ['AWS_ACCESS_KEY_ID']}/bucket/{key}"
+                cur.execute(
+                    f"UPDATE {SCHEMA}.users SET avatar_url = %s WHERE id = %s",
+                    (avatar_url, user_id),
+                )
+                conn.commit()
+        return resp({"ok": True, "avatar_url": avatar_url})
+
+    # ── POST delete-avatar — удалить аватар ──
+    if method == "POST" and action == "delete-avatar":
+        headers = event.get("headers") or {}
+        auth = headers.get("X-Authorization") or headers.get("Authorization") or ""
+        token = auth.replace("Bearer ", "").strip()
+        if not token:
+            return err("Не авторизован", 401)
+        now = datetime.now(timezone.utc)
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"SELECT u.id FROM {SCHEMA}.sessions s JOIN {SCHEMA}.users u ON u.id = s.user_id WHERE s.token = %s AND s.expires_at > %s",
+                    (token, now),
+                )
+                row = cur.fetchone()
+                if not row:
+                    return err("Сессия истекла", 401)
+                cur.execute(f"UPDATE {SCHEMA}.users SET avatar_url = NULL WHERE id = %s", (row[0],))
+                conn.commit()
+        return resp({"ok": True})
 
     return err("Неизвестный маршрут", 404)

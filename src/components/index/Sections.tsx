@@ -1772,8 +1772,8 @@ export function Dashboard({ onNav, contacts, t, lentDebts, borrowedDebts, active
 export function SettingsSection({ theme, onThemeChange, profile, onProfileChange, t, lang, onLangChange, onLogout, isDemo, onOpenSupport, token, authUrl }: {
   theme: Theme;
   onThemeChange: (t: Theme) => void;
-  profile: { name: string; phone: string; email: string };
-  onProfileChange: (p: { name: string; phone: string; email: string }) => void;
+  profile: { name: string; phone: string; email: string; avatarUrl?: string };
+  onProfileChange: (p: { name: string; phone: string; email: string; avatarUrl?: string }) => void;
   t: ReturnType<typeof getT>;
   lang: Lang;
   onLangChange: (l: Lang) => void;
@@ -1982,6 +1982,70 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
   }
 
   const [savingProfile, setSavingProfile] = useState(false);
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+
+  async function handleAvatarFile(file: File) {
+    if (!token || !authUrl) return;
+    if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
+      setAvatarError("Только JPG, PNG или WebP");
+      return;
+    }
+    if (file.size > 6 * 1024 * 1024) {
+      setAvatarError("Файл больше 6 МБ");
+      return;
+    }
+    setAvatarBusy(true);
+    setAvatarError(null);
+    try {
+      const dataUrl: string = await new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload = () => res(String(r.result || ""));
+        r.onerror = () => rej(new Error("read"));
+        r.readAsDataURL(file);
+      });
+      const b64 = dataUrl.split(",")[1] || "";
+      const r = await fetch(`${authUrl}?action=upload-avatar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Authorization": `Bearer ${token}` },
+        body: JSON.stringify({ image_base64: b64, content_type: file.type }),
+      });
+      const data = await r.json();
+      if (!r.ok || !data.avatar_url) {
+        setAvatarError(data.error || "Не удалось загрузить");
+        setAvatarBusy(false);
+        return;
+      }
+      onProfileChange({ ...profile, avatarUrl: data.avatar_url });
+    } catch {
+      setAvatarError("Сеть недоступна");
+    } finally {
+      setAvatarBusy(false);
+    }
+  }
+
+  async function handleAvatarDelete() {
+    if (!token || !authUrl) return;
+    setAvatarBusy(true);
+    setAvatarError(null);
+    try {
+      const r = await fetch(`${authUrl}?action=delete-avatar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Authorization": `Bearer ${token}` },
+      });
+      if (!r.ok) {
+        const data = await r.json().catch(() => ({}));
+        setAvatarError(data.error || "Не удалось удалить");
+        setAvatarBusy(false);
+        return;
+      }
+      onProfileChange({ ...profile, avatarUrl: undefined });
+    } catch {
+      setAvatarError("Сеть недоступна");
+    } finally {
+      setAvatarBusy(false);
+    }
+  }
   const [profileError, setProfileError] = useState<string | null>(null);
 
   async function save() {
@@ -2059,6 +2123,47 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
           </div>
         </div>
         <div className="space-y-3">
+          <div className="flex items-center gap-4">
+            <div className="relative w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0" style={{ background: "linear-gradient(135deg,#a855f7,#6366f1)" }}>
+              {profile.avatarUrl ? (
+                <img src={profile.avatarUrl} alt="avatar" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-white text-2xl font-bold">
+                  {(local.name || "?").trim().split(/\s+/).slice(0, 2).map(s => s[0]).join("").toUpperCase()}
+                </div>
+              )}
+              {avatarBusy && (
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                  <Icon name="Loader2" size={24} className="text-white animate-spin" />
+                </div>
+              )}
+            </div>
+            <div className="flex-1 space-y-2">
+              <label className="flex items-center justify-center gap-2 py-2 rounded-xl bg-white/5 border border-white/10 text-foreground text-sm font-medium cursor-pointer hover:bg-white/10 transition">
+                <Icon name="Camera" size={16} />
+                {profile.avatarUrl ? "Сменить фото" : "Загрузить фото"}
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  disabled={avatarBusy}
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleAvatarFile(f); e.target.value = ""; }}
+                />
+              </label>
+              {profile.avatarUrl && (
+                <button
+                  type="button"
+                  onClick={handleAvatarDelete}
+                  disabled={avatarBusy}
+                  className="w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-red-500/10 border border-red-500/25 text-red-300 text-xs font-medium hover:bg-red-500/20 transition disabled:opacity-50"
+                >
+                  <Icon name="Trash2" size={14} />
+                  Удалить
+                </button>
+              )}
+            </div>
+          </div>
+          {avatarError && <p className="text-xs text-red-400">{avatarError}</p>}
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">{t.name}</label>
             <input
