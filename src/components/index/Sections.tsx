@@ -8,6 +8,7 @@ import { type PersonalLoan } from "@/components/PersonalLoanModal";
 import ExtraPaymentModal from "@/components/ExtraPaymentModal";
 import { computeSchedule } from "@/lib/loanSchedule";
 import ManualReturnModal from "@/components/ManualReturnModal";
+import InviteFriendModal from "@/components/InviteFriendModal";
 import { ensurePushSubscription, getPushStatus, isSubscribedToPush, unsubscribeFromPush, hardResetPush } from "@/lib/push";
 
 // ─── Section: DebtList ────────────────────────────────────────────────────────
@@ -1789,7 +1790,13 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
   const [pushSubbed, setPushSubbed] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showInvite, setShowInvite] = useState(false);
   const isAdmin = (profile.phone || "").replace(/\D/g, "").endsWith("9680066666");
+  const inviteUrl = (() => {
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const phone = (profile.phone || "").replace(/\D/g, "");
+    return phone ? `${origin}/?ref=${phone}` : origin || "";
+  })();
 
   useEffect(() => {
     (async () => {
@@ -2311,6 +2318,22 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
           </>
         )}
       </div>
+
+      <button
+        onClick={() => setShowInvite(true)}
+        className="w-full glass rounded-2xl p-5 flex items-center gap-3 hover:bg-white/[0.06] active:scale-[0.99] transition text-left"
+      >
+        <div className="w-9 h-9 bg-pink-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
+          <Icon name="UserPlus" size={18} className="text-pink-400" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-foreground">Пригласить друга</p>
+          <p className="text-xs text-muted-foreground">Ссылка и QR-код для приглашения</p>
+        </div>
+        <Icon name="ChevronRight" size={18} className="text-muted-foreground flex-shrink-0" />
+      </button>
+
+      <InviteFriendModal open={showInvite} onClose={() => setShowInvite(false)} inviteUrl={inviteUrl} />
 
       <div className="glass rounded-2xl p-5 space-y-3">
         <div className="flex items-center gap-3">
