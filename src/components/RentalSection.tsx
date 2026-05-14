@@ -123,13 +123,15 @@ function PaymentCalendar({ rental, token, userId, onClose }: { rental: Rental; t
       onClick={e => { if (!ready) return; if (e.currentTarget === e.target) onClose(); }}>
       <div className="w-full max-w-lg rounded-t-3xl p-5 space-y-4" style={{ background: "#13152a", maxHeight: "80vh", overflowY: "auto", paddingBottom: "max(100px, calc(env(safe-area-inset-bottom) + 100px))" }}>
         <div className="flex items-center justify-between">
-          <div>
-            <p className="font-bold text-foreground">{rental.title}</p>
+          <div className="min-w-0">
+            <p className="font-bold text-foreground truncate">{rental.title}</p>
             <p className="text-xs text-muted-foreground">История платежей · {rental.payment_day}-е число</p>
           </div>
           <button onClick={onClose}
-            className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "rgba(255,255,255,0.08)" }}>
-            <Icon name="X" size={14} className="text-muted-foreground" />
+            aria-label="Закрыть"
+            className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 hover:bg-white/15 transition-colors"
+            style={{ background: "rgba(255,255,255,0.12)" }}>
+            <Icon name="X" size={20} className="text-foreground" />
           </button>
         </div>
 

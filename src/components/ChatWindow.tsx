@@ -579,8 +579,10 @@ export default function ChatWindow({ debtId, rentalId, title, contactName, conta
               <span className="text-[10px] text-muted-foreground">онлайн</span>
             </div>
             <button onClick={onClose}
-              className="w-8 h-8 glass rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors">
-              <Icon name="X" size={15} />
+              aria-label="Закрыть"
+              className="w-10 h-10 glass rounded-xl flex items-center justify-center hover:bg-white/15 transition-colors"
+              style={{ background: "rgba(255,255,255,0.12)" }}>
+              <Icon name="X" size={20} />
             </button>
           </div>
         </div>
