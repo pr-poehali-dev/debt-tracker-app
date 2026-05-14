@@ -779,8 +779,14 @@ def handler(event: dict, context) -> dict:
                 # Кредитор удаляет полностью
                 if user_id != lender_id:
                     return err("Нет прав", 403)
+                purge = (qs.get("purge") == "1")
                 if current_status in ("archived", "deleted"):
-                    return err("Долг уже в архиве", 400)
+                    if not purge:
+                        return err("Долг уже в архиве", 400)
+                    # Физическое удаление навсегда (только если уже deleted/archived и инициатор — кредитор)
+                    cur.execute(f"DELETE FROM {SCHEMA}.debts WHERE id = %s", (debt_id,))
+                    conn.commit()
+                    return json_resp({"ok": True, "purged": True})
                 cur.execute(
                     f"""UPDATE {SCHEMA}.debts SET status = 'deleted', updated_at = NOW()
                         WHERE id = %s""",

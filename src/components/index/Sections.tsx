@@ -1387,10 +1387,12 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
 }
 
 // ─── Section: Archive ─────────────────────────────────────────────────────────
-export function ArchiveSection({ contacts, t, locale, archiveDebts, token = "", onOpenChat }: { contacts: Contact[]; t: ReturnType<typeof getT>; locale: string; archiveDebts: Debt[]; token?: string; onOpenChat?: (debtId: string, title: string) => void }) {
+export function ArchiveSection({ contacts, t, locale, archiveDebts, token = "", onOpenChat, onPurgeDebt }: { contacts: Contact[]; t: ReturnType<typeof getT>; locale: string; archiveDebts: Debt[]; token?: string; onOpenChat?: (debtId: string, title: string) => void; onPurgeDebt?: (debtDbId: string) => Promise<void> | void }) {
   const [filter, setFilter] = useState<"returned" | "deleted">("returned");
   const [search, setSearch] = useState("");
   const [selectedDebt, setSelectedDebt] = useState<Debt | null>(null);
+  const [confirmPurge, setConfirmPurge] = useState<Debt | null>(null);
+  const [purging, setPurging] = useState(false);
   const q = search.trim().toLowerCase();
   const matchSearch = (d: Debt) => {
     if (!q) return true;
@@ -1508,10 +1510,10 @@ export function ArchiveSection({ contacts, t, locale, archiveDebts, token = "", 
                   {new Date(d.dueDate).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" })}
                 </p>
               </div>
-              <div className="text-right flex-shrink-0">
+              <div className="text-right flex-shrink-0 flex flex-col items-end gap-1">
                 <p className={`text-lg font-bold font-heading ${isDeleted ? "text-muted-foreground line-through" : "text-green-400"}`}>{fmt(d.amount)}</p>
                 {isDeleted ? (
-                  <span className="inline-flex items-center gap-1 mt-1 text-[11px] font-medium px-2 py-0.5 rounded-md" style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", color: "#f87171" }}>
+                  <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-md" style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", color: "#f87171" }}>
                     <Icon name="Trash2" size={10} />
                     {/* TODO: i18n */}Удалён
                   </span>
@@ -1519,10 +1521,67 @@ export function ArchiveSection({ contacts, t, locale, archiveDebts, token = "", 
                   <StatusBadge status="paid" t={t} />
                 )}
               </div>
+              {isDeleted && onPurgeDebt && d.debtDbId && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setConfirmPurge(d); }}
+                  className="flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-colors"
+                  style={{ background: "rgba(239,68,68,0.10)", border: "1px solid rgba(239,68,68,0.25)", color: "#f87171" }}
+                  title="Удалить навсегда"
+                  aria-label="Удалить навсегда"
+                >
+                  <Icon name="Trash2" size={15} />
+                </button>
+              )}
             </div>
           );
         })}
       </div>
+
+      {confirmPurge && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/75 backdrop-blur-md" onClick={purging ? undefined : () => setConfirmPurge(null)} />
+          <div className="relative w-full max-w-sm rounded-3xl overflow-hidden animate-fade-in border border-white/10 shadow-2xl" style={{ background: "#1a1d2e" }}>
+            <div className="p-5 flex flex-col items-center text-center gap-3">
+              <div className="w-14 h-14 rounded-full bg-red-500/15 flex items-center justify-center">
+                <Icon name="Trash2" size={26} className="text-red-400" />
+              </div>
+              <p className="font-semibold text-foreground text-lg">Удалить навсегда?</p>
+              <p className="text-sm text-muted-foreground">
+                «{confirmPurge.name}» — {fmt(confirmPurge.amount)}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Запись будет стёрта без возможности восстановления.
+              </p>
+            </div>
+            <div className="px-5 pb-5 flex gap-2">
+              <button
+                onClick={() => setConfirmPurge(null)}
+                disabled={purging}
+                className="flex-1 py-3 rounded-2xl bg-white/5 text-foreground font-medium text-sm border border-white/10 hover:bg-white/10 transition-colors disabled:opacity-50"
+              >
+                {t.cancel}
+              </button>
+              <button
+                onClick={async () => {
+                  if (!confirmPurge.debtDbId || !onPurgeDebt) return;
+                  setPurging(true);
+                  try {
+                    await onPurgeDebt(confirmPurge.debtDbId);
+                    setConfirmPurge(null);
+                  } finally {
+                    setPurging(false);
+                  }
+                }}
+                disabled={purging}
+                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-gradient-to-r from-red-500 to-rose-600 text-white font-semibold text-sm shadow-lg shadow-red-500/20 hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                {purging ? <Icon name="Loader2" size={16} className="animate-spin" /> : <><Icon name="Trash2" size={16} />Удалить навсегда</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

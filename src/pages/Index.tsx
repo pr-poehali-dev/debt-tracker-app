@@ -1117,6 +1117,40 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
     setBorrowedDebts(prev => prev.map(upd));
   }
 
+  async function handlePurgeArchivedDebt(debtDbId: string) {
+    const { default: urls } = await import("../../backend/func2url.json");
+    // Достаём share_token из общего списка
+    const res = await fetch(`${urls["debts"]}?user_id=${user.id}&include_deleted=1`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    let found: Record<string, unknown> | undefined;
+    if (res.ok) {
+      const list: Array<Record<string, unknown>> = await res.json();
+      found = list.find(d => String(d.id) === debtDbId);
+    }
+    if (!found) {
+      // fallback — пробуем без include_deleted
+      const res2 = await fetch(`${urls["debts"]}?user_id=${user.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res2.ok) {
+        const list2: Array<Record<string, unknown>> = await res2.json();
+        found = list2.find(d => String(d.id) === debtDbId);
+      }
+    }
+    if (!found) {
+      // Удаляем хотя бы локально
+      setArchiveDebts(prev => prev.filter(d => d.debtDbId !== debtDbId));
+      return;
+    }
+    const delRes = await fetch(`${urls["debts"]}?token=${found.share_token}&purge=1`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!delRes.ok) return;
+    setArchiveDebts(prev => prev.filter(d => d.debtDbId !== debtDbId));
+  }
+
   async function handleDeleteDebt(debtDbId: string) {
     const { default: urls } = await import("../../backend/func2url.json");
     const debt = [...lentDebts, ...borrowedDebts].find(d => d.debtDbId === debtDbId);
@@ -1293,7 +1327,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
           {section === "borrowed"      && <DebtList debts={borrowedDebts} dir="borrowed" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => { const d = borrowedDebts.find(x => x.debtDbId === id); const cn = d ? (contacts.find(c => c.id === d.contactId)?.name || d.counterpartyName) : undefined; setActiveChat({ debtId: id, title, contactName: cn, contactAvatarUrl: d?.counterpartyAvatarUrl }); }} onMarkPaid={handleMarkPaid} onDeleteDebt={handleDeleteDebt} onAddNew={() => setShowPersonalLoan(true)} personalLoans={personalLoans} onPersonalLoanUpdate={(loans) => { setPersonalLoans(loans); localStorage.setItem("df-personal-loans", JSON.stringify(loans)); }} token={token} userId={user.id} onPaymentAccepted={handlePaymentAccepted} onTopUpDecided={handleTopUpDecided} />}
           {section === "calendar"      && <CalendarSection contacts={contacts} t={t} debts={[...lentDebts.map(d => ({ ...d, archivedDir: "lent" as const })), ...borrowedDebts.map(d => ({ ...d, archivedDir: "borrowed" as const }))]} rentals={rentals} userId={user.id} locale={locale} token={token} onNav={setSection} onOpenChat={(id, title) => { const d = [...lentDebts, ...borrowedDebts].find(x => x.debtDbId === id); const cn = d ? (contacts.find(c => c.id === d.contactId)?.name || d.counterpartyName) : undefined; setActiveChat({ debtId: id, title, contactName: cn, contactAvatarUrl: d?.counterpartyAvatarUrl }); }} onMarkPaid={handleMarkPaid} onPaymentAccepted={handlePaymentAccepted} />}
           {section === "notifications" && <NotificationsSection notifs={notifs} onMarkAllRead={handleMarkAllRead} onMarkRead={handleMarkRead} t={t} token={token} contacts={contacts} allDebts={[...lentDebts, ...borrowedDebts, ...archiveDebts]} onOpenChat={(debtId, rentalId, title) => { const d = debtId ? [...lentDebts, ...borrowedDebts, ...archiveDebts].find(x => x.debtDbId === debtId) : undefined; const cn = d ? (contacts.find(c => c.id === d.contactId)?.name || d.counterpartyName) : undefined; setActiveChat({ debtId: debtId || undefined, rentalId: rentalId || undefined, title, contactName: cn, contactAvatarUrl: d?.counterpartyAvatarUrl }); }} onOpenSupport={(ticketId) => { setSupportTicketId(ticketId); setShowSupport(true); }} onPaymentAccepted={handlePaymentAccepted} />}
-          {section === "archive"       && <ArchiveSection contacts={contacts} t={t} locale={locale} archiveDebts={archiveDebts} token={token} onOpenChat={(id, title) => { const d = archiveDebts.find(x => x.debtDbId === id); const cn = d ? (contacts.find(c => c.id === d.contactId)?.name || d.counterpartyName) : undefined; setActiveChat({ debtId: id, title, contactName: cn, contactAvatarUrl: d?.counterpartyAvatarUrl }); }} />}
+          {section === "archive"       && <ArchiveSection contacts={contacts} t={t} locale={locale} archiveDebts={archiveDebts} token={token} onOpenChat={(id, title) => { const d = archiveDebts.find(x => x.debtDbId === id); const cn = d ? (contacts.find(c => c.id === d.contactId)?.name || d.counterpartyName) : undefined; setActiveChat({ debtId: id, title, contactName: cn, contactAvatarUrl: d?.counterpartyAvatarUrl }); }} onPurgeDebt={handlePurgeArchivedDebt} />}
           {section === "rental"        && <RentalSection userId={user.id} token={token} myName={profile.name} isDemo={isDemo} openNew={showNewRental} onNewClose={() => setShowNewRental(false)} t={t} />}
           {section === "contacts"      && (
             <ContactsSection
