@@ -56,9 +56,19 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
         setSelectedDebt(target);
       }
     }
+    function onSetFilter(e: Event) {
+      const detail = (e as CustomEvent).detail as { dir?: "lent" | "borrowed"; filter?: "all" | "active" | "overdue" } | undefined;
+      if (!detail?.filter) return;
+      if (detail.dir && detail.dir !== dir) return;
+      setFilter(detail.filter);
+    }
     window.addEventListener("open-debt", onOpenDebt as EventListener);
-    return () => window.removeEventListener("open-debt", onOpenDebt as EventListener);
-  }, [debts]);
+    window.addEventListener("set-debt-filter", onSetFilter as EventListener);
+    return () => {
+      window.removeEventListener("open-debt", onOpenDebt as EventListener);
+      window.removeEventListener("set-debt-filter", onSetFilter as EventListener);
+    };
+  }, [debts, dir]);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -1654,7 +1664,18 @@ export function Dashboard({ onNav, contacts, t, lentDebts, borrowedDebts, active
   const totalBorrowed = borrowedDebts.filter(d => d.status !== "paid").reduce((s, d) => s + d.amount, 0) + personalRemaining;
   const borrowedActiveCount = borrowedDebts.filter(d => d.status !== "paid").length + activePersonalLoans;
   const balance = totalLent - totalBorrowed;
-  const overdueCount = [...lentDebts, ...borrowedDebts].filter(d => d.status === "overdue").length;
+  const lentOverdueCount = lentDebts.filter(d => d.status === "overdue").length;
+  const borrowedOverdueCount = borrowedDebts.filter(d => d.status === "overdue").length;
+  const overdueCount = lentOverdueCount + borrowedOverdueCount;
+  // Открыть раздел с просроченными: если все в одной стороне — туда; иначе в "взято" по умолчанию
+  function openOverdue() {
+    const target: Section = lentOverdueCount > 0 && borrowedOverdueCount === 0 ? "lent" : "borrowed";
+    onNav(target);
+    // Применяем фильтр после рендера секции
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent("set-debt-filter", { detail: { dir: target, filter: "overdue" } }));
+    }, 30);
+  }
   // На lent (я кредитор) ждёт моего действия — подтвердить возврат
   const lentPendingCount = lentDebts.reduce((s, d) => s + (d.pendingPaymentsCount || 0), 0);
   // На borrowed (я должник) ждёт моего действия — ответить на изменение суммы
@@ -1732,7 +1753,7 @@ export function Dashboard({ onNav, contacts, t, lentDebts, borrowedDebts, active
           <p className="text-xs text-muted-foreground mt-1">{borrowedActiveCount} {t.activeDebts.toLowerCase()}</p>
         </button>
 
-        <button onClick={() => onNav("notifications")} className="glass rounded-2xl p-4 text-left hover:bg-white/[0.07] transition-all duration-200">
+        <button onClick={openOverdue} disabled={overdueCount === 0} className="glass rounded-2xl p-4 text-left hover:bg-white/[0.07] transition-all duration-200 disabled:cursor-default disabled:opacity-60">
           <div className="flex items-center gap-2 mb-2">
             <div className="w-8 h-8 bg-red-500/20 rounded-xl flex items-center justify-center"><Icon name="AlertCircle" size={16} className="text-red-400" /></div>
             <span className="text-xs text-muted-foreground">{t.overdue}</span>
@@ -1759,7 +1780,7 @@ export function Dashboard({ onNav, contacts, t, lentDebts, borrowedDebts, active
               <p className="font-semibold text-red-400 text-sm">{t.overdueDebts}</p>
               <p className="text-xs text-muted-foreground">{overdueCount} {t.overdue.toLowerCase()}</p>
             </div>
-            <button onClick={() => onNav("notifications")} className="text-xs text-red-400 border border-red-500/30 rounded-lg px-3 py-1.5 hover:bg-red-500/10 transition-colors whitespace-nowrap">
+            <button onClick={openOverdue} className="text-xs text-red-400 border border-red-500/30 rounded-lg px-3 py-1.5 hover:bg-red-500/10 transition-colors whitespace-nowrap">
               →
             </button>
           </div>
