@@ -229,20 +229,20 @@ function RentalCard({ rental, userId, token, onUpdate, onDelete, t, onOpenCalend
 
   useEffect(() => {
     if (!canChat) return;
+    let cancelled = false;
     async function fetchUnread() {
-      const res = await fetch(`${CHAT_URL}?rental_id=${rental.id}`, {
+      const res = await fetch(`${CHAT_URL}?unread=1`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) {
-        const d = await res.json();
-        const cnt = (d.messages as { is_mine: boolean; is_read: boolean }[]).filter(m => !m.is_mine && !m.is_read).length;
-        setUnread(cnt);
-      }
+      if (!res.ok || cancelled) return;
+      const d = await res.json() as { chats?: { rental_id?: number | null; unread: number }[] };
+      const mine = (d.chats || []).find(c => c.rental_id === Number(rental.id));
+      setUnread(mine?.unread || 0);
     }
     fetchUnread();
     const iv = setInterval(fetchUnread, 15000);
-    return () => clearInterval(iv);
-  }, [rental.id, canChat, token]);
+    return () => { cancelled = true; clearInterval(iv); };
+  }, [rental.id, canChat, token, showChat]);
 
   const isPendingAmount = rental.tenant_decision === "pending_amount";
   const today = new Date().getDate();
