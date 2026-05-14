@@ -429,6 +429,16 @@ function RentalCard({ rental, userId, token, onUpdate, onDelete, t, onOpenCalend
             </div>
             <div>
               <p className="text-sm font-semibold" style={{ color: "#4ade80" }}>{t?.paidThisMonth ?? "Оплачено в этом месяце"}</p>
+              {(() => {
+                const MONTHS_RU = ["янв","фев","мар","апр","май","июн","июл","авг","сен","окт","ноя","дек"];
+                const now = new Date();
+                const next = new Date(now.getFullYear(), now.getMonth() + 1, rental.payment_day);
+                return (
+                  <p className="text-[10px] mt-0.5" style={{ color: "rgba(74,222,128,0.7)" }}>
+                    Следующий платёж: {rental.payment_day} {MONTHS_RU[next.getMonth()]}{next.getFullYear() !== now.getFullYear() ? ` ${next.getFullYear()}` : ""}
+                  </p>
+                );
+              })()}
             </div>
           </div>
           <button onClick={() => onOpenCalendar(rental)} className="text-[11px] text-teal-400 hover:opacity-70">
