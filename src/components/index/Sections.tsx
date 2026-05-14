@@ -861,7 +861,25 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
   const [decidedPay, setDecidedPay] = useState<Record<number, "accepted" | "rejected">>({});
   const [decidingTopUp, setDecidingTopUp] = useState<number | null>(null);
   const [decidedTopUp, setDecidedTopUp] = useState<Record<number, "accepted" | "rejected">>({});
-  const unread = notifs.filter(n => !n.read).length;
+  // Скрытые треды (локально) — объявлены тут, чтобы можно было считать unread без них
+  const [hiddenKeys, setHiddenKeys] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem("df-hidden-threads") || "[]"); } catch { return []; }
+  });
+  const [confirmDel, setConfirmDel] = useState<{ key: string; title: string } | null>(null);
+
+  function threadKey(n: Notification): string | null {
+    if (n.chatMeta) return `chat:${n.chatMeta.debtId || ""}:${n.chatMeta.rentalId || ""}`;
+    if (n.supportMeta) return `support:${n.supportMeta.ticketId}`;
+    return null;
+  }
+
+  // Считаем только непрочитанные, которые юзер реально увидит в списке
+  const unread = notifs.filter(n => {
+    if (n.read) return false;
+    const k = threadKey(n);
+    if (k && hiddenKeys.includes(k)) return false;
+    return true;
+  }).length;
 
   async function decidePayment(n: Notification, decision: "accepted" | "rejected") {
     if (!n.paymentRequestMeta) return;
@@ -945,18 +963,6 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
         }
       }
     } finally { setSending(null); }
-  }
-
-  // Скрытые треды (локально)
-  const [hiddenKeys, setHiddenKeys] = useState<string[]>(() => {
-    try { return JSON.parse(localStorage.getItem("df-hidden-threads") || "[]"); } catch { return []; }
-  });
-  const [confirmDel, setConfirmDel] = useState<{ key: string; title: string } | null>(null);
-
-  function threadKey(n: Notification): string | null {
-    if (n.chatMeta) return `chat:${n.chatMeta.debtId || ""}:${n.chatMeta.rentalId || ""}`;
-    if (n.supportMeta) return `support:${n.supportMeta.ticketId}`;
-    return null;
   }
 
   function hideThread(key: string) {

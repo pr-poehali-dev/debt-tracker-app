@@ -797,7 +797,27 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
     }
   }
 
-  const unreadCount = notifs.filter(n => !n.read).length;
+  // Скрытые локально треды не учитываем — иначе бейдж показывает то, чего юзер не увидит
+  const hiddenThreadKeys: string[] = (() => {
+    try { return JSON.parse(localStorage.getItem("df-hidden-threads") || "[]"); } catch { return []; }
+  })();
+  function notifThreadKey(n: Notification): string | null {
+    if (n.chatMeta) return `chat:${n.chatMeta.debtId || ""}:${n.chatMeta.rentalId || ""}`;
+    if (n.supportMeta) return `support:${n.supportMeta.ticketId}`;
+    return null;
+  }
+  const unreadCount = notifs.filter(n => {
+    if (n.read) return false;
+    const k = notifThreadKey(n);
+    if (k && hiddenThreadKeys.includes(k)) return false;
+    return true;
+  }).length;
+  // Видимые непрочитанные чаты (для пилюли "N новых")
+  const visibleUnreadChats = notifs.filter(n => {
+    if (n.read || !n.chatMeta) return false;
+    const k = notifThreadKey(n);
+    return !(k && hiddenThreadKeys.includes(k));
+  }).length;
 
   const [theme, setTheme] = useState<Theme>(() => {
     const saved = localStorage.getItem("df-theme") as Theme | null;
@@ -1200,13 +1220,13 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
             {section === "dashboard" && <p className="text-xs text-muted-foreground">{t.appSubtitle}</p>}
           </div>
           <div className="flex items-center gap-2">
-            {unreadMessages > 0 && (
-              <button onClick={() => setSection(section === "lent" ? "lent" : "borrowed")}
+            {visibleUnreadChats > 0 && section !== "notifications" && (
+              <button onClick={() => setSection("notifications")}
                 className="flex items-center gap-1 px-2 py-1 rounded-xl text-[10px] font-medium animate-pulse"
                 style={{ background: "rgba(168,85,247,0.2)", border: "1px solid rgba(168,85,247,0.5)", color: "#a855f7" }}
-                title="Новые сообщения — откройте раздел займов">
+                title="Новые сообщения — откройте уведомления">
                 <Icon name="MessageCircle" size={12} />
-                {unreadMessages} новых
+                {visibleUnreadChats} новых
               </button>
             )}
             {section !== "notifications" && (() => {
