@@ -13,6 +13,7 @@ interface Debt {
   avatar: string;
   note?: string;
   debtDbId?: string;
+  shareToken?: string;
   borrowerDecision?: string;
   interestRate?: number;
   interestType?: "simple" | "compound";
@@ -87,6 +88,30 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
   const [showTopUp, setShowTopUp] = useState(false);
   const [topUps, setTopUps] = useState<TopUpItem[]>([]);
   const [decidingTopUpId, setDecidingTopUpId] = useState<number | null>(null);
+  const [editingDue, setEditingDue] = useState(false);
+  const [newDueDate, setNewDueDate] = useState("");
+  const [savingDue, setSavingDue] = useState(false);
+
+  async function saveDueDate() {
+    if (!debt) return;
+    const t = token || localStorage.getItem("df-token") || "";
+    if (!t || !debt.shareToken) return;
+    setSavingDue(true);
+    try {
+      const { default: urls } = await import("../../backend/func2url.json");
+      const res = await fetch(`${urls["debts"]}?token=${debt.shareToken}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` },
+        body: JSON.stringify({ due_date: newDueDate || null }),
+      });
+      if (!res.ok) return;
+      window.dispatchEvent(new CustomEvent("debts-refresh"));
+      setEditingDue(false);
+      onClose();
+    } finally {
+      setSavingDue(false);
+    }
+  }
 
   useEffect(() => {
     if (!contractWipToast) return;
@@ -386,14 +411,55 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
                 </div>
               );
             })() : (
-              <div className="flex items-center gap-3 glass rounded-2xl px-4 py-3">
-                <div className="w-8 h-8 rounded-xl bg-purple-500/15 flex items-center justify-center flex-shrink-0">
-                  <Icon name="Infinity" size={16} className="text-purple-400" />
+              <div className="glass rounded-2xl px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-purple-500/15 flex items-center justify-center flex-shrink-0">
+                    <Icon name="Infinity" size={16} className="text-purple-400" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs text-muted-foreground">Срок возврата</p>
+                    <p className="text-sm font-semibold text-foreground">Бессрочно</p>
+                  </div>
+                  {dir === "lent" && debt.shareToken && debt.status !== "paid" && debt.status !== "deleted" && !editingDue && (
+                    <button
+                      type="button"
+                      onClick={() => { setNewDueDate(""); setEditingDue(true); }}
+                      className="text-xs font-medium text-purple-400 border border-purple-500/30 rounded-lg px-3 py-1.5 hover:bg-purple-500/10 transition-colors whitespace-nowrap"
+                    >
+                      Установить срок
+                    </button>
+                  )}
                 </div>
-                <div className="flex-1">
-                  <p className="text-xs text-muted-foreground">Срок возврата</p>
-                  <p className="text-sm font-semibold text-foreground">Бессрочно</p>
-                </div>
+                {editingDue && (
+                  <div className="mt-3 flex flex-col gap-2">
+                    <input
+                      type="date"
+                      value={newDueDate}
+                      onChange={(e) => setNewDueDate(e.target.value)}
+                      min={new Date().toISOString().slice(0, 10)}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-purple-500/50 transition-colors"
+                      style={{ colorScheme: "dark" }}
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditingDue(false)}
+                        disabled={savingDue}
+                        className="flex-1 py-2 rounded-xl bg-white/5 text-foreground font-medium text-sm border border-white/10 hover:bg-white/10 transition-colors disabled:opacity-50"
+                      >
+                        Отмена
+                      </button>
+                      <button
+                        type="button"
+                        onClick={saveDueDate}
+                        disabled={savingDue || !newDueDate}
+                        className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+                      >
+                        {savingDue ? <Icon name="Loader2" size={14} className="animate-spin" /> : <><Icon name="Check" size={14} />Сохранить</>}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

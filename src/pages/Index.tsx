@@ -66,6 +66,12 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
+    function onRefresh() { setRefreshTick(t => t + 1); }
+    window.addEventListener("debts-refresh", onRefresh);
+    return () => window.removeEventListener("debts-refresh", onRefresh);
+  }, []);
+
+  useEffect(() => {
     if (isDemo) return;
     import("../../backend/func2url.json").then(({ default: urls }) => {
       const contactsUrl = (urls as Record<string, string>)["contacts"];
@@ -148,6 +154,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
               avatar: String(isLender ? (d.borrower_name || "?") : d.lender_name).slice(0, 2).toUpperCase(),
               note: d.note ? String(d.note) : undefined,
               debtDbId: String(d.id),
+              shareToken: d.share_token ? String(d.share_token) : undefined,
               borrowerDecision: decision || undefined,
               interestRate: d.interest_rate != null ? Number(d.interest_rate) : undefined,
               interestType: d.interest_type as "simple" | "compound" | undefined,

@@ -380,6 +380,22 @@ def handler(event: dict, context) -> dict:
             fields.append("borrower_user_id = %s")
             vals.append(body["borrower_user_id"])
 
+        # due_date может менять только кредитор (по своей сессии)
+        if "due_date" in body:
+            with get_conn() as _conn_check:
+                _uid = get_user_id_from_token(auth_header, _conn_check)
+                if not _uid:
+                    return err("Не авторизован", 401)
+                with _conn_check.cursor() as _cur:
+                    _cur.execute(f"SELECT lender_user_id FROM {SCHEMA}.debts WHERE share_token = %s", (token,))
+                    _row = _cur.fetchone()
+                    if not _row:
+                        return err("Долг не найден", 404)
+                    if _row[0] != _uid:
+                        return err("Менять срок может только кредитор", 403)
+            fields.append("due_date = %s")
+            vals.append(body["due_date"] or None)
+
         if not fields:
             return err("Нечего обновлять")
 

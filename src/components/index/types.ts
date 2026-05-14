@@ -25,6 +25,7 @@ export interface Debt {
   avatar: string;
   note?: string;
   debtDbId?: string;
+  shareToken?: string;
   borrowerDecision?: string;
   interestRate?: number;
   interestType?: "simple" | "compound";
