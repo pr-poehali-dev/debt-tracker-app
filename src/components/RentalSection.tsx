@@ -59,7 +59,7 @@ const DEMO_RENTALS: Rental[] = [
   },
 ];
 
-function PaymentCalendar({ rental, token, userId }: { rental: Rental; token: string; userId: number }) {
+function PaymentCalendar({ rental, token, userId, onClose }: { rental: Rental; token: string; userId: number; onClose: () => void }) {
   const [payments, setPayments] = useState<{ month: string; role: string; status: string; amount: number | null }[]>([]);
   const [loading, setLoading] = useState(true);
   const [ready, setReady] = useState(false);
@@ -96,14 +96,14 @@ function PaymentCalendar({ rental, token, userId }: { rental: Rental; token: str
 
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-end justify-center" style={{ background: "rgba(0,0,0,0.6)" }}
-      onClick={e => { if (!ready) return; if (e.currentTarget === e.target) document.dispatchEvent(new CustomEvent("close-payment-calendar")); }}>
+      onClick={e => { if (!ready) return; if (e.currentTarget === e.target) onClose(); }}>
       <div className="w-full max-w-lg rounded-t-3xl p-5 space-y-4" style={{ background: "#13152a", maxHeight: "80vh", overflowY: "auto", paddingBottom: "max(100px, calc(env(safe-area-inset-bottom) + 100px))" }}>
         <div className="flex items-center justify-between">
           <div>
             <p className="font-bold text-foreground">{rental.title}</p>
             <p className="text-xs text-muted-foreground">История платежей · {rental.payment_day}-е число</p>
           </div>
-          <button onClick={() => document.dispatchEvent(new CustomEvent("close-payment-calendar"))}
+          <button onClick={onClose}
             className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "rgba(255,255,255,0.08)" }}>
             <Icon name="X" size={14} className="text-muted-foreground" />
           </button>
@@ -149,10 +149,9 @@ function PaymentCalendar({ rental, token, userId }: { rental: Rental; token: str
   );
 }
 
-function RentalCard({ rental, userId, token, onUpdate, onDelete, t }: { rental: Rental; userId: number; token: string; onUpdate: (token: string, body: Record<string, unknown>) => void; onDelete: (token: string) => void; t?: ReturnType<typeof getT> }) {
+function RentalCard({ rental, userId, token, onUpdate, onDelete, t, onOpenCalendar }: { rental: Rental; userId: number; token: string; onUpdate: (token: string, body: Record<string, unknown>) => void; onDelete: (token: string) => void; t?: ReturnType<typeof getT>; onOpenCalendar: (rental: Rental) => void }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmPay, setConfirmPay] = useState(false);
-  const [showCalendar, setShowCalendar] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [unread, setUnread] = useState(0);
   const isLandlord = rental.landlord_user_id === userId;
@@ -177,11 +176,6 @@ function RentalCard({ rental, userId, token, onUpdate, onDelete, t }: { rental: 
     return () => clearInterval(iv);
   }, [rental.id, canChat, token]);
 
-  useEffect(() => {
-    const close = () => setShowCalendar(false);
-    document.addEventListener("close-payment-calendar", close);
-    return () => document.removeEventListener("close-payment-calendar", close);
-  }, []);
   const isPendingAmount = rental.tenant_decision === "pending_amount";
   const today = new Date().getDate();
   const daysUntil = rental.payment_day >= today ? rental.payment_day - today : (rental.payment_day + 30 - today);
@@ -282,7 +276,7 @@ function RentalCard({ rental, userId, token, onUpdate, onDelete, t }: { rental: 
               <p className="text-sm font-semibold" style={{ color: "#4ade80" }}>{t?.paidThisMonth ?? "Оплачено в этом месяце"}</p>
             </div>
           </div>
-          <button onClick={() => setShowCalendar(true)} className="text-[11px] text-teal-400 hover:opacity-70">
+          <button onClick={() => onOpenCalendar(rental)} className="text-[11px] text-teal-400 hover:opacity-70">
             {t?.historyShort ?? "История"}
           </button>
         </div>
@@ -310,7 +304,7 @@ function RentalCard({ rental, userId, token, onUpdate, onDelete, t }: { rental: 
       ) : (
         <div className="space-y-2">
           <div className="flex items-center justify-between text-xs">
-            <button className="flex items-center gap-1.5 hover:opacity-70" onClick={() => setShowCalendar(true)}>
+            <button className="flex items-center gap-1.5 hover:opacity-70" onClick={() => onOpenCalendar(rental)}>
               <Icon name="CalendarDays" size={13} style={{ color: "#5eead4" }} />
               <span className={isNear ? "text-amber-400 font-medium" : "text-muted-foreground"}>
                 {daysUntil === 0 ? "Сегодня платёж" : `Платёж ${rental.payment_day}-го (через ${daysUntil} дн.)`}
@@ -326,12 +320,6 @@ function RentalCard({ rental, userId, token, onUpdate, onDelete, t }: { rental: 
             {isLandlord ? "Отметить оплачено" : "Отметить вручную"}
           </button>
         </div>
-      )}
-
-      {showCalendar && (
-        <PaymentCalendar rental={rental} token={token} userId={userId}
-          key={rental.share_token}
-        />
       )}
 
       {/* Дополнительные действия: QR, чат, удалить — компактная панель иконок */}
@@ -746,6 +734,7 @@ function checkAndNotify(rentals: Rental[], myName: string) {
 export default function RentalSection({ userId, token, myName, isDemo, openNew, onNewClose, t }: Props) {
   const [rentals, setRentals] = useState<Rental[]>(isDemo ? DEMO_RENTALS : []);
   const [showNew, setShowNew] = useState(false);
+  const [calendarRentalId, setCalendarRentalId] = useState<string | number | null>(null);
   const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">(
     "Notification" in window ? Notification.permission : "unsupported"
   );
@@ -839,7 +828,7 @@ export default function RentalSection({ userId, token, myName, isDemo, openNew, 
         </div>
         <div className="space-y-3">
           {list.map(r => (
-            <RentalCard key={r.id} rental={r} userId={userId} token={token} onUpdate={handleUpdate} onDelete={handleDelete} t={t} />
+            <RentalCard key={r.id} rental={r} userId={userId} token={token} onUpdate={handleUpdate} onDelete={handleDelete} t={t} onOpenCalendar={(rental) => setCalendarRentalId(rental.id)} />
           ))}
         </div>
       </div>
@@ -866,6 +855,12 @@ export default function RentalSection({ userId, token, myName, isDemo, openNew, 
           onCreated={handleCreated}
         />
       )}
+
+      {(() => {
+        const r = calendarRentalId != null ? rentals.find(x => x.id === calendarRentalId) : null;
+        if (!r) return null;
+        return <PaymentCalendar rental={r} token={token} userId={userId} onClose={() => setCalendarRentalId(null)} />;
+      })()}
 
       {loading ? (
         <div className="flex items-center justify-center py-16">
