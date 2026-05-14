@@ -32,6 +32,7 @@ interface Rental {
   created_at: string;
   landlord_avatar_url?: string;
   tenant_avatar_url?: string;
+  paid_until?: string | null;
 }
 
 interface Props {
@@ -328,6 +329,23 @@ function RentalCard({ rental, userId, token, onUpdate, onDelete, t, onOpenCalend
           </div>
         </div>
       )}
+
+      {/* Оплачено вперёд — если есть оплаченные будущие месяцы */}
+      {(() => {
+        const currentKey = new Date().toISOString().slice(0, 7);
+        if (!rental.paid_until || rental.paid_until <= currentKey) return null;
+        const [yStr, mStr] = rental.paid_until.split("-");
+        const MONTHS_RU = ["янв","фев","мар","апр","май","июн","июл","авг","сен","окт","ноя","дек"];
+        const monthLabel = `${MONTHS_RU[parseInt(mStr, 10) - 1]} ${yStr}`;
+        return (
+          <div className="rounded-xl px-3 py-2 flex items-center gap-2" style={{ background: "rgba(168,85,247,0.1)", border: "1px solid rgba(168,85,247,0.3)" }}>
+            <Icon name="Zap" size={14} style={{ color: "#c084fc" }} />
+            <p className="text-xs font-medium" style={{ color: "#c084fc" }}>
+              Оплачено вперёд: до {monthLabel}
+            </p>
+          </div>
+        );
+      })()}
 
       {/* Статус оплаты текущего месяца — главный визуальный индикатор */}
       {myPayStatus === "paid" ? (
