@@ -468,14 +468,35 @@ function RentalCard({ rental, userId, token, onUpdate, onDelete, t, onOpenCalend
         </div>
       ) : (
         <div className="space-y-2">
-          <div className="flex items-center justify-between text-xs">
-            <button className="flex items-center gap-1.5 hover:opacity-70" onClick={() => onOpenCalendar(rental)}>
-              <Icon name="CalendarDays" size={13} style={{ color: "#5eead4" }} />
-              <span className={isNear ? "text-amber-400 font-medium" : "text-muted-foreground"}>
-                {daysUntil === 0 ? "Сегодня платёж" : `Платёж ${rental.payment_day}-го (через ${daysUntil} дн.)`}
-              </span>
-            </button>
-          </div>
+          {(() => {
+            const MONTHS_RU = ["янв","фев","мар","апр","май","июн","июл","авг","сен","окт","ноя","дек"];
+            const now = new Date();
+            const due = rental.payment_day >= now.getDate()
+              ? new Date(now.getFullYear(), now.getMonth(), rental.payment_day)
+              : new Date(now.getFullYear(), now.getMonth() + 1, rental.payment_day);
+            const dueLabel = `${rental.payment_day} ${MONTHS_RU[due.getMonth()]}`;
+            return (
+              <button onClick={() => onOpenCalendar(rental)}
+                className="w-full flex items-center justify-between rounded-xl px-3 py-2 hover:opacity-80 transition-opacity"
+                style={{
+                  background: isNear ? "rgba(245,158,11,0.1)" : "rgba(20,184,166,0.08)",
+                  border: `1px solid ${isNear ? "rgba(245,158,11,0.25)" : "rgba(20,184,166,0.2)"}`,
+                }}>
+                <div className="flex items-center gap-2">
+                  <Icon name="CalendarDays" size={14} style={{ color: isNear ? "#fbbf24" : "#5eead4" }} />
+                  <div className="text-left">
+                    <p className="text-xs font-semibold" style={{ color: isNear ? "#fbbf24" : "#5eead4" }}>
+                      {daysUntil === 0 ? "Сегодня платёж" : `Платёж ${dueLabel}`}
+                    </p>
+                    {daysUntil > 0 && (
+                      <p className="text-[10px] text-muted-foreground">через {daysUntil} {daysUntil === 1 ? "день" : daysUntil < 5 ? "дня" : "дн."}</p>
+                    )}
+                  </div>
+                </div>
+                <Icon name="ChevronRight" size={14} className="text-muted-foreground" />
+              </button>
+            );
+          })()}
           <button
             onClick={() => setConfirmPay(true)}
             className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all flex items-center justify-center gap-2"
