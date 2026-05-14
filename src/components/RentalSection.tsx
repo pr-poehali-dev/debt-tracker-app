@@ -946,6 +946,19 @@ export default function RentalSection({ userId, token, myName, isDemo, openNew, 
     checkAndNotify(rentals, myName);
   }, [rentals, myName]);
 
+  useEffect(() => {
+    if (loading || rentals.length === 0) return;
+    try {
+      const url = new URL(window.location.href);
+      const target = url.searchParams.get("openRental");
+      if (!target) return;
+      const found = rentals.find(r => String(r.id) === target);
+      if (found) setCalendarRentalId(found.id);
+      url.searchParams.delete("openRental");
+      window.history.replaceState(null, "", url.toString());
+    } catch { /* no-op */ }
+  }, [loading, rentals]);
+
   async function handleRequestPermission() {
     const granted = await requestNotificationPermission();
     setNotifPermission(granted ? "granted" : "denied");

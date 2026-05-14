@@ -823,7 +823,15 @@ export function CalendarSection({ contacts, t, debts, rentals = [], userId = 0, 
           const bg = isLandlord ? "rgba(192,132,252,0.12)" : "rgba(125,211,252,0.12)";
           const border = isLandlord ? "rgba(192,132,252,0.25)" : "rgba(125,211,252,0.25)";
           return (
-            <button key={`rent-${i}`} type="button" onClick={() => onNav?.("rental")} className="w-full text-left glass rounded-2xl p-4 flex items-center gap-3 hover:bg-white/[0.06] active:scale-[0.99] transition" style={{ borderLeft: `3px solid ${color}` }}>
+            <button key={`rent-${i}`} type="button" onClick={() => {
+              try {
+                const url = new URL(window.location.href);
+                url.searchParams.set("section", "rental");
+                url.searchParams.set("openRental", String(r.id));
+                window.history.replaceState(null, "", url.toString());
+              } catch { /* no-op */ }
+              onNav?.("rental");
+            }} className="w-full text-left glass rounded-2xl p-4 flex items-center gap-3 hover:bg-white/[0.06] active:scale-[0.99] transition" style={{ borderLeft: `3px solid ${color}` }}>
               <div className="w-12 h-12 rounded-2xl flex flex-col items-center justify-center flex-shrink-0"
                 style={{ background: bg, border: `1px solid ${border}` }}>
                 <span className="text-base font-bold leading-none" style={{ color }}>{r.payment_day}</span>
