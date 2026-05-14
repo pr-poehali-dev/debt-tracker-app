@@ -434,8 +434,8 @@ function RentalCard({ rental, userId, token, onUpdate, onDelete, t, onOpenCalend
                 const now = new Date();
                 const next = new Date(now.getFullYear(), now.getMonth() + 1, rental.payment_day);
                 return (
-                  <p className="text-[10px] mt-0.5" style={{ color: "rgba(74,222,128,0.7)" }}>
-                    Следующий платёж: {rental.payment_day} {MONTHS_RU[next.getMonth()]}{next.getFullYear() !== now.getFullYear() ? ` ${next.getFullYear()}` : ""}
+                  <p className="text-sm mt-0.5" style={{ color: "rgba(74,222,128,0.85)" }}>
+                    Следующий платёж: <span className="font-semibold">{rental.payment_day} {MONTHS_RU[next.getMonth()]}{next.getFullYear() !== now.getFullYear() ? ` ${next.getFullYear()}` : ""}</span>
                   </p>
                 );
               })()}
