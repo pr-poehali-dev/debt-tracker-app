@@ -443,6 +443,13 @@ def handler(event: dict, context) -> dict:
                             f"DELETE FROM {SCHEMA}.rental_payments WHERE rental_id=%s AND month=%s AND role=%s",
                             (rental_id, target_month, role)
                         )
+                    # Лейбл месяца на русском (для уведомлений и системного сообщения)
+                    MONTHS_RU_FULL = ["январь","февраль","март","апрель","май","июнь","июль","август","сентябрь","октябрь","ноябрь","декабрь"]
+                    try:
+                        ty, tm = target_month.split("-")
+                        month_label_ru = f"{MONTHS_RU_FULL[int(tm) - 1]} {ty}"
+                    except Exception:
+                        month_label_ru = target_month
                     # Уведомление другой стороне при оплате
                     if status_val == "paid":
                         prefix = "" if is_current else f"(за {target_month}) "
@@ -462,6 +469,35 @@ def handler(event: dict, context) -> dict:
                                 (rental["tenant_user_id"], "payment", notif_title, notif_body, json.dumps({"rental_token": token, "month": target_month}))
                             )
                             send_push(conn, rental["tenant_user_id"], notif_title, notif_body, "/?section=rental")
+                    # Системное сообщение в чат аренды (если чат доступен — оба пользователя привязаны)
+                    if rental.get("landlord_user_id") and rental.get("tenant_user_id"):
+                        amt_str = f"{int(rental['amount']):,}".replace(",", " ")
+                        ahead = "" if is_current else " заранее"
+                        if status_val == "paid":
+                            if role == "tenant":
+                                actor = rental["tenant_name"] or "Арендатор"
+                                sys_text = f"{actor}{ahead} оплатил аренду за {month_label_ru} — {amt_str} ₽."
+                                sender_uid = rental["tenant_user_id"]
+                                sender_nm = actor
+                            else:
+                                actor = rental["landlord_name"] or "Арендодатель"
+                                sys_text = f"{actor} подтвердил получение оплаты за {month_label_ru} — {amt_str} ₽."
+                                sender_uid = rental["landlord_user_id"]
+                                sender_nm = actor
+                        else:
+                            if role == "tenant":
+                                actor = rental["tenant_name"] or "Арендатор"
+                                sender_uid = rental["tenant_user_id"]
+                            else:
+                                actor = rental["landlord_name"] or "Арендодатель"
+                                sender_uid = rental["landlord_user_id"]
+                            sys_text = f"{actor} отменил отметку об оплате за {month_label_ru}."
+                            sender_nm = actor
+                        cur.execute(
+                            f"""INSERT INTO {SCHEMA}.messages (rental_id, sender_user_id, sender_name, text, is_system)
+                                VALUES (%s, %s, %s, %s, true)""",
+                            (rental_id, sender_uid, sender_nm, sys_text)
+                        )
 
                 # Изменение суммы арендодателем
                 if "new_amount" in body:
