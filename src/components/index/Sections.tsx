@@ -1770,22 +1770,7 @@ export function Dashboard({ onNav, contacts, t, lentDebts, borrowedDebts, active
         </button>
       </div>
 
-      {overdueCount > 0 && (
-        <div className="glass rounded-2xl p-4 border border-red-500/20 bg-red-500/5">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-red-500/20 rounded-xl flex items-center justify-center flex-shrink-0 animate-pulse">
-              <Icon name="AlertTriangle" size={18} className="text-red-400" />
-            </div>
-            <div className="flex-1">
-              <p className="font-semibold text-red-400 text-sm">{t.overdueDebts}</p>
-              <p className="text-xs text-muted-foreground">{overdueCount} {t.overdue.toLowerCase()}</p>
-            </div>
-            <button onClick={openOverdue} className="text-xs text-red-400 border border-red-500/30 rounded-lg px-3 py-1.5 hover:bg-red-500/10 transition-colors whitespace-nowrap">
-              →
-            </button>
-          </div>
-        </div>
-      )}
+
 
       <div>
         <div className="flex items-center justify-between mb-3">
