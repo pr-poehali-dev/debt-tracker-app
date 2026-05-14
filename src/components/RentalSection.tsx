@@ -483,13 +483,13 @@ function RentalCard({ rental, userId, token, onUpdate, onDelete, t, onOpenCalend
                   border: `1px solid ${isNear ? "rgba(245,158,11,0.25)" : "rgba(20,184,166,0.2)"}`,
                 }}>
                 <div className="flex items-center gap-2">
-                  <Icon name="CalendarDays" size={14} style={{ color: isNear ? "#fbbf24" : "#5eead4" }} />
+                  <Icon name="CalendarDays" size={16} style={{ color: isNear ? "#fbbf24" : "#5eead4" }} />
                   <div className="text-left">
-                    <p className="text-xs font-semibold" style={{ color: isNear ? "#fbbf24" : "#5eead4" }}>
+                    <p className="text-sm font-bold" style={{ color: isNear ? "#fbbf24" : "#5eead4" }}>
                       {daysUntil === 0 ? "Сегодня платёж" : `Платёж ${dueLabel}`}
                     </p>
                     {daysUntil > 0 && (
-                      <p className="text-[10px] text-muted-foreground">через {daysUntil} {daysUntil === 1 ? "день" : daysUntil < 5 ? "дня" : "дн."}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">через {daysUntil} {daysUntil === 1 ? "день" : daysUntil < 5 ? "дня" : "дн."}</p>
                     )}
                   </div>
                 </div>
