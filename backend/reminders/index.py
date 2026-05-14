@@ -1,8 +1,9 @@
 """
-Business: Cron-функция — отправляет push-напоминания за день до срока возврата займа кредитору и заёмщику
+Business: Cron-функция — отправляет push-напоминания за день до срока возврата займа и за день до даты аренды
 Args: event - dict с httpMethod; context - объект с request_id
 Returns: HTTP-ответ со статистикой отправки
 """
+import calendar
 import json
 import os
 import psycopg2
@@ -163,6 +164,102 @@ def handler(event, context):
                         )
             conn.commit()
 
+            # === АРЕНДА: напоминания за день до даты платежа ===
+            sent_landlord = 0
+            sent_tenant = 0
+            rentals_processed = 0
+            rentals_skipped = 0
+
+            # Лог дедупликации для аренды
+            cur.execute(
+                f"""CREATE TABLE IF NOT EXISTS {SCHEMA}.rental_reminder_log (
+                    id SERIAL PRIMARY KEY,
+                    rental_id INT,
+                    user_id INT,
+                    sent_for DATE,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    UNIQUE(rental_id, user_id, sent_for)
+                )"""
+            )
+            conn.commit()
+
+            # Целевой день платежа — день месяца, на который придётся завтрашний календарный день.
+            # Если завтра последний день короткого месяца, считаем что также наступает срок для аренд с большим payment_day.
+            last_day_of_tomorrow_month = calendar.monthrange(tomorrow.year, tomorrow.month)[1]
+            is_last_day = tomorrow.day == last_day_of_tomorrow_month
+            target_days = [tomorrow.day] if not is_last_day else list(range(tomorrow.day, 32))
+            current_month_key = date.today().strftime("%Y-%m")
+
+            cur.execute(
+                f"""SELECT id, title, amount, payment_day, landlord_user_id, tenant_user_id,
+                           landlord_name, tenant_name
+                    FROM {SCHEMA}.rentals
+                    WHERE status NOT IN ('archived','closed','deleted','cancelled')
+                      AND tenant_decision = 'accepted'
+                      AND payment_day = ANY(%s)""",
+                (target_days,)
+            )
+            rental_rows = cur.fetchall()
+
+            for r_id, r_title, r_amount, r_day, landlord_id, tenant_id, landlord_name, tenant_name in rental_rows:
+                rentals_processed += 1
+                amount_str = f"{int(float(r_amount)):,} ₽".replace(",", " ")
+
+                # Проверяем, кто уже оплатил/подтвердил за текущий месяц — таких не дёргаем
+                cur.execute(
+                    f"""SELECT role FROM {SCHEMA}.rental_payments
+                        WHERE rental_id = %s AND month = %s AND status = 'paid'""",
+                    (r_id, current_month_key)
+                )
+                paid_roles = {row[0] for row in cur.fetchall()}
+
+                # Арендатору
+                if tenant_id and "tenant" not in paid_roles:
+                    cur.execute(
+                        f"SELECT 1 FROM {SCHEMA}.rental_reminder_log WHERE rental_id = %s AND user_id = %s AND sent_for = %s",
+                        (r_id, tenant_id, target)
+                    )
+                    if cur.fetchone():
+                        rentals_skipped += 1
+                    else:
+                        notif_title = "⏰ Завтра срок оплаты аренды"
+                        notif_body = f"«{r_title}» — {amount_str}"
+                        cur.execute(
+                            f"""INSERT INTO {SCHEMA}.notifications (user_id, type, title, body, data)
+                                VALUES (%s, 'rental_reminder', %s, %s, %s)""",
+                            (tenant_id, notif_title, notif_body, json.dumps({"rental_id": r_id}))
+                        )
+                        if send_push(conn, tenant_id, notif_title, notif_body, "/?section=rental"):
+                            sent_tenant += 1
+                        cur.execute(
+                            f"INSERT INTO {SCHEMA}.rental_reminder_log (rental_id, user_id, sent_for) VALUES (%s,%s,%s)",
+                            (r_id, tenant_id, target)
+                        )
+
+                # Арендодателю
+                if landlord_id and "landlord" not in paid_roles:
+                    cur.execute(
+                        f"SELECT 1 FROM {SCHEMA}.rental_reminder_log WHERE rental_id = %s AND user_id = %s AND sent_for = %s",
+                        (r_id, landlord_id, target)
+                    )
+                    if cur.fetchone():
+                        rentals_skipped += 1
+                    else:
+                        notif_title = "⏰ Завтра ждём оплату аренды"
+                        notif_body = f"«{r_title}» — {amount_str}" + (f" от {tenant_name}" if tenant_name else "")
+                        cur.execute(
+                            f"""INSERT INTO {SCHEMA}.notifications (user_id, type, title, body, data)
+                                VALUES (%s, 'rental_reminder', %s, %s, %s)""",
+                            (landlord_id, notif_title, notif_body, json.dumps({"rental_id": r_id}))
+                        )
+                        if send_push(conn, landlord_id, notif_title, notif_body, "/?section=rental"):
+                            sent_landlord += 1
+                        cur.execute(
+                            f"INSERT INTO {SCHEMA}.rental_reminder_log (rental_id, user_id, sent_for) VALUES (%s,%s,%s)",
+                            (r_id, landlord_id, target)
+                        )
+            conn.commit()
+
     return {
         "statusCode": 200,
         "headers": cors_headers(),
@@ -171,6 +268,10 @@ def handler(event, context):
             "sent_lender": sent_lender,
             "sent_borrower": sent_borrower,
             "skipped_already_sent": skipped,
+            "rentals_processed": rentals_processed,
+            "sent_landlord": sent_landlord,
+            "sent_tenant": sent_tenant,
+            "rentals_skipped": rentals_skipped,
             "target_date": target,
         }, ensure_ascii=False),
         "isBase64Encoded": False

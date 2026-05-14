@@ -11,7 +11,7 @@
       "method": "POST",
       "path": "/",
       "expectedStatus": 200,
-      "expectedBody": {"target_date": "2026-05-12"},
+      "expectedBody": {"sent_landlord": 0},
       "bodyMatcher": "partial"
     }
   ]
