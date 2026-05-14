@@ -63,28 +63,35 @@ function PaymentCalendar({ rental, token, userId, onClose }: { rental: Rental; t
   const [payments, setPayments] = useState<{ month: string; role: string; status: string; amount: number | null }[]>([]);
   const [loading, setLoading] = useState(true);
   const [ready, setReady] = useState(false);
-  const [viewMonth, setViewMonth] = useState(() => {
-    const d = new Date(); return { year: d.getFullYear(), month: d.getMonth() };
-  });
+  const [paying, setPaying] = useState<string | null>(null);
+  const [confirmMonth, setConfirmMonth] = useState<string | null>(null);
 
   useEffect(() => {
     const tm = setTimeout(() => setReady(true), 350);
     return () => clearTimeout(tm);
   }, []);
 
-  useEffect(() => {
-    import("../../backend/func2url.json").then(({ default: urls }) => {
-      fetch(`${urls["rentals"]}?token=${rental.share_token}&history=1`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-        .then(r => r.ok ? r.json() : { payments: [] })
-        .then(d => { setPayments(d.payments || []); setLoading(false); });
+  async function loadHistory() {
+    const { default: urls } = await import("../../backend/func2url.json");
+    const res = await fetch(`${urls["rentals"]}?token=${rental.share_token}&history=1`, {
+      headers: { Authorization: `Bearer ${token}` },
     });
-  }, [rental.share_token, token]);
+    const d = res.ok ? await res.json() : { payments: [] };
+    setPayments(d.payments || []);
+    setLoading(false);
+  }
+
+  useEffect(() => { loadHistory(); }, [rental.share_token, token]);
 
   const isLandlord = rental.landlord_user_id === userId;
-  const months = Array.from({ length: 12 }, (_, i) => {
-    const d = new Date(viewMonth.year, viewMonth.month - i, 1);
+  const myRole: "landlord" | "tenant" = isLandlord ? "landlord" : "tenant";
+  const currentKey = new Date().toISOString().slice(0, 7);
+
+  // 6 будущих месяцев + текущий + 11 прошлых (сверху — самый дальний будущий)
+  const today = new Date();
+  const months = Array.from({ length: 18 }, (_, i) => {
+    const offset = 6 - i; // от +6 до -11
+    const d = new Date(today.getFullYear(), today.getMonth() + offset, 1);
     return { year: d.getFullYear(), month: d.getMonth(), key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}` };
   });
 
@@ -92,6 +99,22 @@ function PaymentCalendar({ rental, token, userId, onClose }: { rental: Rental; t
 
   function getStatus(monthKey: string, role: string) {
     return payments.find(p => p.month === monthKey && p.role === role)?.status || null;
+  }
+
+  async function payMonth(monthKey: string) {
+    setPaying(monthKey);
+    setConfirmMonth(null);
+    try {
+      const { default: urls } = await import("../../backend/func2url.json");
+      const res = await fetch(`${urls["rentals"]}?token=${rental.share_token}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ payment_status: "paid", role: myRole, month: monthKey }),
+      });
+      if (res.ok) await loadHistory();
+    } finally {
+      setPaying(null);
+    }
   }
 
   return createPortal(
@@ -121,23 +144,65 @@ function PaymentCalendar({ rental, token, userId, onClose }: { rental: Rental; t
             {months.map(({ year, month, key }) => {
               const landlordStatus = getStatus(key, "landlord");
               const tenantStatus = getStatus(key, "tenant");
-              const isCurrentMonth = key === new Date().toISOString().slice(0, 7);
+              const isCurrentMonth = key === currentKey;
+              const isFuture = key > currentKey;
+              const isPast = key < currentKey;
+              const myStatus = myRole === "landlord" ? landlordStatus : tenantStatus;
+              const canPay = !isPast && myStatus !== "paid";
+              const isConfirming = confirmMonth === key;
+
+              const renderCell = (role: "landlord" | "tenant", status: string | null) => {
+                if (status === "paid") {
+                  return <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium" style={{ background: "rgba(34,197,94,0.15)", color: "#4ade80" }}><Icon name="Check" size={9} />Оплачено</span>;
+                }
+                if (role === myRole && canPay) {
+                  if (paying === key) {
+                    return <Icon name="Loader2" size={12} className="text-teal-400 animate-spin" />;
+                  }
+                  return (
+                    <button
+                      onClick={() => isFuture ? setConfirmMonth(key) : payMonth(key)}
+                      className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold transition-all"
+                      style={{ background: isFuture ? "rgba(168,85,247,0.15)" : "rgba(20,184,166,0.18)", color: isFuture ? "#c084fc" : "#5eead4", border: `1px solid ${isFuture ? "rgba(168,85,247,0.3)" : "rgba(20,184,166,0.35)"}` }}
+                    >
+                      <Icon name={isFuture ? "Zap" : "CheckCircle2"} size={10} />
+                      {isFuture ? "Заранее" : "Оплатить"}
+                    </button>
+                  );
+                }
+                return <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium" style={{ background: "rgba(255,255,255,0.05)", color: "#6b7280" }}>—</span>;
+              };
+
               return (
-                <div key={key} className="grid grid-cols-3 gap-1 items-center rounded-xl px-3 py-2.5"
-                  style={{ background: isCurrentMonth ? "rgba(20,184,166,0.08)" : "rgba(255,255,255,0.03)", border: isCurrentMonth ? "1px solid rgba(20,184,166,0.2)" : "1px solid transparent" }}>
-                  <span className={`text-xs font-medium ${isCurrentMonth ? "text-teal-400" : "text-foreground"}`}>
-                    {MONTHS_RU[month]} {year !== new Date().getFullYear() ? year : ""}
-                  </span>
-                  <div className="flex justify-center">
-                    {landlordStatus === "paid"
-                      ? <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium" style={{ background: "rgba(34,197,94,0.15)", color: "#4ade80" }}><Icon name="Check" size={9} />Оплачено</span>
-                      : <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium" style={{ background: "rgba(255,255,255,0.05)", color: "#6b7280" }}>—</span>}
+                <div key={key}>
+                  <div className="grid grid-cols-3 gap-1 items-center rounded-xl px-3 py-2.5"
+                    style={{ background: isCurrentMonth ? "rgba(20,184,166,0.08)" : isFuture ? "rgba(168,85,247,0.04)" : "rgba(255,255,255,0.03)", border: isCurrentMonth ? "1px solid rgba(20,184,166,0.2)" : "1px solid transparent" }}>
+                    <span className={`text-xs font-medium ${isCurrentMonth ? "text-teal-400" : isFuture ? "text-purple-300" : "text-foreground"}`}>
+                      {MONTHS_RU[month]} {year !== new Date().getFullYear() ? year : ""}
+                    </span>
+                    <div className="flex justify-center">{renderCell("landlord", landlordStatus)}</div>
+                    <div className="flex justify-center">{renderCell("tenant", tenantStatus)}</div>
                   </div>
-                  <div className="flex justify-center">
-                    {tenantStatus === "paid"
-                      ? <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium" style={{ background: "rgba(34,197,94,0.15)", color: "#4ade80" }}><Icon name="Check" size={9} />Оплачено</span>
-                      : <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium" style={{ background: "rgba(255,255,255,0.05)", color: "#6b7280" }}>—</span>}
-                  </div>
+                  {isConfirming && (
+                    <div className="rounded-xl p-3 mt-1 space-y-2" style={{ background: "rgba(168,85,247,0.1)", border: "1px solid rgba(168,85,247,0.3)" }}>
+                      <p className="text-xs text-center text-foreground">
+                        Оплатить {MONTHS_RU[month]} {year} заранее на сумму {new Intl.NumberFormat("ru-RU").format(rental.amount)} ₽?
+                      </p>
+                      <p className="text-[10px] text-center text-muted-foreground">Отменить это действие будет нельзя</p>
+                      <div className="flex gap-2">
+                        <button onClick={() => setConfirmMonth(null)}
+                          className="flex-1 py-1.5 rounded-lg text-xs font-medium text-muted-foreground"
+                          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
+                          Отмена
+                        </button>
+                        <button onClick={() => payMonth(key)}
+                          className="flex-1 py-1.5 rounded-lg text-xs font-semibold text-white"
+                          style={{ background: "linear-gradient(135deg, #a855f7, #7c3aed)" }}>
+                          Подтвердить
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}

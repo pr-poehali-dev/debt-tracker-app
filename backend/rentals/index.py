@@ -399,19 +399,31 @@ def handler(event: dict, context) -> dict:
                         updates.append("tenant_user_id = %s")
                         params.append(auth_user_id)
 
-                # Отметить оплату (landlord или tenant)
+                # Отметить оплату (landlord или tenant) — поддержка произвольного месяца (предоплата)
                 if "payment_status" in body:
                     role = body.get("role", "landlord")
                     status_val = body["payment_status"]
                     current_month = date.today().strftime("%Y-%m")
-                    if role == "landlord":
-                        updates.append("current_month_status_landlord = %s")
-                        params.append(status_val)
-                    else:
-                        updates.append("current_month_status_tenant = %s")
-                        params.append(status_val)
-                    updates.append("last_payment_month = %s")
-                    params.append(current_month)
+                    target_month = (body.get("month") or current_month).strip()
+                    # Валидация формата YYYY-MM
+                    try:
+                        datetime.strptime(target_month, "%Y-%m")
+                    except Exception:
+                        return err("Неверный формат месяца")
+                    # Запрещаем оплачивать прошлые месяцы (раньше текущего)
+                    if target_month < current_month:
+                        return err("Нельзя оплачивать прошедшие месяцы")
+                    is_current = target_month == current_month
+                    # Обновляем «оперативные» поля аренды только если это текущий месяц
+                    if is_current:
+                        if role == "landlord":
+                            updates.append("current_month_status_landlord = %s")
+                            params.append(status_val)
+                        else:
+                            updates.append("current_month_status_tenant = %s")
+                            params.append(status_val)
+                        updates.append("last_payment_month = %s")
+                        params.append(current_month)
                     # Записать в историю платежей
                     rental_id = rental["id"]
                     if status_val == "paid":
@@ -419,30 +431,30 @@ def handler(event: dict, context) -> dict:
                             f"""INSERT INTO {SCHEMA}.rental_payments (rental_id, month, role, status, amount)
                                 VALUES (%s, %s, %s, 'paid', %s)
                                 ON CONFLICT (rental_id, month, role) DO UPDATE SET status='paid', amount=EXCLUDED.amount""",
-                            (rental_id, current_month, role, rental["amount"])
+                            (rental_id, target_month, role, rental["amount"])
                         )
                     else:
                         cur.execute(
                             f"DELETE FROM {SCHEMA}.rental_payments WHERE rental_id=%s AND month=%s AND role=%s",
-                            (rental_id, current_month, role)
+                            (rental_id, target_month, role)
                         )
                     # Уведомление другой стороне при оплате
                     if status_val == "paid":
-                        month_label = date.today().strftime("%B %Y")
+                        prefix = "" if is_current else f"(за {target_month}) "
                         if role == "tenant" and rental.get("landlord_user_id"):
-                            notif_title = f"💰 {rental['tenant_name'] or 'Арендатор'} оплатил аренду"
+                            notif_title = f"💰 {rental['tenant_name'] or 'Арендатор'} {prefix}оплатил аренду"
                             notif_body = f"«{rental['title']}» — {int(rental['amount']):,} ₽".replace(",", " ")
                             cur.execute(
                                 f"INSERT INTO {SCHEMA}.notifications (user_id, type, title, body, data) VALUES (%s, %s, %s, %s, %s)",
-                                (rental["landlord_user_id"], "payment", notif_title, notif_body, json.dumps({"rental_token": token, "month": current_month}))
+                                (rental["landlord_user_id"], "payment", notif_title, notif_body, json.dumps({"rental_token": token, "month": target_month}))
                             )
                             send_push(conn, rental["landlord_user_id"], notif_title, notif_body, "/?section=rental")
                         elif role == "landlord" and rental.get("tenant_user_id"):
-                            notif_title = f"💰 {rental['landlord_name']} подтвердил получение оплаты"
+                            notif_title = f"💰 {rental['landlord_name']} {prefix}подтвердил получение оплаты"
                             notif_body = f"«{rental['title']}» — {int(rental['amount']):,} ₽".replace(",", " ")
                             cur.execute(
                                 f"INSERT INTO {SCHEMA}.notifications (user_id, type, title, body, data) VALUES (%s, %s, %s, %s, %s)",
-                                (rental["tenant_user_id"], "payment", notif_title, notif_body, json.dumps({"rental_token": token, "month": current_month}))
+                                (rental["tenant_user_id"], "payment", notif_title, notif_body, json.dumps({"rental_token": token, "month": target_month}))
                             )
                             send_push(conn, rental["tenant_user_id"], notif_title, notif_body, "/?section=rental")
 
