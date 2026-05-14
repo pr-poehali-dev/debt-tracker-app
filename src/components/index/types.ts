@@ -20,7 +20,7 @@ export interface Debt {
   contactId: number;
   name: string;
   amount: number;
-  dueDate: string;
+  dueDate: string; // пустая строка = бессрочный
   status: "active" | "overdue" | "paid" | "deleted";
   avatar: string;
   note?: string;

@@ -213,9 +213,12 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
   };
   const status = statusMap[debt.status] || statusMap.paid;
   const gradientClass = dir === "lent" ? "from-purple-500 to-indigo-500" : "from-sky-500 to-blue-600";
-  const daysLeft = Math.ceil((new Date(debt.dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+  const hasDueDate = !!debt.dueDate;
+  const daysLeft = hasDueDate
+    ? Math.ceil((new Date(debt.dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+    : null;
 
-  const total = debt.interestRate
+  const total = debt.interestRate && hasDueDate
     ? calcTotalWithInterest(debt.amount, debt.interestRate, debt.interestType || "simple", debt.dueDate)
     : null;
   const interest = total ? total - debt.amount : null;
@@ -345,7 +348,7 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
               </div>
             )}
 
-            {(() => {
+            {hasDueDate && daysLeft !== null ? (() => {
               const isPaid = debt.status === "paid";
               const dueColorCls = !isPaid && daysLeft < 0
                 ? "text-red-400"
@@ -382,7 +385,17 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
                   )}
                 </div>
               );
-            })()}
+            })() : (
+              <div className="flex items-center gap-3 glass rounded-2xl px-4 py-3">
+                <div className="w-8 h-8 rounded-xl bg-purple-500/15 flex items-center justify-center flex-shrink-0">
+                  <Icon name="Infinity" size={16} className="text-purple-400" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs text-muted-foreground">Срок возврата</p>
+                  <p className="text-sm font-semibold text-foreground">Бессрочно</p>
+                </div>
+              </div>
+            )}
 
             {debt.note && dir === "lent" && (
               <div className="flex items-start gap-3 glass rounded-2xl px-4 py-3">

@@ -134,7 +134,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
               contactId: linkedId || findContactId(cpName, cpPhone),
               name: String(d.title),
               amount: Number(d.amount),
-              dueDate: String(d.due_date || new Date().toISOString().slice(0, 10)),
+              dueDate: d.due_date ? String(d.due_date) : "",
               status: status === "archived" ? "paid" : (isDeleted && isLender) ? "deleted" : ((() => {
                 const dueStr = String(d.due_date || "");
                 if (!dueStr) return "active" as const;

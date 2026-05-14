@@ -779,7 +779,22 @@ export default function NewDebtModal({ open, onClose, myName = "", myPhone = "",
             )}
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">{t.dueDateLabel}</label>
-              <input value={form.due_date} onChange={e => set("due_date", e.target.value)} type="date" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-foreground outline-none focus:border-purple-500/50 transition-colors" style={{ colorScheme: "dark" }} />
+              <div className="flex gap-2 items-stretch">
+                <input value={form.due_date} onChange={e => set("due_date", e.target.value)} type="date" className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-foreground outline-none focus:border-purple-500/50 transition-colors" style={{ colorScheme: "dark" }} />
+                {form.due_date && (
+                  <button
+                    type="button"
+                    onClick={() => set("due_date", "")}
+                    className="px-3 rounded-xl bg-white/5 border border-white/10 text-muted-foreground text-xs hover:bg-white/10 transition-colors whitespace-nowrap"
+                    title="Сделать бессрочным"
+                  >
+                    Очистить
+                  </button>
+                )}
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                {form.due_date ? "Долг будет считаться просроченным после этой даты" : "Если не указать — займ будет бессрочным"}
+              </p>
             </div>
 
             {/* Процентная ставка */}

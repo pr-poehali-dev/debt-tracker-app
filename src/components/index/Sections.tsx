@@ -278,6 +278,14 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                 <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
                   <Avatar initials={d.avatar} color={contact?.color} imageUrl={d.counterpartyAvatarUrl} />
                   {(() => {
+                    if (!d.dueDate) {
+                      return (
+                        <p className="text-[10px] flex items-center gap-0.5 whitespace-nowrap text-muted-foreground">
+                          <Icon name="Infinity" size={10} />
+                          Бессрочно
+                        </p>
+                      );
+                    }
                     const today = new Date(); today.setHours(0, 0, 0, 0);
                     const due = new Date(d.dueDate); due.setHours(0, 0, 0, 0);
                     const days = Math.round((due.getTime() - today.getTime()) / 86400000);
@@ -683,6 +691,7 @@ export function CalendarSection({ contacts, t, debts, rentals = [], userId = 0, 
   // Точки на календаре: долги (фиолетовые/цветные) + аренда (бирюзовые)
   const dayColors: Record<number, string[]> = {};
   debts.forEach(d => {
+    if (!d.dueDate) return;
     const dd = new Date(d.dueDate);
     if (dd.getFullYear() === calDate.year && dd.getMonth() === calDate.month) {
       const contact = contacts.find(c => c.id === d.contactId);
@@ -703,7 +712,7 @@ export function CalendarSection({ contacts, t, debts, rentals = [], userId = 0, 
 
   // Список событий месяца: долги + платежи аренды
   const upcomingDebts = debts
-    .filter(d => { const dd = new Date(d.dueDate); return dd.getFullYear() === calDate.year && dd.getMonth() === calDate.month; })
+    .filter(d => { if (!d.dueDate) return false; const dd = new Date(d.dueDate); return dd.getFullYear() === calDate.year && dd.getMonth() === calDate.month; })
     .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
 
   const rentalEvents = activeRentals
@@ -1507,7 +1516,9 @@ export function ArchiveSection({ contacts, t, locale, archiveDebts, token = "", 
                 </div>
                 {d.note && <p className="text-xs text-muted-foreground">{d.note}</p>}
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {new Date(d.dueDate).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" })}
+                  {d.dueDate
+                    ? new Date(d.dueDate).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" })
+                    : "Бессрочно"}
                 </p>
               </div>
               <div className="text-right flex-shrink-0 flex flex-col items-end gap-1">
