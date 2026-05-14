@@ -556,6 +556,14 @@ def handler(event: dict, context) -> dict:
                          json.dumps({"rental_token": token, "old_amount": float(rental["amount"]), "new_amount": new_amt}))
                     )
                     send_push(conn, rental["tenant_user_id"], notif_title, notif_body, "/?section=rental")
+                    # Системное сообщение в чат аренды
+                    if rental.get("landlord_user_id") and rental.get("tenant_user_id"):
+                        sys_text = f"Арендодатель предложил новую цену: {old_str} ₽ → {new_str} ₽ в месяц. Ожидается согласование арендатора."
+                        cur.execute(
+                            f"""INSERT INTO {SCHEMA}.messages (rental_id, sender_user_id, sender_name, text, is_system)
+                                VALUES (%s, %s, %s, %s, true)""",
+                            (rental["id"], rental["landlord_user_id"], rental["landlord_name"] or "Система", sys_text)
+                        )
                 conn.commit()
 
         # Push арендодателю при принятии/отклонении новой суммы
@@ -572,6 +580,20 @@ def handler(event: dict, context) -> dict:
                          json.dumps({"rental_token": token, "accepted": accepted}))
                     )
                     send_push(conn, rental["landlord_user_id"], notif_title, notif_body, "/?section=rental")
+                    # Системное сообщение в чат аренды
+                    if rental.get("tenant_user_id"):
+                        pending = rental.get("pending_amount")
+                        old_str = f"{int(rental['amount']):,}".replace(",", " ")
+                        new_str = f"{int(pending):,}".replace(",", " ") if pending else ""
+                        if accepted:
+                            sys_text = f"Арендатор принял новую цену: {old_str} ₽ → {new_str} ₽ в месяц." if new_str else f"Арендатор принял новую цену."
+                        else:
+                            sys_text = f"Арендатор отклонил новую цену. Действует прежний тариф: {old_str} ₽ в месяц."
+                        cur.execute(
+                            f"""INSERT INTO {SCHEMA}.messages (rental_id, sender_user_id, sender_name, text, is_system)
+                                VALUES (%s, %s, %s, %s, true)""",
+                            (rental["id"], rental["tenant_user_id"], tenant_name, sys_text)
+                        )
                 conn.commit()
 
         return json_resp(row_to_rental(updated) if updated else {"ok": True})

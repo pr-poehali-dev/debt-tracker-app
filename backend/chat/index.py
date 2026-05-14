@@ -231,7 +231,7 @@ def handler(event: dict, context) -> dict:
                         cur.execute(
                             f"""SELECT m.id, m.sender_user_id, m.sender_name, m.text, m.created_at, m.is_read,
                                        m.attachment_url, m.attachment_type, m.attachment_name, m.attachment_size,
-                                       u.avatar_url
+                                       u.avatar_url, COALESCE(m.is_system, false)
                                 FROM {SCHEMA}.messages m
                                 LEFT JOIN {SCHEMA}.users u ON u.id = m.sender_user_id
                                 WHERE m.debt_id = %s AND m.id < %s
@@ -242,7 +242,7 @@ def handler(event: dict, context) -> dict:
                         cur.execute(
                             f"""SELECT m.id, m.sender_user_id, m.sender_name, m.text, m.created_at, m.is_read,
                                        m.attachment_url, m.attachment_type, m.attachment_name, m.attachment_size,
-                                       u.avatar_url
+                                       u.avatar_url, COALESCE(m.is_system, false)
                                 FROM {SCHEMA}.messages m
                                 LEFT JOIN {SCHEMA}.users u ON u.id = m.sender_user_id
                                 WHERE m.debt_id = %s
@@ -261,7 +261,7 @@ def handler(event: dict, context) -> dict:
                         cur.execute(
                             f"""SELECT m.id, m.sender_user_id, m.sender_name, m.text, m.created_at, m.is_read,
                                        m.attachment_url, m.attachment_type, m.attachment_name, m.attachment_size,
-                                       u.avatar_url
+                                       u.avatar_url, COALESCE(m.is_system, false)
                                 FROM {SCHEMA}.messages m
                                 LEFT JOIN {SCHEMA}.users u ON u.id = m.sender_user_id
                                 WHERE m.rental_id = %s AND m.id < %s
@@ -272,7 +272,7 @@ def handler(event: dict, context) -> dict:
                         cur.execute(
                             f"""SELECT m.id, m.sender_user_id, m.sender_name, m.text, m.created_at, m.is_read,
                                        m.attachment_url, m.attachment_type, m.attachment_name, m.attachment_size,
-                                       u.avatar_url
+                                       u.avatar_url, COALESCE(m.is_system, false)
                                 FROM {SCHEMA}.messages m
                                 LEFT JOIN {SCHEMA}.users u ON u.id = m.sender_user_id
                                 WHERE m.rental_id = %s
@@ -317,6 +317,7 @@ def handler(event: dict, context) -> dict:
                 "attachment_name": r[8],
                 "attachment_size": r[9],
                 "sender_avatar_url": r[10] if len(r) > 10 else None,
+                "is_system": bool(r[11]) if len(r) > 11 else False,
             }
             for r in rows
         ]

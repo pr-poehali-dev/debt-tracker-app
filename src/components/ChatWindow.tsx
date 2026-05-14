@@ -18,6 +18,7 @@ interface Message {
   attachment_name?: string | null;
   attachment_size?: number | null;
   sender_avatar_url?: string | null;
+  is_system?: boolean;
 }
 
 interface Props {
@@ -619,6 +620,17 @@ export default function ChatWindow({ debtId, rentalId, title, contactName, conta
                     const next = group.msgs[i + 1];
                     const showName = !m.is_mine && prev?.sender_user_id !== m.sender_user_id;
                     const isLastInBlock = !m.is_mine && next?.sender_user_id !== m.sender_user_id;
+                    if (m.is_system) {
+                      return (
+                        <div key={m.id} className="flex justify-center my-2">
+                          <div className="max-w-[88%] px-3 py-1.5 rounded-full text-[11px] text-center"
+                            style={{ background: "rgba(168,85,247,0.1)", border: "1px solid rgba(168,85,247,0.25)", color: "#c4b5fd" }}>
+                            <Icon name="Info" size={10} className="inline mr-1 -mt-0.5" />
+                            {m.text}
+                          </div>
+                        </div>
+                      );
+                    }
                     return (
                       <div key={m.id} className={`flex items-end gap-2 ${m.is_mine ? "justify-end" : "justify-start"}`}>
                         {!m.is_mine && (
