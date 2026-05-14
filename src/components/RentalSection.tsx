@@ -220,6 +220,8 @@ function RentalCard({ rental, userId, token, onUpdate, onDelete, t, onOpenCalend
   const [confirmPay, setConfirmPay] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [unread, setUnread] = useState(0);
+  const [showPriceEdit, setShowPriceEdit] = useState(false);
+  const [newPrice, setNewPrice] = useState("");
   const isLandlord = rental.landlord_user_id === userId;
   const canChat = rental.tenant_decision === "accepted" &&
     rental.tenant_user_id && rental.landlord_user_id &&
@@ -289,7 +291,19 @@ function RentalCard({ rental, userId, token, onUpdate, onDelete, t, onOpenCalend
           </div>
         </div>
         <div className="text-right flex-shrink-0">
-          <p className="text-lg font-bold font-heading" style={{ color: roleColor.amount }}>{fmt(rental.amount)}</p>
+          <div className="flex items-center justify-end gap-1.5">
+            <p className="text-lg font-bold font-heading" style={{ color: roleColor.amount }}>{fmt(rental.amount)}</p>
+            {isLandlord && !isPendingAmount && rental.tenant_decision === "accepted" && (
+              <button
+                onClick={() => { setNewPrice(String(Math.round(rental.amount))); setShowPriceEdit(true); }}
+                className="w-6 h-6 rounded-lg flex items-center justify-center"
+                style={{ background: "rgba(168,85,247,0.15)", border: "1px solid rgba(168,85,247,0.25)" }}
+                title="Изменить цену"
+              >
+                <Icon name="Pencil" size={11} style={{ color: "#c084fc" }} />
+              </button>
+            )}
+          </div>
           <p className="text-xs text-muted-foreground">{t?.perMonth ?? "в месяц"}</p>
         </div>
       </div>
@@ -297,7 +311,9 @@ function RentalCard({ rental, userId, token, onUpdate, onDelete, t, onOpenCalend
       {isPendingAmount && rental.pending_amount && (
         <div className="rounded-xl p-3 space-y-2" style={{ background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.3)" }}>
           <p className="text-xs font-medium" style={{ color: "#fcd34d" }}>
-            Арендодатель изменил сумму: {fmt(rental.pending_amount)}/мес
+            {isLandlord
+              ? `Ожидаем согласования арендатором: ${fmt(rental.amount)} → ${fmt(rental.pending_amount)}/мес`
+              : `Арендодатель изменил сумму: ${fmt(rental.amount)} → ${fmt(rental.pending_amount)}/мес`}
           </p>
           {!isLandlord && (
             <div className="flex gap-2">
@@ -311,7 +327,63 @@ function RentalCard({ rental, userId, token, onUpdate, onDelete, t, onOpenCalend
               </button>
             </div>
           )}
+          {isLandlord && (
+            <button onClick={() => onUpdate(rental.share_token, { accept_new_amount: false })}
+              className="w-full py-1.5 rounded-lg text-xs font-medium"
+              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#fcd34d" }}>
+              Отменить предложение
+            </button>
+          )}
         </div>
+      )}
+
+      {showPriceEdit && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-end justify-center" style={{ background: "rgba(0,0,0,0.6)" }}
+          onClick={e => { if (e.currentTarget === e.target) setShowPriceEdit(false); }}>
+          <div className="w-full max-w-md rounded-t-3xl p-5 space-y-4" style={{ background: "#13152a", paddingBottom: "max(40px, calc(env(safe-area-inset-bottom) + 40px))" }}>
+            <div className="flex items-center justify-between">
+              <p className="font-bold text-foreground">Изменить цену аренды</p>
+              <button onClick={() => setShowPriceEdit(false)}
+                className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "rgba(255,255,255,0.08)" }}>
+                <Icon name="X" size={14} className="text-muted-foreground" />
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              «{rental.title}» · текущая цена {fmt(rental.amount)}/мес. Новая цена начнёт действовать только после подтверждения арендатором.
+            </p>
+            <div>
+              <label className="text-[11px] text-muted-foreground">Новая сумма, ₽</label>
+              <input
+                type="number"
+                inputMode="numeric"
+                value={newPrice}
+                onChange={e => setNewPrice(e.target.value.replace(/[^0-9.]/g, ""))}
+                placeholder="Например, 27000"
+                className="w-full mt-1 px-3 py-2.5 rounded-xl text-sm bg-transparent text-foreground outline-none"
+                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)" }}
+                autoFocus
+              />
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => setShowPriceEdit(false)}
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium text-muted-foreground"
+                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
+                Отмена
+              </button>
+              <button
+                disabled={!newPrice || Number(newPrice) <= 0 || Number(newPrice) === rental.amount}
+                onClick={() => {
+                  onUpdate(rental.share_token, { new_amount: Number(newPrice) });
+                  setShowPriceEdit(false);
+                }}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-40"
+                style={{ background: "linear-gradient(135deg, #a855f7, #7c3aed)" }}>
+                Предложить
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
 
       {rental.tenant_decision === "pending" && !isLandlord && (
