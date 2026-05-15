@@ -85,8 +85,8 @@ export default function ExtraPaymentModal({ loan, onClose, onSave }: Props) {
             <p className="font-semibold text-foreground">Погасить частично</p>
             <p className="text-xs text-muted-foreground">{loan.title}</p>
           </div>
-          <button onClick={onClose} className="w-8 h-8 glass rounded-xl flex items-center justify-center">
-            <Icon name="X" size={14} />
+          <button onClick={onClose} aria-label="Закрыть" className="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-white/15 transition-colors flex-shrink-0" style={{ background: "rgba(255,255,255,0.12)" }}>
+            <Icon name="X" size={20} className="text-foreground" />
           </button>
         </div>
 

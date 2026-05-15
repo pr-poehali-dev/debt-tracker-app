@@ -109,8 +109,8 @@ export default function PersonalLoanModal({ onClose, onSave }: Props) {
             <p className="font-semibold text-foreground">Личный займ</p>
             <p className="text-xs text-muted-foreground">Трекер для себя, без QR</p>
           </div>
-          <button onClick={onClose} className="w-8 h-8 glass rounded-xl flex items-center justify-center">
-            <Icon name="X" size={14} />
+          <button onClick={onClose} aria-label="Закрыть" className="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-white/15 transition-colors flex-shrink-0" style={{ background: "rgba(255,255,255,0.12)" }}>
+            <Icon name="X" size={20} className="text-foreground" />
           </button>
         </div>
 

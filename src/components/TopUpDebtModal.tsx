@@ -61,10 +61,10 @@ export default function TopUpDebtModal({ debtId, debtTitle, currentAmount, token
       >
         <div className="bg-gradient-to-r from-purple-500 to-indigo-600 p-5">
           <div className="flex items-center justify-between">
-            <button onClick={onClose} disabled={loading} className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center hover:bg-white/30 transition-colors disabled:opacity-50">
-              <Icon name="ChevronLeft" size={18} className="text-white" />
-            </button>
             <span className="text-xs px-3 py-1 rounded-full font-medium bg-white/20 text-white">Увеличить долг</span>
+            <button onClick={onClose} disabled={loading} aria-label="Закрыть" className="w-10 h-10 rounded-xl bg-white/25 flex items-center justify-center hover:bg-white/35 transition-colors disabled:opacity-50 shadow-lg">
+              <Icon name="X" size={22} className="text-white" />
+            </button>
           </div>
           <p className="text-white/80 text-sm mt-3">Текущая сумма: {fmt(Math.round(currentAmount))}</p>
           <p className="text-xl font-bold text-white font-heading mt-1 truncate">{debtTitle}</p>

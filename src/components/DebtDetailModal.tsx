@@ -256,18 +256,18 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
         className="relative w-full max-w-md rounded-3xl overflow-hidden animate-fade-in border border-white/10 shadow-2xl max-h-[90vh] overflow-y-auto"
         style={{ background: "#1a1d2e" }}
       >
+        <button
+          onClick={onClose}
+          aria-label="Закрыть"
+          className="absolute top-3 right-3 z-30 w-10 h-10 rounded-xl bg-black/40 backdrop-blur-md flex items-center justify-center hover:bg-black/60 transition-colors shadow-lg border border-white/15"
+        >
+          <Icon name="X" size={22} className="text-white" />
+        </button>
 
         {/* Header */}
-        <div className={`bg-gradient-to-r ${gradientClass} px-5 pb-8`} style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 1.25rem)" }}>
-          <div className="flex items-center justify-end mb-4">
-            <span className={`text-xs px-3 py-1 rounded-full font-medium ${status.cls} mr-2`}>{status.label}</span>
-            <button
-              onClick={onClose}
-              aria-label="Закрыть"
-              className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center hover:bg-white/30 transition-colors"
-            >
-              <Icon name="X" size={20} className="text-white" />
-            </button>
+        <div className={`bg-gradient-to-r ${gradientClass} px-5 pb-8 pt-5`}>
+          <div className="flex items-center justify-start mb-4 gap-2 pr-14">
+            <span className={`text-xs px-3 py-1 rounded-full font-medium ${status.cls}`}>{status.label}</span>
           </div>
           <p className="text-white/70 text-sm mb-1">{dir === "lent" ? "Вы дали в долг" : "Вы взяли в долг"}</p>
           <p className="text-3xl font-bold text-white font-heading">{fmt(total ?? debt.amount)}</p>

@@ -95,8 +95,8 @@ export default function ContactModal({
           <h2 className="text-lg font-bold text-foreground">
             {initial?.id ? "Редактировать контакт" : "Новый контакт"}
           </h2>
-          <button onClick={onClose} className="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-white/10">
-            <Icon name="X" size={18} />
+          <button onClick={onClose} aria-label="Закрыть" className="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-white/15 transition-colors flex-shrink-0" style={{ background: "rgba(255,255,255,0.12)" }}>
+            <Icon name="X" size={20} className="text-foreground" />
           </button>
         </div>
 

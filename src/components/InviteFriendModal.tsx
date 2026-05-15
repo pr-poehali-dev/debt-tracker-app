@@ -63,10 +63,10 @@ export default function InviteFriendModal({ open, onClose, inviteUrl }: Props) {
       >
         <div className="bg-gradient-to-r from-purple-500 to-indigo-600 p-5">
           <div className="flex items-center justify-between">
-            <button onClick={onClose} className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center hover:bg-white/30 transition-colors">
-              <Icon name="ChevronLeft" size={18} className="text-white" />
-            </button>
             <span className="text-xs px-3 py-1 rounded-full font-medium bg-white/20 text-white">Пригласить друга</span>
+            <button onClick={onClose} aria-label="Закрыть" className="w-10 h-10 rounded-xl bg-white/25 flex items-center justify-center hover:bg-white/35 transition-colors shadow-lg">
+              <Icon name="X" size={22} className="text-white" />
+            </button>
           </div>
           <p className="text-white text-xl font-bold font-heading mt-3">Поделись приложением</p>
           <p className="text-white/80 text-sm mt-1">{APP_DESC}</p>

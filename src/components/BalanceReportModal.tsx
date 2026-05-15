@@ -115,11 +115,13 @@ export default function BalanceReportModal({ onClose, lentDebts, borrowedDebts, 
           className="flex items-center justify-between px-4 py-4 border-b border-white/5"
         >
           <div className="absolute top-1.5 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full bg-white/20" />
-          <div className="w-9 h-9" />
-          <p className="font-semibold text-foreground">Отчёт</p>
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(168,85,247,0.15)" }}>
-            <Icon name="BarChart3" size={18} style={{ color: "#c084fc" }} />
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "rgba(168,85,247,0.15)" }}>
+            <Icon name="BarChart3" size={20} style={{ color: "#c084fc" }} />
           </div>
+          <p className="font-semibold text-foreground">Отчёт</p>
+          <button onClick={onClose} aria-label="Закрыть" className="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-white/15 transition-colors flex-shrink-0" style={{ background: "rgba(255,255,255,0.12)" }}>
+            <Icon name="X" size={20} className="text-foreground" />
+          </button>
         </div>
 
         <div className="px-4 pt-4 flex gap-2">
