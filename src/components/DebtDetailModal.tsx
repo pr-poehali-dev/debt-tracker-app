@@ -252,21 +252,21 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/75 backdrop-blur-md" onClick={onClose} />
+      <button
+        onClick={onClose}
+        aria-label="Закрыть"
+        className="fixed z-[110] w-12 h-12 rounded-full bg-black/70 backdrop-blur-md flex items-center justify-center hover:bg-black/85 transition-colors shadow-2xl border-2 border-white/25"
+        style={{ top: "calc(env(safe-area-inset-top, 0px) + 12px)", right: "12px" }}
+      >
+        <Icon name="X" size={24} className="text-white" />
+      </button>
       <div
         className="relative w-full max-w-md rounded-3xl overflow-hidden animate-fade-in border border-white/10 shadow-2xl max-h-[90vh] overflow-y-auto"
         style={{ background: "#1a1d2e" }}
       >
-        <button
-          onClick={onClose}
-          aria-label="Закрыть"
-          className="absolute top-3 right-3 z-30 w-10 h-10 rounded-xl bg-black/40 backdrop-blur-md flex items-center justify-center hover:bg-black/60 transition-colors shadow-lg border border-white/15"
-        >
-          <Icon name="X" size={22} className="text-white" />
-        </button>
-
         {/* Header */}
         <div className={`bg-gradient-to-r ${gradientClass} px-5 pb-8 pt-5`}>
-          <div className="flex items-center justify-start mb-4 gap-2 pr-14">
+          <div className="flex items-center justify-start mb-4 gap-2">
             <span className={`text-xs px-3 py-1 rounded-full font-medium ${status.cls}`}>{status.label}</span>
           </div>
           <p className="text-white/70 text-sm mb-1">{dir === "lent" ? "Вы дали в долг" : "Вы взяли в долг"}</p>
