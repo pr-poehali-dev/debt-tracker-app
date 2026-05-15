@@ -65,10 +65,11 @@ function fmt(n: number) {
   return n.toLocaleString("ru-RU") + " ₽";
 }
 
-function calcTotalWithInterest(amount: number, rate: number, type: string, dueDate: string): number {
+function calcAmountOnToday(amount: number, rate: number, type: string, startDate: string): number {
+  if (!startDate) return amount;
+  const start = new Date(startDate); start.setHours(0, 0, 0, 0);
   const today = new Date(); today.setHours(0, 0, 0, 0);
-  const due = new Date(dueDate); due.setHours(0, 0, 0, 0);
-  const days = Math.round((due.getTime() - today.getTime()) / 86400000);
+  const days = Math.round((today.getTime() - start.getTime()) / 86400000);
   if (days <= 0) return amount;
   const years = days / 365;
   if (type === "compound") return Math.round(amount * Math.pow(1 + rate / 100, years));
@@ -243,8 +244,8 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
     ? Math.ceil((new Date(debt.dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
     : null;
 
-  const total = debt.interestRate && hasDueDate
-    ? calcTotalWithInterest(debt.amount, debt.interestRate, debt.interestType || "simple", debt.dueDate)
+  const total = debt.interestRate && debt.createdAt
+    ? calcAmountOnToday(debt.amount, debt.interestRate, debt.interestType || "simple", debt.createdAt)
     : null;
   const interest = total ? total - debt.amount : null;
   const hasInterest = total && total !== debt.amount;

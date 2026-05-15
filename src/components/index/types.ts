@@ -118,6 +118,24 @@ export function calcTotalWithInterest(amount: number, rate: number, type: string
   return Math.round(amount * (1 + (rate / 100) * years));
 }
 
+export function calcAmountOnDate(
+  amount: number,
+  rate: number,
+  type: string,
+  startDate: string,
+  targetDate?: string
+): number {
+  if (!startDate || !rate) return amount;
+  const start = new Date(startDate); start.setHours(0, 0, 0, 0);
+  const target = targetDate ? new Date(targetDate) : new Date();
+  target.setHours(0, 0, 0, 0);
+  const days = Math.round((target.getTime() - start.getTime()) / 86400000);
+  if (days <= 0) return amount;
+  const years = days / 365;
+  if (type === "compound") return Math.round(amount * Math.pow(1 + rate / 100, years));
+  return Math.round(amount * (1 + (rate / 100) * years));
+}
+
 export const DEMO_CONTACTS: Contact[] = [
   { id: 1, name: "Алексей Смирнов", phone: "+7 916 123 45 67", email: "alex@example.com", avatar: "АС", totalLent: 15000, totalBorrowed: 0, color: "sky" },
   { id: 2, name: "Мария Козлова", phone: "+7 926 234 56 78", email: "masha@example.com", avatar: "МК", totalLent: 0, totalBorrowed: 8500, color: "pink" },

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 import DebtDetailModal from "@/components/DebtDetailModal";
 import { type Lang, LANGUAGES, getT } from "@/i18n";
-import { type Section, type Theme, type Contact, type Debt, type Notification, type ContactColor, getColor, fmt, calcTotalWithInterest } from "./types";
+import { type Section, type Theme, type Contact, type Debt, type Notification, type ContactColor, getColor, fmt, calcTotalWithInterest, calcAmountOnDate } from "./types";
 import { Avatar, ColorPicker, StatusBadge, NotifIcon } from "./SharedComponents";
 import { type PersonalLoan } from "@/components/PersonalLoanModal";
 import ExtraPaymentModal from "@/components/ExtraPaymentModal";
@@ -128,7 +128,7 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
         <ManualReturnModal
           debtId={manualReturn.debtDbId}
           debtTitle={manualReturn.name}
-          defaultAmount={manualReturn.interestRate ? calcTotalWithInterest(manualReturn.amount, manualReturn.interestRate, manualReturn.interestType || "simple", manualReturn.dueDate) : manualReturn.amount}
+          defaultAmount={manualReturn.interestRate && manualReturn.createdAt ? calcAmountOnDate(manualReturn.amount, manualReturn.interestRate, manualReturn.interestType || "simple", manualReturn.createdAt) : manualReturn.amount}
           token={token}
           onClose={() => setManualReturn(null)}
           onSent={() => showToast(t.returnRequestSent)}
@@ -435,7 +435,7 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                 </div>
                 <div className="text-right flex-shrink-0 flex flex-col items-end gap-1">
                   {(() => {
-                    const totalWithInterest = d.interestRate ? calcTotalWithInterest(d.amount, d.interestRate, d.interestType || "simple", d.dueDate) : null;
+                    const totalWithInterest = d.interestRate && d.createdAt ? calcAmountOnDate(d.amount, d.interestRate, d.interestType || "simple", d.createdAt) : null;
                     return (
                       <>
                         <p className="text-lg font-bold font-heading" style={{ color: d.status === "overdue" ? "#f87171" : col ? col.text : dir === "lent" ? "#c084fc" : "#7dd3fc" }}>
