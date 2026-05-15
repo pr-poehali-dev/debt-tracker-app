@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import Icon from "@/components/ui/icon";
 import { ColorPicker } from "@/components/index/SharedComponents";
 import { type Contact, type ContactColor } from "@/components/index/types";
+import ContactPickerButton from "@/components/ui/ContactPickerButton";
 
 function formatPhoneInput(raw: string): string {
   const digits = raw.replace(/\D/g, "");
@@ -102,7 +103,13 @@ export default function ContactModal({
 
         <div className="space-y-3">
           <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Имя *</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs text-muted-foreground">Имя *</label>
+              <ContactPickerButton onPick={(pickedName, pickedPhone) => {
+                if (pickedName) setName(pickedName);
+                if (pickedPhone) setPhone(pickedPhone);
+              }} />
+            </div>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}

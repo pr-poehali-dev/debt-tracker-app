@@ -8,6 +8,7 @@ import { type getT } from "@/i18n";
 import func2url from "../../backend/func2url.json";
 import { normalizePhone } from "@/lib/phone";
 import { formatPhoneInput } from "@/components/NewDebtModalParts/shared";
+import ContactPickerButton from "@/components/ui/ContactPickerButton";
 
 const CHAT_URL = func2url["chat"];
 
@@ -1194,7 +1195,12 @@ function NewRentalModal({ myName, token, onClose, onCreated }: {
           </div>
 
           <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Имя арендатора</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs text-muted-foreground">Имя арендатора</label>
+              <ContactPickerButton onPick={(name, phone) => {
+                setForm(p => ({ ...p, tenant_name: name || p.tenant_name, tenant_phone: phone || p.tenant_phone }));
+              }} />
+            </div>
             <input
               value={form.tenant_name}
               onChange={e => set("tenant_name", e.target.value)}

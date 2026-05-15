@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import QRCodeLib from "qrcode";
 import Icon from "@/components/ui/icon";
+import ContactPickerButton from "@/components/ui/ContactPickerButton";
 import func2url from "../../backend/func2url.json";
 import { getT, type Lang } from "@/i18n";
 import { normalizePhone } from "@/lib/phone";
@@ -748,7 +749,12 @@ export default function NewDebtModal({ open, onClose, myName = "", myPhone = "",
               <input value={form.amount} onChange={e => set("amount", e.target.value)} placeholder={t.amountPlaceholder} type="number" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-purple-500/50 transition-colors" />
             </div>
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">{t.borrowerNameLabel}</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs text-muted-foreground">{t.borrowerNameLabel}</label>
+                <ContactPickerButton onPick={(name, phone) => {
+                  setForm(p => ({ ...p, borrower_name: name || p.borrower_name, borrower_phone: phone || p.borrower_phone }));
+                }} />
+              </div>
               <input value={form.borrower_name} onChange={e => set("borrower_name", e.target.value)} placeholder={t.borrowerPlaceholderRu} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-purple-500/50 transition-colors" />
             </div>
             {form.borrower_name.trim() && (
