@@ -399,6 +399,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
                       setBorrowedDebts(prev => prev.map(d => d.debtDbId === pDebtId ? { ...d, amount: newAmt } : d));
                       setLentDebts(prev => prev.map(d => d.debtDbId === pDebtId ? { ...d, amount: newAmt } : d));
                     }
+                    setRefreshTick(t => t + 1);
                   }
                 }
               } else if (ntype === "payment_request") {
@@ -1125,6 +1126,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
       setLentDebts(prev => prev.filter(d => d.debtDbId !== debtDbId));
       setBorrowedDebts(prev => prev.filter(d => d.debtDbId !== debtDbId));
       setArchiveDebts(prev => [updatedDebt, ...prev]);
+      setRefreshTick(t => t + 1);
     });
   }
 
@@ -1137,10 +1139,12 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
         setBorrowedDebts(prev => prev.filter(d => d.debtDbId !== debtDbId));
         setArchiveDebts(prev => [updated, ...prev]);
       }
+      setRefreshTick(t => t + 1);
       return;
     }
     setLentDebts(prev => prev.map(d => d.debtDbId === debtDbId ? { ...d, amount: newAmount, pendingPaymentsCount: Math.max(0, (d.pendingPaymentsCount || 1) - 1) } : d));
     setBorrowedDebts(prev => prev.map(d => d.debtDbId === debtDbId ? { ...d, amount: newAmount, pendingPaymentsCount: Math.max(0, (d.pendingPaymentsCount || 1) - 1) } : d));
+    setRefreshTick(t => t + 1);
   }
 
   async function doRefresh() {
