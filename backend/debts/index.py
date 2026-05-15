@@ -846,13 +846,13 @@ def handler(event: dict, context) -> dict:
                 if user_id != lender_id:
                     return err("Нет прав", 403)
                 purge = (qs.get("purge") == "1")
-                if current_status in ("archived", "deleted"):
-                    if not purge:
-                        return err("Долг уже в архиве", 400)
-                    # Физическое удаление навсегда (только если уже deleted/archived и инициатор — кредитор)
+                # purge=1 — физическое удаление из архива БЕЗ уведомлений второму участнику
+                if purge:
                     cur.execute(f"DELETE FROM {SCHEMA}.debts WHERE id = %s", (debt_id,))
                     conn.commit()
                     return json_resp({"ok": True, "purged": True})
+                if current_status in ("archived", "deleted"):
+                    return err("Долг уже в архиве", 400)
                 cur.execute(
                     f"""UPDATE {SCHEMA}.debts SET status = 'deleted', updated_at = NOW()
                         WHERE id = %s""",
