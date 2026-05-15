@@ -154,46 +154,46 @@ body {
     --scrollbar-thumb: rgba(180, 190, 210, 0.3);
   }
 
-  /* ── PLATINUM (тёмно-стальной, металлик с холодным синим отливом) ── */
-  .theme-platinum {
-    --background: 215 20% 11%;
-    --foreground: 210 20% 94%;
-    --card: 215 18% 14%;
-    --card-foreground: 210 20% 94%;
-    --popover: 215 18% 14%;
-    --popover-foreground: 210 20% 94%;
-    --primary: 210 25% 72%;
-    --primary-foreground: 215 25% 12%;
-    --secondary: 210 30% 50%;
+  /* ── GRAPHITE LIGHT (светлый деловой, серебристо-серые тона) ── */
+  .theme-graphite-light {
+    --background: 220 10% 94%;
+    --foreground: 220 15% 18%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 15% 18%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 15% 18%;
+    --primary: 220 10% 35%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 215 10% 50%;
     --secondary-foreground: 0 0% 100%;
-    --muted: 215 15% 20%;
-    --muted-foreground: 210 15% 68%;
-    --accent: 200 30% 62%;
-    --accent-foreground: 215 25% 12%;
-    --destructive: 0 65% 55%;
+    --muted: 220 10% 88%;
+    --muted-foreground: 220 10% 38%;
+    --accent: 220 10% 45%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 65% 50%;
     --destructive-foreground: 0 0% 100%;
-    --border: 215 15% 24%;
-    --input: 215 15% 24%;
-    --ring: 210 25% 72%;
-    --sidebar-background: 215 20% 11%;
-    --sidebar-foreground: 210 20% 94%;
-    --sidebar-primary: 210 25% 72%;
-    --sidebar-primary-foreground: 215 25% 12%;
-    --sidebar-accent: 215 15% 20%;
-    --sidebar-accent-foreground: 210 20% 94%;
-    --sidebar-border: 215 15% 24%;
-    --sidebar-ring: 210 25% 72%;
+    --border: 220 10% 82%;
+    --input: 220 10% 82%;
+    --ring: 220 10% 35%;
+    --sidebar-background: 220 10% 94%;
+    --sidebar-foreground: 220 15% 18%;
+    --sidebar-primary: 220 10% 35%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 10% 88%;
+    --sidebar-accent-foreground: 220 15% 18%;
+    --sidebar-border: 220 10% 82%;
+    --sidebar-ring: 220 10% 35%;
 
-    --app-bg: #161b22;
-    --glass-bg: rgba(200, 215, 235, 0.05);
-    --glass-border: rgba(180, 200, 225, 0.12);
-    --glass-strong-bg: rgba(200, 215, 235, 0.08);
-    --glass-strong-border: rgba(180, 200, 225, 0.18);
-    --mesh-c1: rgba(148, 163, 184, 0.1);
-    --mesh-c2: rgba(100, 116, 139, 0.08);
-    --mesh-c3: rgba(186, 200, 220, 0.06);
-    --mesh-c4: rgba(71, 85, 105, 0.08);
-    --scrollbar-thumb: rgba(186, 200, 220, 0.35);
+    --app-bg: #e8eaee;
+    --glass-bg: rgba(255, 255, 255, 0.75);
+    --glass-border: rgba(120, 130, 145, 0.2);
+    --glass-strong-bg: rgba(255, 255, 255, 0.9);
+    --glass-strong-border: rgba(120, 130, 145, 0.28);
+    --mesh-c1: rgba(140, 150, 165, 0.08);
+    --mesh-c2: rgba(180, 190, 200, 0.07);
+    --mesh-c3: rgba(160, 170, 185, 0.06);
+    --mesh-c4: rgba(120, 130, 145, 0.07);
+    --scrollbar-thumb: rgba(120, 130, 145, 0.4);
   }
 
   /* ── LIGHT THEME ── */
