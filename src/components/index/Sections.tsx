@@ -1626,6 +1626,18 @@ export function ArchiveSection({ contacts, t, locale, archiveDebts, token = "", 
                     {isDeleted ? "Удалён" : "Закрыт"} {new Date(d.archivedAt).toLocaleDateString(locale, { day: "numeric", month: "long" })}
                   </p>
                 )}
+                {isDeleted && (() => {
+                  const byLender = d.deletedByLender || d.archivedDir === "borrowed";
+                  const whoName = byLender
+                    ? (d.deletedByLenderName || d.counterpartyName || "кредитором")
+                    : "вами";
+                  return (
+                    <p className="text-[11px] text-red-400/80 mt-0.5 flex items-center gap-1">
+                      <Icon name={byLender ? "UserMinus" : "User"} size={11} />
+                      <span>Удалён {byLender ? `${whoName === "кредитором" ? "кредитором" : whoName}` : "вами"}</span>
+                    </p>
+                  );
+                })()}
               </div>
               <div className="text-right flex-shrink-0 flex flex-col items-end gap-1">
                 <p className={`text-lg font-bold font-heading ${isDeleted ? "text-muted-foreground line-through" : "text-green-400"}`}>{fmt(d.amount)}</p>
