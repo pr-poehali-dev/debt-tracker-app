@@ -712,8 +712,8 @@ export default function NewDebtModal({ open, onClose, myName = "", myPhone = "",
               </p>
             </div>
           </div>
-          <button onClick={close} className="w-8 h-8 glass rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors">
-            <Icon name="X" size={16} />
+          <button onClick={close} aria-label="Закрыть" className="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-white/15 transition-colors flex-shrink-0" style={{ background: "rgba(255,255,255,0.12)" }}>
+            <Icon name="X" size={20} className="text-foreground" />
           </button>
         </div>
 
