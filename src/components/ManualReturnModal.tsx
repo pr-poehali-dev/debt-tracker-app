@@ -95,8 +95,8 @@ export default function ManualReturnModal({ debtId, debtTitle, defaultAmount, to
         if (!res.ok) throw new Error();
         const data = await res.json();
         const list: Array<{ amount: number; status: string }> = Array.isArray(data.requests) ? data.requests : [];
-        const paid = list.filter(p => p.status === "accepted").reduce((s, p) => s + p.amount, 0);
-        const rem = Math.max(0, Math.round(defaultAmount - paid));
+        const pendingSum = list.filter(p => p.status === "pending").reduce((s, p) => s + p.amount, 0);
+        const rem = Math.max(0, Math.round(defaultAmount - pendingSum));
         if (!cancelled) {
           setRemaining(rem);
           setAmount(String(rem));
