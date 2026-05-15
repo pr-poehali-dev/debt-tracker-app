@@ -200,7 +200,7 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
     }
   }
 
-  async function decide(p: PaymentItem, decision: "accepted" | "rejected") {
+  async function decide(p: PaymentItem, decision: "accepted" | "rejected" | "cancelled") {
     const t = token || localStorage.getItem("df-token") || "";
     if (!t || !debtDbId) return;
     setDecidingId(p.id);
@@ -211,9 +211,14 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` },
         body: JSON.stringify({ payment_request_id: p.id, decision }),
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({} as { error?: string }));
+        alert(data?.error || "Не удалось выполнить действие");
+        return;
+      }
       const data = await res.json().catch(() => ({}));
-      setHistory(prev => prev.map(x => x.id === p.id ? { ...x, status: decision } : x));
+      const localStatus = decision === "cancelled" ? "rejected" : decision;
+      setHistory(prev => prev.map(x => x.id === p.id ? { ...x, status: localStatus } : x));
       if (decision === "accepted" && onPaymentAccepted && debtDbId) {
         onPaymentAccepted(
           debtDbId,
@@ -543,7 +548,7 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
                 {pendingPayment.note && <p className="text-[11px] text-foreground/70 italic mt-1">«{pendingPayment.note}»</p>}
                 <p className="text-[10px] text-muted-foreground mt-1 mb-3">После подтверждения кредитором остаток станет {fmt(Math.max(0, debt.amount - pendingPayment.amount))}</p>
                 <button
-                  onClick={() => decide(pendingPayment, "rejected")}
+                  onClick={() => decide(pendingPayment, "cancelled")}
                   disabled={decidingId === pendingPayment.id}
                   className="w-full flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-medium disabled:opacity-50 active:scale-95 transition-transform"
                   style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", color: "#f87171" }}

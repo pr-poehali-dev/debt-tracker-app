@@ -509,27 +509,66 @@ def handler(event: dict, context) -> dict:
             conn.commit()
         return json_resp({"ok": True, "payment_request_id": req_id}, 201)
 
-    # PUT ?action=pay — кредитор принимает или отклоняет платёж
+    # PUT ?action=pay — кредитор принимает/отклоняет платёж ИЛИ должник отменяет свой запрос
     if method == "PUT" and qs.get("action") == "pay":
         body = json.loads(event.get("body") or "{}")
         req_id = body.get("payment_request_id")
-        decision = body.get("decision")  # "accepted" | "rejected"
-        if not req_id or decision not in ("accepted", "rejected"):
+        decision = body.get("decision")  # "accepted" | "rejected" | "cancelled"
+        if not req_id or decision not in ("accepted", "rejected", "cancelled"):
             return err("payment_request_id и decision обязательны")
         with get_conn() as conn:
             user_id = get_user_id_from_token(auth_header, conn)
             if not user_id:
                 return err("Не авторизован", 401)
             with conn.cursor() as cur:
+                # Сначала проверим, кто отправитель/получатель запроса
+                cur.execute(
+                    f"""SELECT from_user_id, to_user_id, debt_id, amount, status
+                        FROM {SCHEMA}.payment_requests WHERE id = %s""",
+                    (req_id,)
+                )
+                pr_row = cur.fetchone()
+                if not pr_row:
+                    return err("Запрос не найден", 404)
+                pr_from, pr_to, pr_debt_id, pr_amount, pr_status = pr_row
+                if pr_status != "pending":
+                    return err("Запрос уже обработан", 409)
+                # Должник может только отменить свой собственный запрос
+                if decision == "cancelled":
+                    if user_id != pr_from:
+                        return err("Отменить запрос может только его автор", 403)
+                else:
+                    # accepted/rejected — только кредитор (получатель)
+                    if user_id != pr_to:
+                        return err("Только кредитор может принять или отклонить запрос", 403)
                 cur.execute(
                     f"""UPDATE {SCHEMA}.payment_requests SET status = %s, updated_at = NOW()
-                        WHERE id = %s AND to_user_id = %s AND status = 'pending'
+                        WHERE id = %s AND status = 'pending'
                         RETURNING debt_id, from_user_id, amount""",
-                    (decision, req_id, user_id)
+                    (decision, req_id)
                 )
                 row = cur.fetchone()
                 if not row:
                     return err("Запрос не найден или уже обработан", 404)
+                # Если должник отменил свой запрос — уведомим кредитора и выйдем
+                if decision == "cancelled":
+                    debt_id_c, from_user_id_c, amount_c = row
+                    cur.execute(f"SELECT title FROM {SCHEMA}.debts WHERE id = %s", (debt_id_c,))
+                    title_c = (cur.fetchone() or ["Долг"])[0]
+                    cur.execute(f"SELECT full_name FROM {SCHEMA}.users WHERE id = %s", (from_user_id_c,))
+                    borrower_name_c = (cur.fetchone() or ["Должник"])[0]
+                    body_text_c = f"«{title_c}» — {float(amount_c):,.0f} ₽".replace(",", " ")
+                    cur.execute(
+                        f"""INSERT INTO {SCHEMA}.notifications (user_id, type, title, body, data)
+                            VALUES (%s, 'payment_response', %s, %s, %s)""",
+                        (pr_to,
+                         f"↩️ {borrower_name_c} отменил запрос на возврат",
+                         body_text_c,
+                         json.dumps({"debt_id": str(debt_id_c), "decision": "cancelled", "amount": float(amount_c)}))
+                    )
+                    send_push(conn, pr_to, f"↩️ {borrower_name_c} отменил запрос на возврат", body_text_c, "/?section=notifications")
+                    conn.commit()
+                    return json_resp({"ok": True, "cancelled": True})
                 debt_id, from_user_id, amount = row
                 # Уведомление должнику
                 cur.execute(f"SELECT title FROM {SCHEMA}.debts WHERE id = %s", (debt_id,))
