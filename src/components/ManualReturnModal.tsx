@@ -8,6 +8,10 @@ interface Props {
   token: string;
   onClose: () => void;
   onSent?: () => void;
+  principal?: number;
+  interestRate?: number;
+  interestType?: "simple" | "compound";
+  createdAt?: string;
 }
 
 function fmt(n: number) {
@@ -33,7 +37,17 @@ function readAsBase64(file: File): Promise<string> {
   });
 }
 
-export default function ManualReturnModal({ debtId, debtTitle, defaultAmount, token, onClose, onSent }: Props) {
+export default function ManualReturnModal({ debtId, debtTitle, defaultAmount, token, onClose, onSent, principal, interestRate, interestType, createdAt }: Props) {
+  const daysFromStart = createdAt ? Math.max(0, Math.round((Date.now() - new Date(createdAt).getTime()) / 86400000)) : null;
+  const accruedInterest = principal != null && defaultAmount > principal ? defaultAmount - principal : 0;
+  const showInterestHint = !!interestRate && !!createdAt && accruedInterest > 0;
+  function daysLabel(n: number) {
+    const mod10 = n % 10;
+    const mod100 = n % 100;
+    if (mod10 === 1 && mod100 !== 11) return "день";
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return "дня";
+    return "дней";
+  }
   const [amount, setAmount] = useState<string>("");
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
@@ -238,6 +252,15 @@ export default function ManualReturnModal({ debtId, debtTitle, defaultAmount, to
                     {!loadingRemaining && numAmount > remaining && remaining > 0 && (
                       <span className="text-amber-400 ml-2">больше остатка</span>
                     )}
+                  </p>
+                )}
+                {showInterestHint && (
+                  <p className="text-[11px] text-violet-300/80 mt-1 flex items-center gap-1">
+                    <Icon name="Percent" size={11} />
+                    <span>
+                      На сегодня{daysFromStart != null ? `, ${daysFromStart} ${daysLabel(daysFromStart)} с даты выдачи` : ""}
+                      {principal != null ? ` · тело ${fmt(principal)} + проценты ${fmt(accruedInterest)}` : ""}
+                    </span>
                   </p>
                 )}
               </div>

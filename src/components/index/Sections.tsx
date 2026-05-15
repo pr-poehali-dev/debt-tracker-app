@@ -129,6 +129,10 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
           debtId={manualReturn.debtDbId}
           debtTitle={manualReturn.name}
           defaultAmount={manualReturn.interestRate && manualReturn.createdAt ? calcAmountOnDate(manualReturn.amount, manualReturn.interestRate, manualReturn.interestType || "simple", manualReturn.createdAt) : manualReturn.amount}
+          principal={manualReturn.amount}
+          interestRate={manualReturn.interestRate}
+          interestType={manualReturn.interestType}
+          createdAt={manualReturn.createdAt}
           token={token}
           onClose={() => setManualReturn(null)}
           onSent={() => showToast(t.returnRequestSent)}
