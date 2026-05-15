@@ -425,7 +425,7 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                         <Icon name="TrendingUp" size={10} />
                         {dir === "borrowed"
                           ? (d.pendingTopUpsCount === 1 ? "Запрос на увеличение" : `${d.pendingTopUpsCount} запроса`)
-                          : "Ждёт ответа"}
+                          : "Ожидает подтверждения"}
                       </span>
                     )}
                   </div>
