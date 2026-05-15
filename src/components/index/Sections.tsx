@@ -339,6 +339,12 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                       {d.counterpartyName}
                     </p>
                   )}
+                  {d.createdAt && (
+                    <p className="text-[11px] text-muted-foreground/70 mt-0.5 truncate">
+                      <Icon name="CalendarPlus" size={10} className="inline mr-0.5 align-[-1px]" />
+                      Выдан {new Date(d.createdAt).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" })}
+                    </p>
+                  )}
                   <div className="flex items-center gap-2 mt-1 flex-wrap">
                     <StatusBadge status={d.status} t={t} />
                     {dir === "lent" && d.debtDbId && (
