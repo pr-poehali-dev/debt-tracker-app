@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import Icon from "@/components/ui/icon";
 import NewDebtModal, { SharedDebtView } from "@/components/NewDebtModal";
 import ChatWindow from "@/components/ChatWindow";
-import RentalSection, { RentalInviteModal } from "@/components/RentalSection";
+import RentalSection, { RentalInviteModal, type Rental } from "@/components/RentalSection";
 import PersonalLoanModal, { type PersonalLoan } from "@/components/PersonalLoanModal";
 import SupportModal from "@/components/SupportModal";
 import BalanceReportModal from "@/components/BalanceReportModal";
@@ -41,7 +41,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
   });
   const [activeRentalCount, setActiveRentalCount] = useState(0);
   const [totalRentalAmount, setTotalRentalAmount] = useState(0);
-  const [rentals, setRentals] = useState<Array<{ id: string; title: string; amount: number; payment_day: number; landlord_user_id?: number; tenant_user_id?: number; status: string }>>([]);
+  const [rentals, setRentals] = useState<Rental[]>([]);
   const [rentalInvite, setRentalInvite] = useState<string | null>(() => new URLSearchParams(window.location.search).get("rental"));
   const [activeChat, setActiveChat] = useState<{ debtId?: string; rentalId?: number; title: string; contactName?: string; contactAvatarUrl?: string } | null>(null);
   const [showSupport, setShowSupport] = useState(false);
@@ -241,24 +241,15 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
     import("../../backend/func2url.json").then(({ default: urls }) => {
       fetch(`${urls["rentals"]}?user_id=${user.id}`, { headers: { Authorization: `Bearer ${token}` } })
         .then(r => r.ok ? r.json() : [])
-        .then((data: Array<Record<string, unknown>>) => {
-          const active = data.filter(r => r.status === "active");
-          setActiveRentalCount(active.length);
-          setTotalRentalAmount(active.reduce((s, r) => s + Number(r.amount), 0));
-          setRentals(data.map(r => ({
-            id: String(r.id),
-            title: String(r.title),
-            amount: Number(r.amount),
-            payment_day: Number(r.payment_day),
-            landlord_user_id: r.landlord_user_id ? Number(r.landlord_user_id) : undefined,
-            tenant_user_id: r.tenant_user_id ? Number(r.tenant_user_id) : undefined,
-            landlord_name: r.landlord_name ? String(r.landlord_name) : undefined,
-            tenant_name: r.tenant_name ? String(r.tenant_name) : undefined,
-            status: String(r.status),
-          })));
-        });
+        .then((data: Rental[]) => { setRentals(data); });
     });
   }, [isDemo, user.id, token, refreshTick]);
+
+  useEffect(() => {
+    const active = rentals.filter(r => r.status === "active");
+    setActiveRentalCount(active.length);
+    setTotalRentalAmount(active.reduce((s, r) => s + Number(r.amount), 0));
+  }, [rentals]);
 
   useEffect(() => {
     if (isDemo) return;
@@ -1418,7 +1409,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
           {section === "calendar"      && <CalendarSection contacts={contacts} t={t} debts={[...lentDebts.map(d => ({ ...d, archivedDir: "lent" as const })), ...borrowedDebts.map(d => ({ ...d, archivedDir: "borrowed" as const }))]} rentals={rentals} userId={user.id} locale={locale} token={token} onNav={setSection} onOpenChat={(id, title) => { const d = [...lentDebts, ...borrowedDebts].find(x => x.debtDbId === id); const cn = d ? (contacts.find(c => c.id === d.contactId)?.name || d.counterpartyName) : undefined; setActiveChat({ debtId: id, title, contactName: cn, contactAvatarUrl: d?.counterpartyAvatarUrl }); }} onMarkPaid={handleMarkPaid} onPaymentAccepted={handlePaymentAccepted} />}
           {section === "notifications" && <NotificationsSection notifs={notifs} onMarkAllRead={handleMarkAllRead} onMarkRead={handleMarkRead} t={t} token={token} contacts={contacts} allDebts={[...lentDebts, ...borrowedDebts, ...archiveDebts]} onOpenChat={(debtId, rentalId, title) => { const d = debtId ? [...lentDebts, ...borrowedDebts, ...archiveDebts].find(x => x.debtDbId === debtId) : undefined; const cn = d ? (contacts.find(c => c.id === d.contactId)?.name || d.counterpartyName) : undefined; setActiveChat({ debtId: debtId || undefined, rentalId: rentalId || undefined, title, contactName: cn, contactAvatarUrl: d?.counterpartyAvatarUrl }); }} onOpenSupport={(ticketId) => { setSupportTicketId(ticketId); setShowSupport(true); }} onPaymentAccepted={handlePaymentAccepted} />}
           {section === "archive"       && <ArchiveSection contacts={contacts} t={t} locale={locale} archiveDebts={archiveDebts} token={token} onOpenChat={(id, title) => { const d = archiveDebts.find(x => x.debtDbId === id); const cn = d ? (contacts.find(c => c.id === d.contactId)?.name || d.counterpartyName) : undefined; setActiveChat({ debtId: id, title, contactName: cn, contactAvatarUrl: d?.counterpartyAvatarUrl }); }} onPurgeDebt={handlePurgeArchivedDebt} />}
-          {section === "rental"        && <RentalSection userId={user.id} token={token} myName={profile.name} isDemo={isDemo} openNew={showNewRental} onNewClose={() => setShowNewRental(false)} t={t} />}
+          {section === "rental"        && <RentalSection userId={user.id} token={token} myName={profile.name} isDemo={isDemo} openNew={showNewRental} onNewClose={() => setShowNewRental(false)} t={t} rentals={rentals} setRentals={setRentals} />}
           {section === "contacts"      && (
             <ContactsSection
               contacts={contactsWithTotals}

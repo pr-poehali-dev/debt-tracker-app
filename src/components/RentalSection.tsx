@@ -12,7 +12,7 @@ import ContactPickerButton from "@/components/ui/ContactPickerButton";
 
 const CHAT_URL = func2url["chat"];
 
-interface Rental {
+export interface Rental {
   id: string;
   share_token: string;
   title: string;
@@ -45,6 +45,8 @@ interface Props {
   openNew?: boolean;
   onNewClose?: () => void;
   t?: ReturnType<typeof getT>;
+  rentals?: Rental[];
+  setRentals?: React.Dispatch<React.SetStateAction<Rental[]>>;
 }
 
 const DEMO_RENTALS: Rental[] = [
@@ -921,8 +923,13 @@ function checkAndNotify(rentals: Rental[], myName: string) {
   });
 }
 
-export default function RentalSection({ userId, token, myName, isDemo, openNew, onNewClose, t }: Props) {
-  const [rentals, setRentals] = useState<Rental[]>(isDemo ? DEMO_RENTALS : []);
+export default function RentalSection({ userId, token, myName, isDemo, openNew, onNewClose, t, rentals: rentalsProp, setRentals: setRentalsProp }: Props) {
+  const useExternal = !!setRentalsProp;
+  const [localRentals, setLocalRentals] = useState<Rental[]>(isDemo ? DEMO_RENTALS : []);
+  const rentals = useExternal ? (rentalsProp ?? []) : localRentals;
+  const setRentals: React.Dispatch<React.SetStateAction<Rental[]>> = useExternal
+    ? (setRentalsProp as React.Dispatch<React.SetStateAction<Rental[]>>)
+    : setLocalRentals;
   const [showNew, setShowNew] = useState(false);
   const [calendarRentalId, setCalendarRentalId] = useState<string | number | null>(null);
   const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">(
@@ -932,18 +939,18 @@ export default function RentalSection({ userId, token, myName, isDemo, openNew, 
   useEffect(() => {
     if (openNew) setShowNew(true);
   }, [openNew]);
-  const [loading, setLoading] = useState(!isDemo);
+  const [loading, setLoading] = useState(!isDemo && !useExternal);
 
   useEffect(() => {
-    if (isDemo) return;
+    if (isDemo || useExternal) return;
     import("../../backend/func2url.json").then(({ default: urls }) => {
       fetch(`${urls["rentals"]}?user_id=${userId}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
         .then(r => r.ok ? r.json() : [])
-        .then(data => { setRentals(data); setLoading(false); });
+        .then(data => { setLocalRentals(data); setLoading(false); });
     });
-  }, [isDemo, userId, token]);
+  }, [isDemo, userId, token, useExternal]);
 
   useEffect(() => {
     if (rentals.length === 0) return;
