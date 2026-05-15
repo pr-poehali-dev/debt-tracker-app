@@ -178,7 +178,25 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
       }
     })();
     return () => { cancelled = true; };
-  }, [debtDbId, token, showContract, topUpReloadTick]);
+  }, [debtDbId, token, showContract, topUpReloadTick, debt?.amount, debt?.status]);
+
+  useEffect(() => {
+    if (!debtDbId) return;
+    function bump() { setTopUpReloadTick(t => t + 1); }
+    function onVisible() { if (document.visibilityState === "visible") bump(); }
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") bump();
+    }, 10000);
+    window.addEventListener("realtime:message", bump as EventListener);
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", bump);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("realtime:message", bump as EventListener);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", bump);
+    };
+  }, [debtDbId]);
 
   async function decideTopUp(item: TopUpItem, decision: "accepted" | "rejected") {
     const t = token || localStorage.getItem("df-token") || "";
