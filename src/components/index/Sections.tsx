@@ -44,6 +44,13 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
   const [confirmDelete, setConfirmDelete] = useState<Debt | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [filter, setFilter] = useState<"all" | "active" | "overdue">("all");
+  const [sortBy, setSortBy] = useState<"newest" | "dueSoon">(() => {
+    const stored = typeof localStorage !== "undefined" ? localStorage.getItem(`df-debt-sort-${dir}`) : null;
+    return stored === "dueSoon" ? "dueSoon" : "newest";
+  });
+  useEffect(() => {
+    try { localStorage.setItem(`df-debt-sort-${dir}`, sortBy); } catch { /* ignore */ }
+  }, [sortBy, dir]);
   const [openContractOnSelect, setOpenContractOnSelect] = useState(false);
 
   useEffect(() => {
@@ -85,11 +92,21 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
   const total = debts.filter(d => d.status !== "paid").reduce((s, d) => s + d.amount, 0);
   const overdue = debts.filter(d => d.status === "overdue").length;
   const activeCount = debts.filter(d => d.status === "active" || d.status === "overdue").length;
-  const visibleDebts = filter === "all"
+  const filteredDebts = filter === "all"
     ? debts
     : filter === "active"
       ? debts.filter(d => d.status === "active" || d.status === "overdue")
       : debts.filter(d => d.status === "overdue");
+  const visibleDebts = [...filteredDebts].sort((a, b) => {
+    if (sortBy === "dueSoon") {
+      const ta = a.dueDate ? new Date(a.dueDate).getTime() : Number.POSITIVE_INFINITY;
+      const tb = b.dueDate ? new Date(b.dueDate).getTime() : Number.POSITIVE_INFINITY;
+      return ta - tb;
+    }
+    const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return tb - ta;
+  });
 
   return (
     <div className="animate-fade-in">
@@ -217,6 +234,31 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
           >
             <Icon name="X" size={12} /> Сбросить
           </button>
+        </div>
+      )}
+
+      {debts.length > 0 && visibleDebts.length > 0 && (
+        <div className="flex items-center justify-end mb-3 px-1">
+          <div className="inline-flex items-center gap-1 p-0.5 rounded-xl bg-white/[0.04] border border-white/10">
+            <button
+              type="button"
+              onClick={() => setSortBy("newest")}
+              className={`flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-lg transition-colors ${sortBy === "newest" ? "bg-white/10 text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+              aria-pressed={sortBy === "newest"}
+            >
+              <Icon name="Sparkles" size={11} />
+              Сначала новые
+            </button>
+            <button
+              type="button"
+              onClick={() => setSortBy("dueSoon")}
+              className={`flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-lg transition-colors ${sortBy === "dueSoon" ? "bg-white/10 text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+              aria-pressed={sortBy === "dueSoon"}
+            >
+              <Icon name="AlarmClock" size={11} />
+              Срок горит
+            </button>
+          </div>
         </div>
       )}
 
