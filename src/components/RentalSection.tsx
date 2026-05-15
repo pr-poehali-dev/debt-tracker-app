@@ -414,9 +414,9 @@ function RentalCard({ rental, userId, token, onUpdate, onDelete, t, onOpenCalend
         const MONTHS_RU = ["янв","фев","мар","апр","май","июн","июл","авг","сен","окт","ноя","дек"];
         const monthLabel = `${MONTHS_RU[parseInt(mStr, 10) - 1]} ${yStr}`;
         return (
-          <div className="rounded-xl px-3 py-2 flex items-center gap-2" style={{ background: "rgba(147,51,234,0.12)", border: "1px solid rgba(147,51,234,0.4)" }}>
-            <Icon name="Zap" size={14} className="text-purple-700 dark:text-purple-300" />
-            <p className="text-xs font-semibold text-purple-800 dark:text-purple-300">
+          <div className="rounded-xl px-3 py-2 flex items-center gap-2" style={{ background: "rgba(168,85,247,0.1)", border: "1px solid rgba(168,85,247,0.3)" }}>
+            <Icon name="Zap" size={14} style={{ color: "#c084fc" }} />
+            <p className="text-xs font-medium" style={{ color: "#c084fc" }}>
               Оплачено вперёд: до {monthLabel}
             </p>
           </div>
@@ -426,26 +426,26 @@ function RentalCard({ rental, userId, token, onUpdate, onDelete, t, onOpenCalend
       {/* Статус оплаты текущего месяца — главный визуальный индикатор */}
       {myPayStatus === "paid" ? (
         <div className="rounded-xl p-3 flex items-center justify-between"
-          style={{ background: "rgba(22,163,74,0.14)", border: "1px solid rgba(22,163,74,0.4)" }}>
+          style={{ background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.3)" }}>
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "rgba(22,163,74,0.25)" }}>
-              <Icon name="Check" size={16} className="text-green-700 dark:text-green-300" />
+            <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "rgba(34,197,94,0.2)" }}>
+              <Icon name="Check" size={16} style={{ color: "#4ade80" }} />
             </div>
             <div>
-              <p className="text-sm font-semibold text-green-800 dark:text-green-300">{t?.paidThisMonth ?? "Оплачено в этом месяце"}</p>
+              <p className="text-sm font-semibold" style={{ color: "#4ade80" }}>{t?.paidThisMonth ?? "Оплачено в этом месяце"}</p>
               {(() => {
                 const MONTHS_RU = ["янв","фев","мар","апр","май","июн","июл","авг","сен","окт","ноя","дек"];
                 const now = new Date();
                 const next = new Date(now.getFullYear(), now.getMonth() + 1, rental.payment_day);
                 return (
-                  <p className="text-sm mt-0.5 text-green-900/80 dark:text-green-200/90">
-                    Следующий платёж: <span className="font-semibold text-green-900 dark:text-green-200">{rental.payment_day} {MONTHS_RU[next.getMonth()]}{next.getFullYear() !== now.getFullYear() ? ` ${next.getFullYear()}` : ""}</span>
+                  <p className="text-sm mt-0.5" style={{ color: "rgba(74,222,128,0.85)" }}>
+                    Следующий платёж: <span className="font-semibold">{rental.payment_day} {MONTHS_RU[next.getMonth()]}{next.getFullYear() !== now.getFullYear() ? ` ${next.getFullYear()}` : ""}</span>
                   </p>
                 );
               })()}
             </div>
           </div>
-          <button onClick={() => onOpenCalendar(rental)} className="text-[11px] font-medium text-teal-700 hover:text-teal-900 dark:text-teal-300 dark:hover:text-teal-100">
+          <button onClick={() => onOpenCalendar(rental)} className="text-[11px] text-teal-400 hover:opacity-70">
             {t?.historyShort ?? "История"}
           </button>
         </div>
