@@ -7,6 +7,7 @@ import ChatWindow from "@/components/ChatWindow";
 import { type getT } from "@/i18n";
 import func2url from "../../backend/func2url.json";
 import { normalizePhone } from "@/lib/phone";
+import { formatPhoneInput } from "@/components/NewDebtModalParts/shared";
 
 const CHAT_URL = func2url["chat"];
 
@@ -1207,9 +1208,11 @@ function NewRentalModal({ myName, token, onClose, onCreated }: {
             <label className="text-xs text-muted-foreground mb-1 block">Телефон арендатора</label>
             <input
               type="tel"
+              inputMode="numeric"
               value={form.tenant_phone}
-              onChange={e => set("tenant_phone", e.target.value)}
-              placeholder="+7 900 000 00 00"
+              onFocus={() => { if (!form.tenant_phone) set("tenant_phone", "+7 ("); }}
+              onChange={e => set("tenant_phone", formatPhoneInput(e.target.value))}
+              placeholder="+7 (900) 000-00-00"
               className="w-full rounded-xl px-3 py-2.5 text-sm text-foreground outline-none"
               style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
             />
