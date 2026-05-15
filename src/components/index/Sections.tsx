@@ -1560,6 +1560,16 @@ export function ArchiveSection({ contacts, t, locale, archiveDebts, token = "", 
           </button>
         </div>
       )}
+      {archiveDebts.length > 0 && (
+        <div className="px-1 mb-3 flex items-start gap-2">
+          <Icon name="Info" size={13} className={`mt-0.5 flex-shrink-0 ${filter === "returned" ? "text-green-400/80" : "text-red-400/80"}`} />
+          <p className="text-[11px] text-muted-foreground leading-snug">
+            {filter === "returned"
+              ? "Займы, по которым деньги полностью возвращены и подтверждены. Это история закрытых сделок."
+              : "Записи, которые отменили до закрытия — например, ошибочно созданные или удалённые одной из сторон."}
+          </p>
+        </div>
+      )}
       {visible.length > 0 && (
         <div className={`glass rounded-2xl p-4 mb-5 ${filter === "returned" ? "bg-green-500/5 border border-green-500/15" : "bg-red-500/5 border border-red-500/15"}`}>
           <div className="flex items-center gap-3">
