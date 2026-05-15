@@ -1,5 +1,5 @@
 export type Section = "dashboard" | "lent" | "borrowed" | "rental" | "calendar" | "notifications" | "archive" | "contacts" | "settings";
-export type Theme = "dark" | "light" | "graphite" | "graphite-light";
+export type Theme = "graphite" | "graphite-light";
 export type ContactColor = "purple" | "sky" | "pink" | "emerald" | "orange" | "rose" | "amber" | "teal";
 
 export interface Contact {

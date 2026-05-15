@@ -891,8 +891,10 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
   }).length;
 
   const [theme, setTheme] = useState<Theme>(() => {
-    const saved = localStorage.getItem("df-theme") as Theme | null;
-    if (saved) return saved;
+    const saved = localStorage.getItem("df-theme");
+    if (saved === "graphite" || saved === "graphite-light") return saved;
+    if (saved === "light") return "graphite-light";
+    if (saved === "dark") return "graphite";
     return window.matchMedia("(prefers-color-scheme: light)").matches ? "graphite-light" : "graphite";
   });
 
@@ -955,14 +957,12 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
   useEffect(() => {
     const html = document.documentElement;
     html.classList.remove("theme-light", "theme-graphite", "theme-graphite-light");
-    if (theme !== "dark") html.classList.add(`theme-${theme}`);
+    html.classList.add(`theme-${theme}`);
     const bgMap: Record<string, string> = {
-      dark: "#0d0f1a",
-      light: "#f0f2f8",
       graphite: "#16181c",
       "graphite-light": "#e8eaee",
     };
-    document.body.style.background = bgMap[theme] ?? "#0d0f1a";
+    document.body.style.background = bgMap[theme] ?? "#16181c";
     localStorage.setItem("df-theme", theme);
   }, [theme]);
 
