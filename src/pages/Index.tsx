@@ -196,6 +196,13 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
             }
           });
 
+          const byCreatedDesc = (a: Debt, b: Debt) => {
+            const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            return tb - ta;
+          };
+          lent.sort(byCreatedDesc);
+          borrowed.sort(byCreatedDesc);
           archive.sort((a, b) => {
             const ta = a.archivedAt ? new Date(a.archivedAt).getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
             const tb = b.archivedAt ? new Date(b.archivedAt).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
