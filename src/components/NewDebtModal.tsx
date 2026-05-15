@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import QRCodeLib from "qrcode";
 import Icon from "@/components/ui/icon";
+import ModalCloseButton from "@/components/ui/ModalCloseButton";
 import func2url from "../../backend/func2url.json";
 import { getT, type Lang } from "@/i18n";
 import { normalizePhone } from "@/lib/phone";
@@ -693,13 +694,14 @@ export default function NewDebtModal({ open, onClose, myName = "", myPhone = "",
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" onClick={e => e.target === e.currentTarget && close()}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={close} />
+      <ModalCloseButton onClose={close} zIndex={60} />
       <div className="relative z-10 w-full max-w-lg glass-strong rounded-t-3xl sm:rounded-3xl overflow-hidden" style={{ maxHeight: "92vh", overflowY: "auto", paddingBottom: "max(100px, calc(env(safe-area-inset-bottom) + 100px))" }}>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 pt-5 pb-3">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center px-5 pt-5 pb-3">
+          <div className="flex items-center gap-3 pr-14">
             {step === "qr" && (
-              <button onClick={() => setStep("form")} className="w-8 h-8 glass rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors">
+              <button onClick={() => setStep("form")} className="w-8 h-8 glass rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors flex-shrink-0">
                 <Icon name="ChevronLeft" size={16} />
               </button>
             )}
@@ -712,9 +714,6 @@ export default function NewDebtModal({ open, onClose, myName = "", myPhone = "",
               </p>
             </div>
           </div>
-          <button onClick={close} aria-label="Закрыть" className="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-white/15 transition-colors flex-shrink-0" style={{ background: "rgba(255,255,255,0.12)" }}>
-            <Icon name="X" size={20} className="text-foreground" />
-          </button>
         </div>
 
         {/* Form step */}

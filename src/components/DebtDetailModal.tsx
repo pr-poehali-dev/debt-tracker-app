@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import Icon from "@/components/ui/icon";
+import ModalCloseButton from "@/components/ui/ModalCloseButton";
 import ContractModal from "@/components/ContractModal";
 import TopUpDebtModal from "@/components/TopUpDebtModal";
 
@@ -252,14 +253,7 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/75 backdrop-blur-md" onClick={onClose} />
-      <button
-        onClick={onClose}
-        aria-label="Закрыть"
-        className="fixed z-[110] w-12 h-12 rounded-full bg-black/70 backdrop-blur-md flex items-center justify-center hover:bg-black/85 transition-colors shadow-2xl border-2 border-white/25"
-        style={{ top: "calc(env(safe-area-inset-top, 0px) + 12px)", right: "12px" }}
-      >
-        <Icon name="X" size={24} className="text-white" />
-      </button>
+      <ModalCloseButton onClose={onClose} />
       <div
         className="relative w-full max-w-md rounded-3xl overflow-hidden animate-fade-in border border-white/10 shadow-2xl max-h-[90vh] overflow-y-auto"
         style={{ background: "#1a1d2e" }}

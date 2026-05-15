@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import QRCodeLib from "qrcode";
 import Icon from "@/components/ui/icon";
+import ModalCloseButton from "@/components/ui/ModalCloseButton";
 
 interface Props {
   open: boolean;
@@ -56,19 +57,17 @@ export default function InviteFriendModal({ open, onClose, inviteUrl }: Props) {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+      <ModalCloseButton onClose={onClose} zIndex={110} />
       <div
         className="w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl overflow-hidden animate-slide-up"
         style={{ background: "#1a1d2e" }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="bg-gradient-to-r from-purple-500 to-indigo-600 p-5">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-start">
             <span className="text-xs px-3 py-1 rounded-full font-medium bg-white/20 text-white">Пригласить друга</span>
-            <button onClick={onClose} aria-label="Закрыть" className="w-10 h-10 rounded-xl bg-white/25 flex items-center justify-center hover:bg-white/35 transition-colors shadow-lg">
-              <Icon name="X" size={22} className="text-white" />
-            </button>
           </div>
-          <p className="text-white text-xl font-bold font-heading mt-3">Поделись приложением</p>
+          <p className="text-white text-xl font-bold font-heading mt-3 pr-14">Поделись приложением</p>
           <p className="text-white/80 text-sm mt-1">{APP_DESC}</p>
         </div>
 
