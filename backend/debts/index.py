@@ -420,6 +420,13 @@ def handler(event: dict, context) -> dict:
                     vals
                 )
                 row = cur.fetchone()
+                # Если долг архивирован — отменяем все висящие запросы на оплату
+                if row and body.get("status") == "archived":
+                    cur.execute(
+                        f"""UPDATE {SCHEMA}.payment_requests SET status = 'cancelled'
+                            WHERE debt_id = %s AND status = 'pending'""",
+                        (row[0],)
+                    )
                 # Отправляем email и push кредитору если должник принял/отклонил
                 if row and body.get("borrower_decision") in ("accepted", "rejected") and row[13]:
                     cur.execute(f"SELECT email FROM {SCHEMA}.users WHERE id = %s", (row[13],))
@@ -550,6 +557,11 @@ def handler(event: dict, context) -> dict:
                                 f"""UPDATE {SCHEMA}.debts SET status = 'archived', updated_at = NOW()
                                     WHERE id = %s AND lender_user_id = %s""",
                                 (debt_id, user_id)
+                            )
+                            cur.execute(
+                                f"""UPDATE {SCHEMA}.payment_requests SET status = 'cancelled'
+                                    WHERE debt_id = %s AND status = 'pending'""",
+                                (debt_id,)
                             )
                             new_amount = 0.0
                         else:
