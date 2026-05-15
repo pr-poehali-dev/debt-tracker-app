@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Icon from "@/components/ui/icon";
 import ContractModal from "@/components/ContractModal";
 import TopUpDebtModal from "@/components/TopUpDebtModal";
@@ -95,6 +95,25 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
   const [editingDue, setEditingDue] = useState(false);
   const [newDueDate, setNewDueDate] = useState("");
   const [savingDue, setSavingDue] = useState(false);
+  const [statusToast, setStatusToast] = useState<{ kind: "accepted" | "rejected"; amount: number } | null>(null);
+  const prevHistoryRef = useRef<PaymentItem[]>([]);
+
+  useEffect(() => {
+    const prev = prevHistoryRef.current;
+    if (prev.length > 0 && dir === "borrowed") {
+      for (const p of prev) {
+        if (p.status !== "pending") continue;
+        const cur = history.find(h => h.id === p.id);
+        if (cur && (cur.status === "accepted" || cur.status === "rejected")) {
+          setStatusToast({ kind: cur.status, amount: cur.amount });
+          const tm = setTimeout(() => setStatusToast(null), 4000);
+          prevHistoryRef.current = history;
+          return () => clearTimeout(tm);
+        }
+      }
+    }
+    prevHistoryRef.current = history;
+  }, [history, dir]);
 
   async function saveDueDate() {
     if (!debt) return;
@@ -279,6 +298,25 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/75 backdrop-blur-md" onClick={onClose} />
+      {statusToast && (
+        <div
+          className="fixed top-4 left-1/2 -translate-x-1/2 z-[110] flex items-center gap-2 px-4 py-2.5 rounded-2xl shadow-2xl animate-fade-in"
+          style={{
+            background: statusToast.kind === "accepted"
+              ? "linear-gradient(135deg,#10b981,#059669)"
+              : "linear-gradient(135deg,#ef4444,#b91c1c)",
+            color: "#fff",
+            maxWidth: "92vw",
+          }}
+        >
+          <Icon name={statusToast.kind === "accepted" ? "CheckCircle2" : "XCircle"} size={18} />
+          <span className="text-sm font-medium">
+            {statusToast.kind === "accepted"
+              ? `Кредитор подтвердил возврат ${fmt(statusToast.amount)}`
+              : `Кредитор отклонил возврат ${fmt(statusToast.amount)}`}
+          </span>
+        </div>
+      )}
       <div
         className="relative w-full max-w-md rounded-3xl animate-fade-in border border-white/10 shadow-2xl max-h-[90vh] overflow-y-auto"
         style={{ background: "#1a1d2e" }}
