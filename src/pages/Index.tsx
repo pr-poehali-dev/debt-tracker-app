@@ -73,6 +73,26 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
 
   useEffect(() => {
     if (isDemo) return;
+    function bump() { setRefreshTick(t => t + 1); }
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") bump();
+    }, 15000);
+    function onVisible() {
+      if (document.visibilityState === "visible") bump();
+    }
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", bump);
+    window.addEventListener("realtime:message", bump as EventListener);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", bump);
+      window.removeEventListener("realtime:message", bump as EventListener);
+    };
+  }, [isDemo]);
+
+  useEffect(() => {
+    if (isDemo) return;
     import("../../backend/func2url.json").then(({ default: urls }) => {
       const contactsUrl = (urls as Record<string, string>)["contacts"];
       if (!contactsUrl) return;
