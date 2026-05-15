@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 import Icon from "@/components/ui/icon";
-import ModalCloseButton from "@/components/ui/ModalCloseButton";
 
 interface Props {
   debtId: string;
@@ -182,17 +181,19 @@ export default function ManualReturnModal({ debtId, debtTitle, defaultAmount, to
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/75 backdrop-blur-md" onClick={loading ? undefined : onClose} />
-      <ModalCloseButton onClose={onClose} disabled={loading} zIndex={120} />
       <div
         className="relative w-full max-w-md rounded-3xl overflow-hidden animate-fade-in border border-white/10 shadow-2xl max-h-[90vh] flex flex-col"
         style={{ background: "#1a1d2e" }}
       >
         <div className="bg-gradient-to-r from-emerald-500 to-green-600 p-5">
-          <div className="flex items-center justify-start">
+          <div className="flex items-center justify-between gap-3">
             <span className="text-xs px-3 py-1 rounded-full font-medium bg-white/20 text-white">Возврат вне приложения</span>
+            <button onClick={onClose} disabled={loading} aria-label="Закрыть" className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center hover:bg-white/30 transition-colors disabled:opacity-50 flex-shrink-0">
+              <Icon name="X" size={20} className="text-white" />
+            </button>
           </div>
           <p className="text-white/80 text-sm mt-3">Вернул лично</p>
-          <p className="text-xl font-bold text-white font-heading mt-1 truncate pr-14">{debtTitle}</p>
+          <p className="text-xl font-bold text-white font-heading mt-1 truncate">{debtTitle}</p>
         </div>
 
         <div className="px-5 py-5 space-y-4 overflow-y-auto">

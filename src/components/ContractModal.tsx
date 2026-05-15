@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import Icon from "@/components/ui/icon";
-import ModalCloseButton from "@/components/ui/ModalCloseButton";
 import func2url from "../../backend/func2url.json";
 
 const CONTRACTS_URL = func2url["contracts"];
@@ -271,24 +270,26 @@ export default function ContractModal({
   return (
     <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={onClose} />
-      <ModalCloseButton onClose={onClose} zIndex={210} />
       <div className="relative w-full sm:max-w-lg max-h-[92vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl border border-white/10 shadow-2xl animate-slide-up"
         style={{ background: "#1a1d2e", paddingBottom: "max(100px, calc(env(safe-area-inset-bottom) + 100px))" }}>
-        <div className="sticky top-0 z-10 px-5 py-4 border-b border-white/10 flex items-center"
+        <div className="sticky top-0 z-10 px-5 py-4 border-b border-white/10 flex items-center justify-between gap-3"
           style={{ background: "#1a1d2e" }}>
-          <div className="flex items-center gap-3 pr-14">
-            <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ background: "rgba(168,85,247,0.18)" }}>
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(168,85,247,0.18)" }}>
               <Icon name="FileSignature" size={20} className="text-purple-400" />
             </div>
-            <div>
-              <p className="font-semibold text-foreground">Договор займа</p>
-              <p className="text-xs text-muted-foreground">
+            <div className="min-w-0">
+              <p className="font-semibold text-foreground truncate">Договор займа</p>
+              <p className="text-xs text-muted-foreground truncate">
                 {step === "passport" && "Шаг 1 из 3 · паспортные данные"}
                 {step === "fields" && "Шаг 2 из 3 · условия договора"}
                 {step === "preview" && "Шаг 3 из 3 · предпросмотр и подпись"}
               </p>
             </div>
           </div>
+          <button onClick={onClose} aria-label="Закрыть" className="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-white/15 transition-colors flex-shrink-0" style={{ background: "rgba(255,255,255,0.12)" }}>
+            <Icon name="X" size={20} className="text-foreground" />
+          </button>
         </div>
 
         {loading ? (
