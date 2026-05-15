@@ -335,9 +335,8 @@ def handler(event: dict, context) -> dict:
                         LEFT JOIN {SCHEMA}.users ul ON ul.id = d.lender_user_id
                         LEFT JOIN {SCHEMA}.users ub ON ub.id = d.borrower_user_id
                         WHERE (d.lender_user_id = %s OR d.borrower_user_id = %s)
-                          AND d.status != 'archived'
                           AND NOT (d.borrower_user_id = %s AND d.borrower_dismissed = TRUE)
-                        ORDER BY d.created_at DESC LIMIT 100""",
+                        ORDER BY d.created_at DESC LIMIT 200""",
                     (uid, uid, uid)
                 )
                 rows = cur.fetchall()
