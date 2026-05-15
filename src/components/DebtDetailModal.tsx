@@ -228,7 +228,7 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
 
   if (!debt) return null;
 
-  const pendingPayment = dir === "lent" ? history.find(h => h.status === "pending") : null;
+  const pendingPayment = history.find(h => h.status === "pending") || null;
 
   const statusMap: Record<string, { label: string; cls: string }> = {
     active:  { label: "Активен",    cls: "bg-blue-500/15 text-blue-400 border border-blue-500/20" },
@@ -496,7 +496,7 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
 
             {pendingPayment && dir === "lent" && (
               <div className="rounded-2xl px-4 py-3" style={{ background: "linear-gradient(135deg, rgba(16,185,129,0.18), rgba(5,150,105,0.1))", border: "1px solid rgba(16,185,129,0.4)" }}>
-                <div className="flex items-center gap-2 mb-1">
+                <div className="flex items-center gap-2 mb-2">
                   <Icon name="BellRing" size={16} className="text-emerald-400" />
                   <p className="text-xs font-semibold text-emerald-300">Запрос на возврат</p>
                 </div>
@@ -504,7 +504,55 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
                   {pendingPayment.from_name} вернул(а) <span className="font-bold text-emerald-400">{fmt(pendingPayment.amount)}</span>
                 </p>
                 {pendingPayment.note && <p className="text-[11px] text-foreground/70 italic mt-1">«{pendingPayment.note}»</p>}
-                <p className="text-[10px] text-muted-foreground mt-1">После подтверждения остаток станет {fmt(Math.max(0, debt.amount - pendingPayment.amount))}</p>
+                <p className="text-[10px] text-muted-foreground mt-1 mb-3">После подтверждения остаток станет {fmt(Math.max(0, debt.amount - pendingPayment.amount))}</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => decide(pendingPayment, "rejected")}
+                    disabled={decidingId === pendingPayment.id}
+                    className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-medium disabled:opacity-50 active:scale-95 transition-transform"
+                    style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", color: "#f87171" }}
+                  >
+                    <Icon name="X" size={14} /> Отклонить
+                  </button>
+                  <button
+                    onClick={() => decide(pendingPayment, "accepted")}
+                    disabled={decidingId === pendingPayment.id}
+                    className="flex-[1.4] flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-semibold disabled:opacity-50 active:scale-95 transition-transform"
+                    style={{ background: "linear-gradient(135deg,#10b981,#059669)", color: "#fff" }}
+                  >
+                    {decidingId === pendingPayment.id ? (
+                      <Icon name="Loader2" size={14} className="animate-spin" />
+                    ) : (
+                      <><Icon name="Check" size={14} /> Подтвердить {fmt(pendingPayment.amount)}</>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {pendingPayment && dir === "borrowed" && (
+              <div className="rounded-2xl px-4 py-3" style={{ background: "linear-gradient(135deg, rgba(251,191,36,0.15), rgba(217,119,6,0.1))", border: "1px solid rgba(251,191,36,0.35)" }}>
+                <div className="flex items-center gap-2 mb-2">
+                  <Icon name="Clock" size={16} className="text-amber-400" />
+                  <p className="text-xs font-semibold text-amber-300">Ожидает подтверждения</p>
+                </div>
+                <p className="text-sm text-foreground">
+                  Вы отправили на подтверждение возврат <span className="font-bold text-amber-400">{fmt(pendingPayment.amount)}</span>
+                </p>
+                {pendingPayment.note && <p className="text-[11px] text-foreground/70 italic mt-1">«{pendingPayment.note}»</p>}
+                <p className="text-[10px] text-muted-foreground mt-1 mb-3">После подтверждения кредитором остаток станет {fmt(Math.max(0, debt.amount - pendingPayment.amount))}</p>
+                <button
+                  onClick={() => decide(pendingPayment, "rejected")}
+                  disabled={decidingId === pendingPayment.id}
+                  className="w-full flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-medium disabled:opacity-50 active:scale-95 transition-transform"
+                  style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", color: "#f87171" }}
+                >
+                  {decidingId === pendingPayment.id ? (
+                    <Icon name="Loader2" size={14} className="animate-spin" />
+                  ) : (
+                    <><Icon name="X" size={14} /> Отменить запрос</>
+                  )}
+                </button>
               </div>
             )}
 
