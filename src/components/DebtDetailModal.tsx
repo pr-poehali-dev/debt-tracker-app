@@ -98,6 +98,28 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
   const [statusToast, setStatusToast] = useState<{ kind: "accepted" | "rejected"; amount: number } | null>(null);
   const prevHistoryRef = useRef<PaymentItem[]>([]);
 
+  function playStatusSound(kind: "accepted" | "rejected") {
+    try {
+      const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const ctx = new Ctx();
+      const notes = kind === "accepted" ? [880, 1318] : [440, 277];
+      notes.forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.type = kind === "accepted" ? "sine" : "triangle";
+        const start = ctx.currentTime + i * 0.14;
+        osc.frequency.setValueAtTime(freq, start);
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(0.18, start + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.22);
+        osc.start(start);
+        osc.stop(start + 0.24);
+      });
+      setTimeout(() => ctx.close().catch(() => {}), 800);
+    } catch { /* без звука */ }
+  }
+
   useEffect(() => {
     const prev = prevHistoryRef.current;
     if (prev.length > 0 && dir === "borrowed") {
@@ -106,6 +128,7 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
         const cur = history.find(h => h.id === p.id);
         if (cur && (cur.status === "accepted" || cur.status === "rejected")) {
           setStatusToast({ kind: cur.status, amount: cur.amount });
+          playStatusSound(cur.status);
           const tm = setTimeout(() => setStatusToast(null), 4000);
           prevHistoryRef.current = history;
           return () => clearTimeout(tm);
