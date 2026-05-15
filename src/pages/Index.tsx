@@ -166,6 +166,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
               counterpartyName: String(isLender ? (d.borrower_name || "") : (d.lender_name || "")) || undefined,
               archivedDir: (status === "archived" || isDeleted) ? (isLender ? "lent" : "borrowed") : undefined,
               createdAt: d.created_at ? String(d.created_at) : undefined,
+              archivedAt: (status === "archived" || isDeleted) && d.updated_at ? String(d.updated_at) : undefined,
               counterpartyAvatarUrl: (isLender ? d.borrower_avatar_url : d.lender_avatar_url) ? String(isLender ? d.borrower_avatar_url : d.lender_avatar_url) : undefined,
             };
 
@@ -195,6 +196,11 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
             }
           });
 
+          archive.sort((a, b) => {
+            const ta = a.archivedAt ? new Date(a.archivedAt).getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+            const tb = b.archivedAt ? new Date(b.archivedAt).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+            return tb - ta;
+          });
           setLentDebts(lent);
           setBorrowedDebts(borrowed);
           setArchiveDebts(archive);
