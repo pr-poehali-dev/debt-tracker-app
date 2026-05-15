@@ -81,6 +81,8 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [decidingId, setDecidingId] = useState<number | null>(null);
   const [confirmCancelId, setConfirmCancelId] = useState<number | null>(null);
+  const [confirmRejectId, setConfirmRejectId] = useState<number | null>(null);
+  const [confirmRejectTopUpId, setConfirmRejectTopUpId] = useState<number | null>(null);
   const [confirmClose, setConfirmClose] = useState(false);
   const [showContact, setShowContact] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
@@ -512,28 +514,56 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
                 </p>
                 {pendingPayment.note && <p className="text-[11px] text-foreground/70 italic mt-1">«{pendingPayment.note}»</p>}
                 <p className="text-[10px] text-muted-foreground mt-1 mb-3">После подтверждения остаток станет {fmt(Math.max(0, debt.amount - pendingPayment.amount))}</p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => decide(pendingPayment, "rejected")}
-                    disabled={decidingId === pendingPayment.id}
-                    className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-medium disabled:opacity-50 active:scale-95 transition-transform"
-                    style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", color: "#f87171" }}
-                  >
-                    <Icon name="X" size={14} /> Отклонить
-                  </button>
-                  <button
-                    onClick={() => decide(pendingPayment, "accepted")}
-                    disabled={decidingId === pendingPayment.id}
-                    className="flex-[1.4] flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-semibold disabled:opacity-50 active:scale-95 transition-transform"
-                    style={{ background: "linear-gradient(135deg,#10b981,#059669)", color: "#fff" }}
-                  >
-                    {decidingId === pendingPayment.id ? (
-                      <Icon name="Loader2" size={14} className="animate-spin" />
-                    ) : (
-                      <><Icon name="Check" size={14} /> Подтвердить {fmt(pendingPayment.amount)}</>
-                    )}
-                  </button>
-                </div>
+                {confirmRejectId === pendingPayment.id ? (
+                  <div className="space-y-2">
+                    <p className="text-[11px] text-amber-300/90 text-center">Точно отклонить этот возврат?</p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setConfirmRejectId(null)}
+                        disabled={decidingId === pendingPayment.id}
+                        className="flex-1 py-2 rounded-lg text-xs font-medium disabled:opacity-50 active:scale-95 transition-transform"
+                        style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", color: "#e5e7eb" }}
+                      >
+                        Нет, оставить
+                      </button>
+                      <button
+                        onClick={async () => { await decide(pendingPayment, "rejected"); setConfirmRejectId(null); }}
+                        disabled={decidingId === pendingPayment.id}
+                        className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-medium disabled:opacity-50 active:scale-95 transition-transform"
+                        style={{ background: "rgba(239,68,68,0.18)", border: "1px solid rgba(239,68,68,0.4)", color: "#f87171" }}
+                      >
+                        {decidingId === pendingPayment.id ? (
+                          <Icon name="Loader2" size={14} className="animate-spin" />
+                        ) : (
+                          <><Icon name="Check" size={14} /> Да, отклонить</>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setConfirmRejectId(pendingPayment.id)}
+                      disabled={decidingId === pendingPayment.id}
+                      className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-medium disabled:opacity-50 active:scale-95 transition-transform"
+                      style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", color: "#f87171" }}
+                    >
+                      <Icon name="X" size={14} /> Отклонить
+                    </button>
+                    <button
+                      onClick={() => decide(pendingPayment, "accepted")}
+                      disabled={decidingId === pendingPayment.id}
+                      className="flex-[1.4] flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-semibold disabled:opacity-50 active:scale-95 transition-transform"
+                      style={{ background: "linear-gradient(135deg,#10b981,#059669)", color: "#fff" }}
+                    >
+                      {decidingId === pendingPayment.id ? (
+                        <Icon name="Loader2" size={14} className="animate-spin" />
+                      ) : (
+                        <><Icon name="Check" size={14} /> Подтвердить {fmt(pendingPayment.amount)}</>
+                      )}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -654,28 +684,56 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
                               <p className="text-[10px] mt-0.5" style={{ color: "#fbbf24" }}>Ждёт подтверждения кредитора</p>
                             )}
                             {isPend && dir === "lent" && (
-                              <div className="flex gap-2 mt-2">
-                                <button
-                                  onClick={() => decide(p, "rejected")}
-                                  disabled={decidingId === p.id}
-                                  className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[11px] font-medium disabled:opacity-50 active:scale-95 transition-transform"
-                                  style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", color: "#f87171" }}
-                                >
-                                  <Icon name="X" size={12} /> Отклонить
-                                </button>
-                                <button
-                                  onClick={() => decide(p, "accepted")}
-                                  disabled={decidingId === p.id}
-                                  className="flex-[1.4] flex items-center justify-center gap-1 py-1.5 rounded-lg text-[11px] font-semibold disabled:opacity-50 active:scale-95 transition-transform"
-                                  style={{ background: "linear-gradient(135deg,#10b981,#059669)", color: "#fff" }}
-                                >
-                                  {decidingId === p.id ? (
-                                    <Icon name="Loader2" size={12} className="animate-spin" />
-                                  ) : (
-                                    <><Icon name="Check" size={12} /> Подтвердить {fmt(p.amount)}</>
-                                  )}
-                                </button>
-                              </div>
+                              confirmRejectId === p.id ? (
+                                <div className="mt-2 space-y-2">
+                                  <p className="text-[10px] text-amber-300/90 text-center">Точно отклонить этот возврат?</p>
+                                  <div className="flex gap-2">
+                                    <button
+                                      onClick={() => setConfirmRejectId(null)}
+                                      disabled={decidingId === p.id}
+                                      className="flex-1 py-1.5 rounded-lg text-[11px] font-medium disabled:opacity-50 active:scale-95 transition-transform"
+                                      style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", color: "#e5e7eb" }}
+                                    >
+                                      Нет
+                                    </button>
+                                    <button
+                                      onClick={async () => { await decide(p, "rejected"); setConfirmRejectId(null); }}
+                                      disabled={decidingId === p.id}
+                                      className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[11px] font-medium disabled:opacity-50 active:scale-95 transition-transform"
+                                      style={{ background: "rgba(239,68,68,0.18)", border: "1px solid rgba(239,68,68,0.4)", color: "#f87171" }}
+                                    >
+                                      {decidingId === p.id ? (
+                                        <Icon name="Loader2" size={12} className="animate-spin" />
+                                      ) : (
+                                        <><Icon name="Check" size={12} /> Да, отклонить</>
+                                      )}
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="flex gap-2 mt-2">
+                                  <button
+                                    onClick={() => setConfirmRejectId(p.id)}
+                                    disabled={decidingId === p.id}
+                                    className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[11px] font-medium disabled:opacity-50 active:scale-95 transition-transform"
+                                    style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", color: "#f87171" }}
+                                  >
+                                    <Icon name="X" size={12} /> Отклонить
+                                  </button>
+                                  <button
+                                    onClick={() => decide(p, "accepted")}
+                                    disabled={decidingId === p.id}
+                                    className="flex-[1.4] flex items-center justify-center gap-1 py-1.5 rounded-lg text-[11px] font-semibold disabled:opacity-50 active:scale-95 transition-transform"
+                                    style={{ background: "linear-gradient(135deg,#10b981,#059669)", color: "#fff" }}
+                                  >
+                                    {decidingId === p.id ? (
+                                      <Icon name="Loader2" size={12} className="animate-spin" />
+                                    ) : (
+                                      <><Icon name="Check" size={12} /> Подтвердить {fmt(p.amount)}</>
+                                    )}
+                                  </button>
+                                </div>
+                              )
                             )}
                           </div>
                         </div>
@@ -730,28 +788,56 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
                             <p className="text-[10px] mt-0.5" style={{ color: "#fbbf24" }}>Ждёт подтверждения заёмщика</p>
                           )}
                           {isPend && dir === "borrowed" && (
-                            <div className="flex gap-2 mt-2">
-                              <button
-                                onClick={() => decideTopUp(item, "rejected")}
-                                disabled={decidingTopUpId === item.id}
-                                className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[11px] font-medium disabled:opacity-50 active:scale-95 transition-transform"
-                                style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", color: "#f87171" }}
-                              >
-                                <Icon name="X" size={12} /> Отклонить
-                              </button>
-                              <button
-                                onClick={() => decideTopUp(item, "accepted")}
-                                disabled={decidingTopUpId === item.id}
-                                className="flex-[1.4] flex items-center justify-center gap-1 py-1.5 rounded-lg text-[11px] font-semibold disabled:opacity-50 active:scale-95 transition-transform"
-                                style={{ background: "linear-gradient(135deg,#6366f1,#4f46e5)", color: "#fff" }}
-                              >
-                                {decidingTopUpId === item.id ? (
-                                  <Icon name="Loader2" size={12} className="animate-spin" />
-                                ) : (
-                                  <><Icon name="Check" size={12} /> Принять +{fmt(item.amount)}</>
-                                )}
-                              </button>
-                            </div>
+                            confirmRejectTopUpId === item.id ? (
+                              <div className="mt-2 space-y-2">
+                                <p className="text-[10px] text-amber-300/90 text-center">Точно отклонить увеличение долга?</p>
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => setConfirmRejectTopUpId(null)}
+                                    disabled={decidingTopUpId === item.id}
+                                    className="flex-1 py-1.5 rounded-lg text-[11px] font-medium disabled:opacity-50 active:scale-95 transition-transform"
+                                    style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", color: "#e5e7eb" }}
+                                  >
+                                    Нет
+                                  </button>
+                                  <button
+                                    onClick={async () => { await decideTopUp(item, "rejected"); setConfirmRejectTopUpId(null); }}
+                                    disabled={decidingTopUpId === item.id}
+                                    className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[11px] font-medium disabled:opacity-50 active:scale-95 transition-transform"
+                                    style={{ background: "rgba(239,68,68,0.18)", border: "1px solid rgba(239,68,68,0.4)", color: "#f87171" }}
+                                  >
+                                    {decidingTopUpId === item.id ? (
+                                      <Icon name="Loader2" size={12} className="animate-spin" />
+                                    ) : (
+                                      <><Icon name="Check" size={12} /> Да, отклонить</>
+                                    )}
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex gap-2 mt-2">
+                                <button
+                                  onClick={() => setConfirmRejectTopUpId(item.id)}
+                                  disabled={decidingTopUpId === item.id}
+                                  className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[11px] font-medium disabled:opacity-50 active:scale-95 transition-transform"
+                                  style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", color: "#f87171" }}
+                                >
+                                  <Icon name="X" size={12} /> Отклонить
+                                </button>
+                                <button
+                                  onClick={() => decideTopUp(item, "accepted")}
+                                  disabled={decidingTopUpId === item.id}
+                                  className="flex-[1.4] flex items-center justify-center gap-1 py-1.5 rounded-lg text-[11px] font-semibold disabled:opacity-50 active:scale-95 transition-transform"
+                                  style={{ background: "linear-gradient(135deg,#6366f1,#4f46e5)", color: "#fff" }}
+                                >
+                                  {decidingTopUpId === item.id ? (
+                                    <Icon name="Loader2" size={12} className="animate-spin" />
+                                  ) : (
+                                    <><Icon name="Check" size={12} /> Принять +{fmt(item.amount)}</>
+                                  )}
+                                </button>
+                              </div>
+                            )
                           )}
                         </div>
                       </div>
