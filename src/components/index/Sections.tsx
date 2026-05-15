@@ -1546,9 +1546,11 @@ export function ArchiveSection({ contacts, t, locale, archiveDebts, token = "", 
                 </div>
                 {d.note && <p className="text-xs text-muted-foreground">{d.note}</p>}
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {d.dueDate
-                    ? new Date(d.dueDate).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" })
-                    : "Бессрочно"}
+                  {d.createdAt
+                    ? `Выдан ${new Date(d.createdAt).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" })}`
+                    : d.dueDate
+                      ? new Date(d.dueDate).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" })
+                      : "Бессрочно"}
                 </p>
                 {d.archivedAt && (
                   <p className="text-[11px] text-green-400/70 mt-0.5 flex items-center gap-1">
