@@ -2473,10 +2473,10 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
   }
 
   const themes: { id: Theme; label: string; desc: string; icon: string; gradient: string; preview: string[]; isDark: boolean }[] = [
-    { id: "dark",     label: t.themeDark,     desc: t.themeDarkDesc,     icon: "Moon",     gradient: "linear-gradient(135deg, #0d0f1a, #1a1d2e)", preview: ["#0d0f1a", "#1a1d2e", "#a855f7"], isDark: true },
-    { id: "light",    label: t.themeLight,    desc: t.themeLightDesc,    icon: "Sun",      gradient: "linear-gradient(135deg, #f0f2f8, #ffffff)", preview: ["#f0f2f8", "#ffffff", "#a855f7"], isDark: false },
     { id: "graphite",       label: t.themeGraphite,      desc: t.themeGraphiteDesc,      icon: "Square", gradient: "linear-gradient(135deg, #16181c, #2a2d33)", preview: ["#16181c", "#3a3d44", "#a8adb8"], isDark: true  },
     { id: "graphite-light", label: t.themeGraphiteLight, desc: t.themeGraphiteLightDesc, icon: "Square", gradient: "linear-gradient(135deg, #e8eaee, #ffffff)", preview: ["#e8eaee", "#ffffff", "#5a6270"], isDark: false },
+    { id: "dark",     label: t.themeDark,     desc: t.themeDarkDesc,     icon: "Moon",     gradient: "linear-gradient(135deg, #0d0f1a, #1a1d2e)", preview: ["#0d0f1a", "#1a1d2e", "#a855f7"], isDark: true },
+    { id: "light",    label: t.themeLight,    desc: t.themeLightDesc,    icon: "Sun",      gradient: "linear-gradient(135deg, #f0f2f8, #ffffff)", preview: ["#f0f2f8", "#ffffff", "#a855f7"], isDark: false },
   ];
 
   return (
