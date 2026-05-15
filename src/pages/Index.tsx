@@ -319,6 +319,41 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
       } catch { /* ignore */ }
     }
 
+    function playPaymentSound() {
+      if (localStorage.getItem("df-sound-notif") === "off") return;
+      try {
+        const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+        const t = ctx.currentTime;
+        // Мелодичный аккорд "касса" — три ноты до-ми-соль с гармоникой
+        const notes = [1046.5, 1318.5, 1567.98];
+        notes.forEach((freq, i) => {
+          const start = t + i * 0.12;
+          [freq, freq * 2].forEach((f, hi) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.type = hi === 0 ? "sine" : "triangle";
+            osc.frequency.setValueAtTime(f, start);
+            const vol = hi === 0 ? 0.4 : 0.12;
+            gain.gain.setValueAtTime(vol, start);
+            gain.gain.exponentialRampToValueAtTime(0.001, start + 0.55);
+            osc.start(start);
+            osc.stop(start + 0.6);
+          });
+        });
+        // Финальный долгий "блик"
+        const oscFinal = ctx.createOscillator();
+        const gainFinal = ctx.createGain();
+        oscFinal.connect(gainFinal); gainFinal.connect(ctx.destination);
+        oscFinal.type = "sine";
+        oscFinal.frequency.setValueAtTime(2093, t + 0.4);
+        gainFinal.gain.setValueAtTime(0.25, t + 0.4);
+        gainFinal.gain.exponentialRampToValueAtTime(0.001, t + 1.2);
+        oscFinal.start(t + 0.4);
+        oscFinal.stop(t + 1.25);
+      } catch { /* ignore */ }
+    }
+
     async function poll() {
       const urls = (await import("../../backend/func2url.json")).default;
       const res = await fetch(urls["notifications"], { headers: { Authorization: `Bearer ${token}`, "X-Authorization": `Bearer ${token}` } });
@@ -329,7 +364,11 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
 
       // Всегда мерджим новые непрочитанные уведомления, не только при увеличении счётчика
       const grew = unread > lastKnownUnread;
-      if (grew && lastKnownUnread !== 0) playSound();
+      const hasPaymentRequest = newNotifs.some(n => String(n.type) === "payment_request");
+      if (grew && lastKnownUnread !== 0) {
+        if (hasPaymentRequest) playPaymentSound();
+        else playSound();
+      }
       if (newNotifs.length > 0) {
         setNotifs(prev => {
           const existingIds = new Set(prev.map(n => n.id));
