@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import type { ReactNode } from "react";
 import Icon from "@/components/ui/icon";
 import DebtDetailModal from "@/components/DebtDetailModal";
 import { type Lang, LANGUAGES, getT } from "@/i18n";
@@ -1484,6 +1485,78 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
 }
 
 // ─── Section: Archive ─────────────────────────────────────────────────────────
+function SwipeRevealCard({ onDelete, animationDelay, children }: { onDelete?: () => void; animationDelay?: string; children: ReactNode }) {
+  const [offset, setOffset] = useState(0);
+  const startX = useRef<number | null>(null);
+  const startY = useRef<number | null>(null);
+  const dragging = useRef(false);
+  const REVEAL = 80;
+  const MAX = 110;
+
+  function onTouchStart(e: React.TouchEvent) {
+    startX.current = e.touches[0].clientX;
+    startY.current = e.touches[0].clientY;
+    dragging.current = false;
+  }
+  function onTouchMove(e: React.TouchEvent) {
+    if (startX.current == null || startY.current == null) return;
+    const dx = e.touches[0].clientX - startX.current;
+    const dy = e.touches[0].clientY - startY.current;
+    if (!dragging.current) {
+      if (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy)) {
+        dragging.current = true;
+      } else if (Math.abs(dy) > 8) {
+        startX.current = null;
+        return;
+      }
+    }
+    if (dragging.current) {
+      const base = offset < 0 ? offset : 0;
+      const next = Math.min(0, Math.max(-MAX, base + dx));
+      setOffset(next);
+    }
+  }
+  function onTouchEnd() {
+    if (!dragging.current) {
+      startX.current = null;
+      startY.current = null;
+      return;
+    }
+    if (offset < -REVEAL / 2) setOffset(-REVEAL);
+    else setOffset(0);
+    startX.current = null;
+    startY.current = null;
+    dragging.current = false;
+  }
+
+  return (
+    <div className="relative overflow-hidden rounded-2xl" style={{ animationDelay }}>
+      {onDelete && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onDelete(); setOffset(0); }}
+          className="absolute right-0 top-0 bottom-0 flex items-center justify-center gap-1 px-4 active:scale-95 transition-transform"
+          style={{ width: REVEAL, background: "linear-gradient(135deg,#ef4444,#b91c1c)", color: "#fff" }}
+          aria-label="Удалить навсегда"
+        >
+          <Icon name="Trash2" size={18} />
+        </button>
+      )}
+      <div
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        onClick={(e) => {
+          if (offset < 0) { e.stopPropagation(); setOffset(0); }
+        }}
+        style={{ transform: `translateX(${offset}px)`, transition: dragging.current ? "none" : "transform 0.22s ease" }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export function ArchiveSection({ contacts, t, locale, archiveDebts, token = "", onOpenChat, onPurgeDebt }: { contacts: Contact[]; t: ReturnType<typeof getT>; locale: string; archiveDebts: Debt[]; token?: string; onOpenChat?: (debtId: string, title: string) => void; onPurgeDebt?: (debtDbId: string) => Promise<void> | void }) {
   const [filter, setFilter] = useState<"returned" | "deleted">("returned");
   const [search, setSearch] = useState("");
@@ -1601,11 +1674,15 @@ export function ArchiveSection({ contacts, t, locale, archiveDebts, token = "", 
           const contact = contacts.find(c => c.id === d.contactId);
           const isDeleted = d.status === "deleted";
           return (
-            <div
+            <SwipeRevealCard
               key={d.id}
+              animationDelay={`${i * 0.05}s`}
+              onDelete={onPurgeDebt && d.debtDbId ? () => setConfirmPurge(d) : undefined}
+            >
+            <div
               onClick={() => setSelectedDebt(d)}
               className="glass rounded-2xl p-4 flex items-center gap-4 opacity-80 hover:opacity-100 hover:bg-white/[0.06] transition-all cursor-pointer active:scale-[0.99]"
-              style={{ animationDelay: `${i * 0.05}s`, borderLeft: isDeleted ? "3px solid #f87171" : undefined }}
+              style={{ borderLeft: isDeleted ? "3px solid #f87171" : undefined }}
             >
               <Avatar initials={d.avatar} color={contact?.color} imageUrl={d.counterpartyAvatarUrl} />
               <div className="flex-1 min-w-0">
@@ -1650,19 +1727,8 @@ export function ArchiveSection({ contacts, t, locale, archiveDebts, token = "", 
                   <StatusBadge status="paid" t={t} />
                 )}
               </div>
-              {isDeleted && onPurgeDebt && d.debtDbId && (
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); setConfirmPurge(d); }}
-                  className="flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-colors"
-                  style={{ background: "rgba(239,68,68,0.10)", border: "1px solid rgba(239,68,68,0.25)", color: "#f87171" }}
-                  title="Удалить навсегда"
-                  aria-label="Удалить навсегда"
-                >
-                  <Icon name="Trash2" size={15} />
-                </button>
-              )}
             </div>
+            </SwipeRevealCard>
           );
         })}
       </div>
