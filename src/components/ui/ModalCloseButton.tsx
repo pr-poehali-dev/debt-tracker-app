@@ -17,8 +17,8 @@ export default function ModalCloseButton({ onClose, disabled, zIndex = 99999 }: 
       className="flex items-center justify-center disabled:opacity-50"
       style={{
         position: "fixed",
-        top: "calc(env(safe-area-inset-top, 0px) + 70px)",
-        right: "16px",
+        top: "calc(env(safe-area-inset-top, 0px) + 240px)",
+        right: "24px",
         width: "48px",
         height: "48px",
         borderRadius: "9999px",
