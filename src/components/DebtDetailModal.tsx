@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import Icon from "@/components/ui/icon";
-import ModalCloseButton from "@/components/ui/ModalCloseButton";
 import ContractModal from "@/components/ContractModal";
 import TopUpDebtModal from "@/components/TopUpDebtModal";
 
@@ -253,13 +252,21 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/75 backdrop-blur-md" onClick={onClose} />
-      <ModalCloseButton onClose={onClose} />
       <div
-        className="relative w-full max-w-md rounded-3xl overflow-hidden animate-fade-in border border-white/10 shadow-2xl max-h-[90vh] overflow-y-auto"
+        className="relative w-full max-w-md rounded-3xl animate-fade-in border border-white/10 shadow-2xl max-h-[90vh] overflow-y-auto"
         style={{ background: "#1a1d2e" }}
       >
+        <button
+          onClick={onClose}
+          aria-label="Закрыть"
+          className="absolute right-4 z-30 w-11 h-11 rounded-2xl flex items-center justify-center hover:bg-white/15 transition-colors shadow-lg"
+          style={{ top: "180px", background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)" }}
+        >
+          <Icon name="X" size={22} className="text-white" />
+        </button>
+
         {/* Header */}
-        <div className={`bg-gradient-to-r ${gradientClass} px-5 pb-8 pt-5`}>
+        <div className={`bg-gradient-to-r ${gradientClass} px-5 pb-8 pt-5 rounded-t-3xl`}>
           <div className="flex items-center justify-start mb-4 gap-2">
             <span className={`text-xs px-3 py-1 rounded-full font-medium ${status.cls}`}>{status.label}</span>
           </div>
