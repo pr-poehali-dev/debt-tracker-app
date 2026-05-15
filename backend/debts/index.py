@@ -848,6 +848,31 @@ def handler(event: dict, context) -> dict:
                 purge = (qs.get("purge") == "1")
                 # purge=1 — физическое удаление из архива БЕЗ уведомлений второму участнику
                 if purge:
+                    # Сначала подчищаем все связанные записи, чтобы не словить foreign key violation
+                    for related_sql in (
+                        f"DELETE FROM {SCHEMA}.payment_requests WHERE debt_id = %s",
+                        f"DELETE FROM {SCHEMA}.topup_requests WHERE debt_id = %s",
+                        f"DELETE FROM {SCHEMA}.messages WHERE debt_id = %s",
+                        f"DELETE FROM {SCHEMA}.contracts WHERE debt_id = %s",
+                        f"DELETE FROM {SCHEMA}.reminders WHERE debt_id = %s",
+                    ):
+                        try:
+                            cur.execute(related_sql, (debt_id,))
+                        except Exception:
+                            conn.rollback()
+                            # Открываем новый курсор после отката
+                            cur.close()
+                            cur = conn.cursor()
+                    # Удаляем уведомления, ссылающиеся на этот долг в JSON-поле data
+                    try:
+                        cur.execute(
+                            f"DELETE FROM {SCHEMA}.notifications WHERE data->>'debt_id' = %s",
+                            (str(debt_id),)
+                        )
+                    except Exception:
+                        conn.rollback()
+                        cur.close()
+                        cur = conn.cursor()
                     cur.execute(f"DELETE FROM {SCHEMA}.debts WHERE id = %s", (debt_id,))
                     conn.commit()
                     return json_resp({"ok": True, "purged": True})
