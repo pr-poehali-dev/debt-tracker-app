@@ -80,6 +80,7 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
   const [history, setHistory] = useState<PaymentItem[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [decidingId, setDecidingId] = useState<number | null>(null);
+  const [confirmCancelId, setConfirmCancelId] = useState<number | null>(null);
   const [confirmClose, setConfirmClose] = useState(false);
   const [showContact, setShowContact] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
@@ -547,18 +548,42 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
                 </p>
                 {pendingPayment.note && <p className="text-[11px] text-foreground/70 italic mt-1">«{pendingPayment.note}»</p>}
                 <p className="text-[10px] text-muted-foreground mt-1 mb-3">После подтверждения кредитором остаток станет {fmt(Math.max(0, debt.amount - pendingPayment.amount))}</p>
-                <button
-                  onClick={() => decide(pendingPayment, "cancelled")}
-                  disabled={decidingId === pendingPayment.id}
-                  className="w-full flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-medium disabled:opacity-50 active:scale-95 transition-transform"
-                  style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", color: "#f87171" }}
-                >
-                  {decidingId === pendingPayment.id ? (
-                    <Icon name="Loader2" size={14} className="animate-spin" />
-                  ) : (
-                    <><Icon name="X" size={14} /> Отменить запрос</>
-                  )}
-                </button>
+                {confirmCancelId === pendingPayment.id ? (
+                  <div className="space-y-2">
+                    <p className="text-[11px] text-amber-300/90 text-center">Точно отменить запрос на возврат?</p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setConfirmCancelId(null)}
+                        disabled={decidingId === pendingPayment.id}
+                        className="flex-1 py-2 rounded-lg text-xs font-medium disabled:opacity-50 active:scale-95 transition-transform"
+                        style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", color: "#e5e7eb" }}
+                      >
+                        Нет, оставить
+                      </button>
+                      <button
+                        onClick={async () => { await decide(pendingPayment, "cancelled"); setConfirmCancelId(null); }}
+                        disabled={decidingId === pendingPayment.id}
+                        className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-medium disabled:opacity-50 active:scale-95 transition-transform"
+                        style={{ background: "rgba(239,68,68,0.18)", border: "1px solid rgba(239,68,68,0.4)", color: "#f87171" }}
+                      >
+                        {decidingId === pendingPayment.id ? (
+                          <Icon name="Loader2" size={14} className="animate-spin" />
+                        ) : (
+                          <><Icon name="Check" size={14} /> Да, отменить</>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setConfirmCancelId(pendingPayment.id)}
+                    disabled={decidingId === pendingPayment.id}
+                    className="w-full flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-medium disabled:opacity-50 active:scale-95 transition-transform"
+                    style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", color: "#f87171" }}
+                  >
+                    <Icon name="X" size={14} /> Отменить запрос
+                  </button>
+                )}
               </div>
             )}
 
