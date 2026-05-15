@@ -893,6 +893,7 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
     try { return JSON.parse(localStorage.getItem("df-hidden-threads") || "[]"); } catch { return []; }
   });
   const [confirmDel, setConfirmDel] = useState<{ key: string; title: string } | null>(null);
+  const [showOnlyUnread, setShowOnlyUnread] = useState(false);
 
   function threadKey(n: Notification): string | null {
     if (n.chatMeta) return `chat:${n.chatMeta.debtId || ""}:${n.chatMeta.rentalId || ""}`;
@@ -1059,20 +1060,41 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
   return (
     <div className="animate-fade-in">
       {unread > 0 && (
-        <div className="glass rounded-2xl p-4 mb-5 border border-red-500/20 bg-red-500/5">
+        <button
+          type="button"
+          onClick={() => setShowOnlyUnread(v => !v)}
+          className={`w-full text-left glass rounded-2xl p-4 mb-3 border transition-colors ${showOnlyUnread ? "border-red-500/50 bg-red-500/10" : "border-red-500/20 bg-red-500/5 hover:bg-red-500/10"}`}
+        >
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-red-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
-              <Icon name="AlertTriangle" size={20} className="text-red-400" />
+              <Icon name={showOnlyUnread ? "Filter" : "AlertTriangle"} size={20} className="text-red-400" />
             </div>
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <p className="font-semibold text-red-400">{unread} {t.unreadNotifs}</p>
-              <p className="text-xs text-muted-foreground">{t.needAttention}</p>
+              <p className="text-xs text-muted-foreground truncate">
+                {showOnlyUnread ? "Показаны только непрочитанные · нажмите чтобы показать все" : t.needAttention}
+              </p>
             </div>
-            <button onClick={onMarkAllRead} className="text-xs text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap">
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={(e) => { e.stopPropagation(); onMarkAllRead(); }}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); onMarkAllRead(); } }}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap cursor-pointer px-2 py-1 rounded-lg hover:bg-white/5"
+            >
               {t.markAllRead}
-            </button>
+            </span>
           </div>
-        </div>
+        </button>
+      )}
+      {showOnlyUnread && unread === 0 && (
+        <button
+          type="button"
+          onClick={() => setShowOnlyUnread(false)}
+          className="w-full text-left glass rounded-2xl p-3 mb-3 border border-white/10 hover:bg-white/5 transition-colors"
+        >
+          <p className="text-xs text-muted-foreground text-center">Непрочитанных больше нет · нажмите чтобы показать все</p>
+        </button>
       )}
       {threads.length === 0 && (
         <div className="glass rounded-2xl p-8 flex flex-col items-center text-center gap-3">
@@ -1098,7 +1120,7 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
 
       {/* Треды-чаты */}
       <div className="space-y-2">
-        {threads.filter(th => th.kind !== "single").map(th => {
+        {threads.filter(th => th.kind !== "single").filter(th => !showOnlyUnread || th.unreadCount > 0).map(th => {
           const n = th.lastNotif;
           const isChat = th.kind === "chat";
           return (
@@ -1158,7 +1180,7 @@ export function NotificationsSection({ notifs, onMarkAllRead, onMarkRead, t, tok
 
       {/* Обычные уведомления и запросы возврата */}
       <div className="space-y-3 mt-3">
-        {threads.filter(th => th.kind === "single").map((th, i) => {
+        {threads.filter(th => th.kind === "single").filter(th => !showOnlyUnread || !th.lastNotif.read).map((th, i) => {
           const n = th.lastNotif;
           const isChat = !!n.chatMeta;
           const isSupport = !!n.supportMeta;
