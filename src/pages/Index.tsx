@@ -902,7 +902,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
   const [theme, setTheme] = useState<Theme>(() => {
     const saved = localStorage.getItem("df-theme") as Theme | null;
     if (saved) return saved;
-    return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+    return window.matchMedia("(prefers-color-scheme: light)").matches ? "graphite-light" : "graphite";
   });
 
   const [profile, setProfile] = useState<{ name: string; phone: string; email: string; avatarUrl?: string }>({
