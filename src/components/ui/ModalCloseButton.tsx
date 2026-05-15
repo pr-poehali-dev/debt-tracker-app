@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import Icon from "@/components/ui/icon";
 
 interface Props {
@@ -6,20 +7,30 @@ interface Props {
   zIndex?: number;
 }
 
-export default function ModalCloseButton({ onClose, disabled, zIndex = 110 }: Props) {
-  return (
+export default function ModalCloseButton({ onClose, disabled, zIndex = 99999 }: Props) {
+  if (typeof document === "undefined") return null;
+  return createPortal(
     <button
       onClick={onClose}
       disabled={disabled}
       aria-label="Закрыть"
-      className="fixed w-12 h-12 rounded-full bg-black/70 backdrop-blur-md flex items-center justify-center hover:bg-black/85 transition-colors shadow-2xl border-2 border-white/25 disabled:opacity-50"
+      className="flex items-center justify-center disabled:opacity-50"
       style={{
-        top: "calc(env(safe-area-inset-top, 0px) + 60px)",
+        position: "fixed",
+        top: "calc(env(safe-area-inset-top, 0px) + 70px)",
         right: "16px",
+        width: "48px",
+        height: "48px",
+        borderRadius: "9999px",
+        background: "rgba(0, 0, 0, 0.85)",
+        border: "2px solid rgba(255, 255, 255, 0.4)",
+        boxShadow: "0 8px 24px rgba(0, 0, 0, 0.5)",
         zIndex,
+        cursor: "pointer",
       }}
     >
-      <Icon name="X" size={24} className="text-white" />
-    </button>
+      <Icon name="X" size={26} className="text-white" />
+    </button>,
+    document.body
   );
 }
