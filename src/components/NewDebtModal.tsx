@@ -757,10 +757,9 @@ export default function NewDebtModal({ open, onClose, myName = "", myPhone = "",
               </div>
               <input value={form.borrower_name} onChange={e => set("borrower_name", e.target.value)} placeholder={t.borrowerPlaceholderRu} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-purple-500/50 transition-colors" />
             </div>
-            {form.borrower_name.trim() && (
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Телефон должника (для контакта)</label>
-                <input
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Телефон должника (необязательно)</label>
+              <input
                 value={form.borrower_phone}
                 onChange={e => set("borrower_phone", formatPhoneInput(e.target.value))}
                 onFocus={() => { if (!form.borrower_phone) set("borrower_phone", "+7 ("); }}
@@ -770,8 +769,7 @@ export default function NewDebtModal({ open, onClose, myName = "", myPhone = "",
                 inputMode="numeric"
                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-purple-500/50 transition-colors"
               />
-              </div>
-            )}
+            </div>
             {form.borrower_name.trim() && (
               <label className="flex items-center gap-2 cursor-pointer select-none py-1">
                 <input
