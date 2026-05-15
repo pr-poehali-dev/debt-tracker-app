@@ -1550,6 +1550,12 @@ export function ArchiveSection({ contacts, t, locale, archiveDebts, token = "", 
                     ? new Date(d.dueDate).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" })
                     : "Бессрочно"}
                 </p>
+                {d.archivedAt && (
+                  <p className="text-[11px] text-green-400/70 mt-0.5 flex items-center gap-1">
+                    <Icon name="Check" size={11} />
+                    {isDeleted ? "Удалён" : "Закрыт"} {new Date(d.archivedAt).toLocaleDateString(locale, { day: "numeric", month: "long" })}
+                  </p>
+                )}
               </div>
               <div className="text-right flex-shrink-0 flex flex-col items-end gap-1">
                 <p className={`text-lg font-bold font-heading ${isDeleted ? "text-muted-foreground line-through" : "text-green-400"}`}>{fmt(d.amount)}</p>
