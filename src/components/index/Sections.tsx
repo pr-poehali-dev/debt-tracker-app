@@ -2472,9 +2472,11 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
     setTimeout(() => setSaved(false), 2000);
   }
 
-  const themes: { id: Theme; label: string; desc: string; icon: string; bg: string; preview: string[] }[] = [
-    { id: "dark",  label: t.themeDark,  desc: t.themeDarkDesc,  icon: "Moon", bg: "from-slate-900 to-slate-800", preview: ["#0d0f1a", "#1a1d2e", "#a855f7"] },
-    { id: "light", label: t.themeLight, desc: t.themeLightDesc, icon: "Sun",  bg: "from-purple-50 to-slate-100", preview: ["#f0f2f8", "#ffffff", "#a855f7"] },
+  const themes: { id: Theme; label: string; desc: string; icon: string; gradient: string; preview: string[]; isDark: boolean }[] = [
+    { id: "dark",     label: t.themeDark,     desc: t.themeDarkDesc,     icon: "Moon",     gradient: "linear-gradient(135deg, #0d0f1a, #1a1d2e)", preview: ["#0d0f1a", "#1a1d2e", "#a855f7"], isDark: true },
+    { id: "light",    label: t.themeLight,    desc: t.themeLightDesc,    icon: "Sun",      gradient: "linear-gradient(135deg, #f0f2f8, #ffffff)", preview: ["#f0f2f8", "#ffffff", "#a855f7"], isDark: false },
+    { id: "graphite", label: t.themeGraphite,  desc: t.themeGraphiteDesc,  icon: "Square",   gradient: "linear-gradient(135deg, #16181c, #2a2d33)", preview: ["#16181c", "#3a3d44", "#a8adb8"], isDark: true },
+    { id: "platinum", label: t.themePlatinum, desc: t.themePlatinumDesc, icon: "Gem",      gradient: "linear-gradient(135deg, #161b22, #2c3340)", preview: ["#161b22", "#3a4252", "#c2cfe0"], isDark: true },
   ];
 
   return (
@@ -2617,7 +2619,7 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
                 key={th.id}
                 onClick={() => onThemeChange(th.id)}
                 className={`relative rounded-2xl p-4 text-left transition-all duration-200 overflow-hidden ${active ? "ring-2 ring-purple-500" : "ring-1 ring-white/10 hover:ring-purple-500/40"}`}
-                style={{ background: th.id === "dark" ? "linear-gradient(135deg, #0d0f1a, #1a1d2e)" : "linear-gradient(135deg, #f0f2f8, #ffffff)" }}
+                style={{ background: th.gradient }}
               >
                 <div className="flex gap-1 mb-3">
                   {th.preview.map((c, i) => (
@@ -2625,10 +2627,10 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
                   ))}
                 </div>
                 <div className="flex items-center gap-1.5 mb-0.5">
-                  <Icon name={th.icon} size={14} className={th.id === "dark" ? "text-purple-400" : "text-purple-600"} />
-                  <span className={`font-semibold text-sm ${th.id === "dark" ? "text-white" : "text-slate-800"}`}>{th.label}</span>
+                  <Icon name={th.icon} size={14} className={th.isDark ? "text-purple-400" : "text-purple-600"} />
+                  <span className={`font-semibold text-sm ${th.isDark ? "text-white" : "text-slate-800"}`}>{th.label}</span>
                 </div>
-                <p className={`text-[11px] leading-tight ${th.id === "dark" ? "text-slate-400" : "text-slate-500"}`}>{th.desc}</p>
+                <p className={`text-[11px] leading-tight ${th.isDark ? "text-slate-400" : "text-slate-500"}`}>{th.desc}</p>
                 {active && (
                   <div className="absolute top-2 right-2 w-5 h-5 gradient-purple rounded-full flex items-center justify-center">
                     <Icon name="Check" size={11} className="text-white" />

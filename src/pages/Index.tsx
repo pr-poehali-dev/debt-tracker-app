@@ -963,8 +963,15 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
 
   useEffect(() => {
     const html = document.documentElement;
-    html.classList.toggle("theme-light", theme === "light");
-    document.body.style.background = theme === "light" ? "#f0f2f8" : "#0d0f1a";
+    html.classList.remove("theme-light", "theme-graphite", "theme-platinum");
+    if (theme !== "dark") html.classList.add(`theme-${theme}`);
+    const bgMap: Record<string, string> = {
+      dark: "#0d0f1a",
+      light: "#f0f2f8",
+      graphite: "#16181c",
+      platinum: "#161b22",
+    };
+    document.body.style.background = bgMap[theme] ?? "#0d0f1a";
     localStorage.setItem("df-theme", theme);
   }, [theme]);
 
