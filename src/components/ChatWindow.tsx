@@ -882,6 +882,7 @@ export default function ChatWindow({ debtId, rentalId, title, contactName, conta
         <div
           className="fixed inset-0 z-[10010] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4"
           onClick={() => setPreviewImage(null)}
+          style={{ paddingTop: "max(16px, env(safe-area-inset-top))", paddingBottom: "max(16px, env(safe-area-inset-bottom))" }}
         >
           <img
             src={previewImage.url}
@@ -891,7 +892,9 @@ export default function ChatWindow({ debtId, rentalId, title, contactName, conta
           />
           <button
             onClick={() => setPreviewImage(null)}
-            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/15 backdrop-blur-md flex items-center justify-center hover:bg-white/25 transition-colors"
+            className="absolute right-4 w-10 h-10 rounded-full bg-white/15 backdrop-blur-md flex items-center justify-center hover:bg-white/25 transition-colors"
+            style={{ top: "max(16px, env(safe-area-inset-top))" }}
+            aria-label="Закрыть"
           >
             <Icon name="X" size={20} className="text-white" />
           </button>
@@ -902,12 +905,23 @@ export default function ChatWindow({ debtId, rentalId, title, contactName, conta
               await downloadAttachment(previewImage.url, previewImage.name);
             }}
             disabled={downloading}
-            className="absolute top-4 right-16 w-10 h-10 rounded-full bg-white/15 backdrop-blur-md flex items-center justify-center hover:bg-white/25 transition-colors disabled:opacity-50"
-            aria-label="Скачать"
+            className="absolute left-1/2 -translate-x-1/2 px-5 h-12 rounded-full flex items-center justify-center gap-2 text-sm font-semibold text-white shadow-2xl active:scale-95 transition-all disabled:opacity-60"
+            style={{
+              bottom: "max(20px, calc(env(safe-area-inset-bottom) + 12px))",
+              background: "linear-gradient(135deg, #a855f7, #6366f1)",
+              boxShadow: "0 8px 24px rgba(168,85,247,0.45)",
+            }}
+            aria-label="Сохранить фото"
           >
             {downloading
-              ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              : <Icon name="Download" size={18} className="text-white" />}
+              ? <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Сохраняем…</span>
+                </>
+              : <>
+                  <Icon name="Download" size={18} className="text-white" />
+                  <span>Сохранить фото</span>
+                </>}
           </button>
         </div>
       )}
