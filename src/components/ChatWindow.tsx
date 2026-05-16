@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import { toast } from "sonner";
 import Icon from "@/components/ui/icon";
 import func2url from "../../backend/func2url.json";
 
@@ -104,7 +105,7 @@ export default function ChatWindow({ debtId, rentalId, title, contactName, conta
     return "";
   }
 
-  async function blobToFile(blob: Blob, name: string): Promise<boolean> {
+  async function blobToFile(blob: Blob, name: string): Promise<"shared" | "downloaded" | "cancelled"> {
     const safeName = (name || "file").replace(/[\\/:*?"<>|]/g, "_");
     const nav = navigator as Navigator & {
       canShare?: (data: ShareData) => boolean;
@@ -119,8 +120,12 @@ export default function ChatWindow({ debtId, rentalId, title, contactName, conta
           title: "Debt-Debt.ru",
           text: "Debt-Debt.ru",
         });
-        return true;
-      } catch (_e) { /* пользователь отменил — fallback ниже */ }
+        return "shared";
+      } catch (e) {
+        const err = e as Error;
+        if (err?.name === "AbortError") return "cancelled";
+        /* fallback на обычное скачивание */
+      }
     }
 
     const objUrl = URL.createObjectURL(blob);
@@ -132,7 +137,7 @@ export default function ChatWindow({ debtId, rentalId, title, contactName, conta
     a.click();
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(objUrl), 2000);
-    return true;
+    return "downloaded";
   }
 
   function loadImageAsBlob(url: string): Promise<Blob> {
@@ -176,31 +181,39 @@ export default function ChatWindow({ debtId, rentalId, title, contactName, conta
 
   async function downloadAttachment(url: string, fileName: string) {
     setDownloading(true);
+    const isImg = /\.(jpe?g|png|gif|webp|bmp)$/i.test(url) || /\.(jpe?g|png|gif|webp|bmp)$/i.test(fileName);
+    const label = isImg ? "Фото" : "Файл";
     try {
       // 1) Пробуем fetch (работает если CDN отдаёт CORS-заголовки)
       try {
         const res = await fetch(url, { mode: "cors", credentials: "omit", cache: "no-store" });
         if (res.ok) {
           const blob = await res.blob();
-          await blobToFile(blob, fileName);
+          const result = await blobToFile(blob, fileName);
+          if (result === "downloaded") toast.success(`${label} сохранён`);
+          else if (result === "shared") toast.success(`${label} сохранён`);
           return;
         }
       } catch (_e) { /* fallback */ }
 
       // 2) Для изображений — рисуем в canvas и сохраняем
-      const isImg = /\.(jpe?g|png|gif|webp|bmp)$/i.test(url) || /\.(jpe?g|png|gif|webp|bmp)$/i.test(fileName);
       if (isImg) {
         try {
           const blob = await loadImageAsBlob(url);
           const ext = (blob.type.split("/")[1] || "jpg").replace("jpeg", "jpg");
           const baseName = fileName.replace(/\.[^.]+$/, "");
-          await blobToFile(blob, `${baseName}.${ext}`);
+          const result = await blobToFile(blob, `${baseName}.${ext}`);
+          if (result === "downloaded" || result === "shared") toast.success(`${label} сохранён`);
           return;
         } catch (_e) { /* последний fallback */ }
       }
 
       // 3) Крайний случай — открыть в новой вкладке
       window.open(url, "_blank", "noopener,noreferrer");
+      toast(`${label} открыт в новой вкладке — сохрани вручную`);
+    } catch (e) {
+      console.error("[download] error:", e);
+      toast.error(`Не удалось сохранить ${label.toLowerCase()}`);
     } finally {
       setDownloading(false);
     }
