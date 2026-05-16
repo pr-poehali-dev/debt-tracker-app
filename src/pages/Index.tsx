@@ -1277,7 +1277,15 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
   }
 
   return (
-    <div className={`min-h-screen text-foreground flex flex-col`} style={{ background: "var(--app-bg)" }}>
+    <div
+      className={`min-h-screen text-foreground flex flex-col`}
+      style={{
+        background: "var(--app-bg)",
+        paddingTop: "env(safe-area-inset-top)",
+        paddingLeft: "env(safe-area-inset-left)",
+        paddingRight: "env(safe-area-inset-right)",
+      }}
+    >
       <div className="mesh-bg" />
       <NewDebtModal open={showNewDebt} onClose={() => setShowNewDebt(false)} myName={profile.name} myPhone={profile.phone} onCreated={handleDebtCreated} />
       {showPersonalLoan && <PersonalLoanModal onClose={() => setShowPersonalLoan(false)} onSave={handlePersonalLoanSave} />}
