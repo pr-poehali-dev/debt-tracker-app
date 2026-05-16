@@ -962,15 +962,25 @@ export default function ChatWindow({ debtId, rentalId, title, contactName, conta
             style={{ background: "#1a1d2e", paddingBottom: "env(safe-area-inset-bottom)" }}
           >
             <div className="px-5 py-4 flex items-center justify-between border-b border-white/10">
-              <div className="flex items-center gap-3">
+              <button
+                onClick={async () => {
+                  if (downloading) return;
+                  await downloadAttachment(saveHint.url, saveHint.name);
+                }}
+                disabled={downloading}
+                className="flex items-center gap-3 active:scale-95 transition-transform disabled:opacity-60"
+                aria-label="Сохранить фото"
+              >
                 <div className="w-10 h-10 rounded-xl bg-purple-500/15 flex items-center justify-center">
-                  <Icon name="Download" size={18} className="text-purple-300" />
+                  {downloading
+                    ? <div className="w-4 h-4 border-2 border-purple-300 border-t-transparent rounded-full animate-spin" />
+                    : <Icon name="Download" size={18} className="text-purple-300" />}
                 </div>
-                <div>
+                <div className="text-left">
                   <p className="font-semibold text-white">Сохранить фото</p>
-                  <p className="text-[11px] text-white/60">Сделай длинное нажатие</p>
+                  <p className="text-[11px] text-white/60">Нажми, чтобы скачать</p>
                 </div>
-              </div>
+              </button>
               <button
                 onClick={() => setSaveHint(null)}
                 className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/5"
@@ -980,35 +990,16 @@ export default function ChatWindow({ debtId, rentalId, title, contactName, conta
               </button>
             </div>
 
-            <div className="p-4 flex-1 overflow-y-auto space-y-3">
-              <div className="rounded-xl overflow-hidden bg-black flex items-center justify-center" style={{ maxHeight: "45vh" }}>
+            <div className="p-4 flex-1 overflow-y-auto">
+              <div className="rounded-xl overflow-hidden bg-black flex items-center justify-center" style={{ maxHeight: "60vh" }}>
                 <img
                   src={saveHint.url}
                   alt=""
-                  className="w-full h-auto max-h-[45vh] object-contain select-none"
+                  className="w-full h-auto max-h-[60vh] object-contain select-none"
                   style={{ WebkitTouchCallout: "default", WebkitUserSelect: "auto", userSelect: "auto" } as React.CSSProperties}
                   draggable={false}
                 />
               </div>
-
-              <div className="p-3 rounded-xl flex gap-2 items-start" style={{ background: "rgba(168,85,247,0.10)", border: "1px solid rgba(168,85,247,0.25)" }}>
-                <Icon name="Hand" size={16} className="text-purple-300 mt-0.5 flex-shrink-0" />
-                <div className="text-[12px] text-white/85 leading-relaxed">
-                  <b>Удерживай палец на фото выше</b> — появится меню. Выбери:
-                  <ul className="mt-1 ml-4 list-disc space-y-0.5 text-white/75">
-                    <li>«Сохранить в Фото» — фото попадёт в галерею</li>
-                    <li>или «Поделиться» — отправить в Telegram, Почту и т.д.</li>
-                  </ul>
-                </div>
-              </div>
-
-              <button
-                onClick={() => setSaveHint(null)}
-                className="w-full py-3 rounded-xl text-sm font-semibold text-white"
-                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
-              >
-                Закрыть
-              </button>
             </div>
           </div>
         </div>
