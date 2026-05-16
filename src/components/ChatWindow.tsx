@@ -334,22 +334,34 @@ export default function ChatWindow({ debtId, rentalId, title, contactName, conta
   }
 
   async function addWatermark(file: File): Promise<{ blob: Blob; name: string; type: string }> {
+    const MAX_SIDE = 2048;
+    let objectUrl: string | null = null;
     try {
+      objectUrl = URL.createObjectURL(file);
       const img = await new Promise<HTMLImageElement>((resolve, reject) => {
         const i = new Image();
         i.onload = () => resolve(i);
         i.onerror = () => reject(new Error("img load"));
-        i.src = URL.createObjectURL(file);
+        i.src = objectUrl!;
       });
+
+      const srcW = img.naturalWidth || img.width;
+      const srcH = img.naturalHeight || img.height;
+      if (!srcW || !srcH) throw new Error("zero size");
+
+      const scale = Math.min(1, MAX_SIDE / Math.max(srcW, srcH));
+      const outW = Math.max(1, Math.round(srcW * scale));
+      const outH = Math.max(1, Math.round(srcH * scale));
+
       const canvas = document.createElement("canvas");
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
+      canvas.width = outW;
+      canvas.height = outH;
       const ctx = canvas.getContext("2d");
       if (!ctx) throw new Error("no ctx");
-      ctx.drawImage(img, 0, 0);
+      ctx.drawImage(img, 0, 0, outW, outH);
 
       const text = "Debt-Debt.ru";
-      const base = Math.min(canvas.width, canvas.height);
+      const base = Math.min(outW, outH);
       const fontSize = Math.max(14, Math.round(base * 0.028));
       const padX = Math.round(fontSize * 0.7);
       const padY = Math.round(fontSize * 0.45);
@@ -360,8 +372,8 @@ export default function ChatWindow({ debtId, rentalId, title, contactName, conta
       const textWidth = ctx.measureText(text).width;
       const boxW = textWidth + padX * 2;
       const boxH = fontSize + padY * 2;
-      const x = canvas.width - margin - boxW;
-      const y = canvas.height - margin - boxH;
+      const x = outW - margin - boxW;
+      const y = outH - margin - boxH;
 
       const radius = boxH / 2;
       ctx.beginPath();
@@ -377,17 +389,19 @@ export default function ChatWindow({ debtId, rentalId, title, contactName, conta
       ctx.fillStyle = "rgba(255, 255, 255, 0.95)";
       ctx.fillText(text, x + padX, y + boxH / 2 + 1);
 
-      URL.revokeObjectURL(img.src);
-
-      const outType = file.type === "image/png" ? "image/png" : "image/jpeg";
+      const outType = "image/jpeg";
       const blob: Blob = await new Promise((resolve, reject) => {
-        canvas.toBlob((b) => b ? resolve(b) : reject(new Error("toBlob")), outType, 0.92);
+        canvas.toBlob((b) => b ? resolve(b) : reject(new Error("toBlob")), outType, 0.85);
       });
       const baseName = file.name.replace(/\.[^.]+$/, "") || "photo";
-      const ext = outType === "image/png" ? "png" : "jpg";
-      return { blob, name: `${baseName}.${ext}`, type: outType };
-    } catch {
-      return { blob: file, name: file.name, type: file.type };
+      return { blob, name: `${baseName}.jpg`, type: outType };
+    } catch (e) {
+      console.warn("[addWatermark] fallback to original:", e);
+      return { blob: file, name: file.name, type: file.type || "image/jpeg" };
+    } finally {
+      if (objectUrl) {
+        try { URL.revokeObjectURL(objectUrl); } catch { /* ignore */ }
+      }
     }
   }
 
@@ -434,26 +448,52 @@ export default function ChatWindow({ debtId, rentalId, title, contactName, conta
           uploadName = wm.name;
           uploadType = wm.type;
         }
+
+        if (uploadBlob.size > 15 * 1024 * 1024) {
+          alert("Фото слишком большое. Попробуй сделать снимок поменьше.");
+          setUploading(false);
+          setSending(false);
+          return;
+        }
+
         const base64 = await readAsBase64(uploadBlob);
-        const upRes = await fetch(`${CHAT_URL}?action=upload`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({
-            file_base64: base64,
-            file_name: uploadName,
-            content_type: uploadType,
-          }),
-        });
+
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 90000);
+        let upRes: Response;
+        try {
+          upRes = await fetch(`${CHAT_URL}?action=upload`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+              file_base64: base64,
+              file_name: uploadName,
+              content_type: uploadType,
+            }),
+            signal: controller.signal,
+          });
+        } finally {
+          clearTimeout(timer);
+        }
+
         if (!upRes.ok) {
           const errData = await upRes.json().catch(() => ({}));
-          alert(errData.error || "Не удалось загрузить файл");
+          console.warn("[chat upload] HTTP error", upRes.status, errData);
+          alert(errData.error || `Не удалось загрузить файл (код ${upRes.status})`);
           setUploading(false);
           setSending(false);
           return;
         }
         uploaded = await upRes.json();
-      } catch (_e) {
-        alert("Ошибка загрузки");
+      } catch (e) {
+        const err = e as Error;
+        console.error("[chat upload] failed:", err);
+        const msg = err?.name === "AbortError"
+          ? "Слишком медленный интернет — загрузка прервана"
+          : err?.message
+            ? `Ошибка загрузки: ${err.message}`
+            : "Ошибка загрузки";
+        alert(msg);
         setUploading(false);
         setSending(false);
         return;
