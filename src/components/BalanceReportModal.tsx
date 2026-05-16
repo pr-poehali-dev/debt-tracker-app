@@ -3,6 +3,7 @@ import Icon from "@/components/ui/icon";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { type Debt } from "@/components/index/types";
 import { type PersonalLoan } from "@/components/PersonalLoanModal";
+import { pluralRu, PLURALS } from "@/lib/plural";
 
 interface NavItem { id: string; icon: string; label: string; }
 interface Props {
@@ -184,7 +185,7 @@ export default function BalanceReportModal({ onClose, lentDebts, borrowedDebts, 
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Всего</p>
               <p className="text-xl font-bold font-heading text-foreground">{fmt(total)}</p>
               {slices.length > 0 && (
-                <p className="text-[11px] text-muted-foreground mt-0.5">{slices.length} {slices.length === 1 ? "категория" : "категории"}</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">{slices.length} {pluralRu(slices.length, PLURALS.categories)}</p>
               )}
             </div>
           </div>

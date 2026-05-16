@@ -11,6 +11,7 @@ import { computeSchedule } from "@/lib/loanSchedule";
 import ManualReturnModal from "@/components/ManualReturnModal";
 import InviteFriendModal from "@/components/InviteFriendModal";
 import { ensurePushSubscription, getPushStatus, isSubscribedToPush, unsubscribeFromPush, hardResetPush } from "@/lib/push";
+import { pluralRu, PLURALS } from "@/lib/plural";
 
 // ─── Section: DebtList ────────────────────────────────────────────────────────
 
@@ -354,25 +355,19 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                     const today = new Date(); today.setHours(0, 0, 0, 0);
                     const due = new Date(d.dueDate); due.setHours(0, 0, 0, 0);
                     const daysLate = Math.max(1, Math.round((today.getTime() - due.getTime()) / 86400000));
-                    const plural = (n: number) => {
-                      const mod10 = n % 10;
-                      const mod100 = n % 100;
-                      if (mod10 === 1 && mod100 !== 11) return "день";
-                      if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return "дня";
-                      return "дней";
-                    };
+                    const dayWord = pluralRu(daysLate, PLURALS.days);
                     return (
                       <div className="flex flex-col items-center gap-0.5">
                         <div
                           className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
                           style={{ background: "rgba(239,68,68,0.18)", border: "1px solid rgba(239,68,68,0.35)" }}
                           aria-label="Просрочено"
-                          title={`Просрочено на ${daysLate} ${plural(daysLate)}`}
+                          title={`Просрочено на ${daysLate} ${dayWord}`}
                         >
                           <Icon name="AlertTriangle" size={12} className="text-red-400" />
                         </div>
                         <p className="text-[9px] font-semibold text-red-400 leading-none whitespace-nowrap">
-                          +{daysLate} {plural(daysLate)}
+                          +{daysLate} {dayWord}
                         </p>
                       </div>
                     );
@@ -1654,15 +1649,7 @@ export function ArchiveSection({ contacts, t, locale, archiveDebts, token = "", 
                 {filter === "returned" ? `${t.paidOn} ${fmt(total)}` : `Удалено на ${fmt(total)}` /* TODO: i18n */}
               </p>
               <p className="text-xs text-muted-foreground">
-                {(() => {
-                  const n = visible.length;
-                  const mod10 = n % 10;
-                  const mod100 = n % 100;
-                  let word = "закрытых займов";
-                  if (mod10 === 1 && mod100 !== 11) word = "закрытый займ";
-                  else if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) word = "закрытых займа";
-                  return `${n} ${word}`;
-                })()}
+                {`${visible.length} ${pluralRu(visible.length, PLURALS.closedLoans)}`}
               </p>
             </div>
           </div>
@@ -2000,7 +1987,12 @@ export function Dashboard({ onNav, contacts, t, lentDebts, borrowedDebts, active
             <span className="text-xs text-muted-foreground">{t.navLent}</span>
           </div>
           <p className="text-2xl font-black font-heading text-gradient-purple">{fmt(totalLent)}</p>
-          <p className="text-xs text-muted-foreground mt-1">{lentDebts.filter(d => d.status !== "paid").length} {t.activeDebts.toLowerCase()}</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {(() => {
+              const n = lentDebts.filter(d => d.status !== "paid").length;
+              return `${n} ${pluralRu(n, PLURALS.activeDebts)}`;
+            })()}
+          </p>
         </button>
 
         <button onClick={() => onNav("borrowed")} className={`relative glass rounded-2xl p-4 text-left hover:bg-white/[0.07] transition-all duration-200 ${borrowedPendingCount > 0 ? "pending-green-pulse" : "glow-blue"}`}>
@@ -2014,7 +2006,9 @@ export function Dashboard({ onNav, contacts, t, lentDebts, borrowedDebts, active
             <span className="text-xs text-muted-foreground">{t.navBorrowed}</span>
           </div>
           <p className="text-2xl font-black font-heading text-gradient-blue">{fmt(totalBorrowed)}</p>
-          <p className="text-xs text-muted-foreground mt-1">{borrowedActiveCount} {t.activeDebts.toLowerCase()}</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {`${borrowedActiveCount} ${pluralRu(borrowedActiveCount, PLURALS.activeDebts)}`}
+          </p>
         </button>
 
         <button onClick={openOverdue} disabled={overdueCount === 0} className="glass rounded-2xl p-4 text-left hover:bg-white/[0.07] transition-all duration-200 disabled:cursor-default disabled:opacity-60">
