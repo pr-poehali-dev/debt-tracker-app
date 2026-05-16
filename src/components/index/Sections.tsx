@@ -2148,6 +2148,7 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
   }
 
   const [showAndroidGuide, setShowAndroidGuide] = useState(false);
+  const [showIosGuide, setShowIosGuide] = useState(false);
   const [showInstallApp, setShowInstallApp] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<Event | null>(null);
   const [isAppInstalled, setIsAppInstalled] = useState(false);
@@ -2789,6 +2790,16 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
                 Настройки уведомлений Android
               </button>
             )}
+            {installPlatform === "ios" && (
+              <button
+                onClick={() => setShowIosGuide(true)}
+                className="mt-2 w-full py-2 rounded-xl text-xs font-semibold transition-all active:scale-95 flex items-center justify-center gap-2"
+                style={{ background: "rgba(244,114,182,0.12)", color: "#f9a8d4", border: "1px solid rgba(244,114,182,0.25)" }}
+              >
+                <Icon name="Settings2" size={12} />
+                Настройки уведомлений iOS
+              </button>
+            )}
             {diagReport && (
               <div className="mt-2 p-3 rounded-xl text-[10px] font-mono whitespace-pre-wrap leading-relaxed" style={{ background: "rgba(0,0,0,0.4)", color: "#a7f3d0", border: "1px solid rgba(255,255,255,0.1)" }}>
                 {diagReport}
@@ -3152,6 +3163,105 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
 
               <button
                 onClick={() => setShowAndroidGuide(false)}
+                className="w-full py-3 rounded-xl text-sm font-semibold transition-all active:scale-95"
+                style={{ background: "rgba(255,255,255,0.06)", color: "#fff", border: "1px solid rgba(255,255,255,0.1)" }}
+              >
+                Готово
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showIosGuide && (
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div
+            className="absolute inset-0 bg-black/75 backdrop-blur-md"
+            onClick={() => setShowIosGuide(false)}
+          />
+          <div
+            className="relative w-full max-w-md rounded-t-3xl sm:rounded-3xl overflow-hidden animate-fade-in border border-pink-500/30 shadow-2xl max-h-[90vh] overflow-y-auto"
+            style={{ background: "#1a1d2e" }}
+          >
+            <div className="sticky top-0 px-5 py-4 flex items-center justify-between border-b border-white/10" style={{ background: "#1a1d2e" }}>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-pink-500/15 flex items-center justify-center">
+                  <Icon name="Apple" size={20} className="text-pink-300" />
+                </div>
+                <div>
+                  <p className="font-semibold text-foreground">Уведомления на iPhone</p>
+                  <p className="text-[11px] text-muted-foreground">Чтобы баннер появлялся сверху</p>
+                </div>
+              </div>
+              <button onClick={() => setShowIosGuide(false)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/5">
+                <Icon name="X" size={18} className="text-muted-foreground" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="p-3 rounded-xl flex gap-2 items-start" style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)" }}>
+                <Icon name="Lightbulb" size={16} className="text-amber-400 mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-amber-100/90 leading-relaxed">
+                  Push-уведомления работают только если приложение установлено на главный экран. Если ещё не установил — открой Safari и добавь Debt-Debt на экран «Домой».
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <p className="text-xs font-bold text-foreground uppercase tracking-wider">Как включить уведомления</p>
+
+                {[
+                  { num: "1", title: "Открой «Настройки»", desc: "Серая иконка с шестерёнкой на главном экране" },
+                  { num: "2", title: "Прокрути вниз до «Уведомления»", desc: "Раздел в основном списке настроек" },
+                  { num: "3", title: "Найди «Debt-Debt»", desc: "Прокрути список приложений. Иконка приложения совпадает с твоей" },
+                  { num: "4", title: "Включи «Допуск уведомлений»", desc: "Главный переключатель сверху" },
+                  { num: "5", title: "Отметь все типы оповещений", desc: "«Экран блокировки», «Центр уведомлений», «Баннеры»" },
+                  { num: "6", title: "Выбери «Длительные» баннеры", desc: "Не исчезают сами — придётся смахнуть рукой" },
+                  { num: "7", title: "Включи «Звуки» и «Наклейки»", desc: "Звук и красный кружок на иконке" },
+                ].map(step => (
+                  <div key={step.num} className="flex gap-3 p-3 rounded-xl" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-bold" style={{ background: "rgba(244,114,182,0.2)", color: "#f9a8d4" }}>
+                      {step.num}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground">{step.title}</p>
+                      <p className="text-[11px] text-muted-foreground leading-snug mt-0.5">{step.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="p-3 rounded-xl space-y-2" style={{ background: "rgba(168,85,247,0.08)", border: "1px solid rgba(168,85,247,0.2)" }}>
+                <div className="flex items-center gap-2">
+                  <Icon name="Moon" size={14} className="text-purple-400" />
+                  <p className="text-xs font-bold text-purple-300">Фокусирование и «Не беспокоить»</p>
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  Настройки → Фокусирование → выбери активный режим → Приложения → добавь Debt-Debt в исключения, чтобы уведомления приходили даже в режиме «Не беспокоить».
+                </p>
+              </div>
+
+              <div className="p-3 rounded-xl space-y-2" style={{ background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.2)" }}>
+                <div className="flex items-center gap-2">
+                  <Icon name="BellRing" size={14} className="text-blue-400" />
+                  <p className="text-xs font-bold text-blue-300">Срочные уведомления (iOS 15+)</p>
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  В настройках уведомлений Debt-Debt включи «Срочные уведомления» — они пробьются даже сквозь беззвучный режим и «Не беспокоить».
+                </p>
+              </div>
+
+              <div className="p-3 rounded-xl space-y-2" style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)" }}>
+                <div className="flex items-center gap-2">
+                  <Icon name="BatteryCharging" size={14} className="text-green-400" />
+                  <p className="text-xs font-bold text-green-300">Режим энергосбережения</p>
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  В режиме экономии заряда iPhone может задерживать пуши. Если уведомления приходят с задержкой — отключи энергосбережение или поставь телефон на зарядку.
+                </p>
+              </div>
+
+              <button
+                onClick={() => setShowIosGuide(false)}
                 className="w-full py-3 rounded-xl text-sm font-semibold transition-all active:scale-95"
                 style={{ background: "rgba(255,255,255,0.06)", color: "#fff", border: "1px solid rgba(255,255,255,0.1)" }}
               >
