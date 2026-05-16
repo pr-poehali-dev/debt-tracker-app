@@ -1653,7 +1653,17 @@ export function ArchiveSection({ contacts, t, locale, archiveDebts, token = "", 
               <p className={`font-semibold ${filter === "returned" ? "text-green-400" : "text-red-400"}`}>
                 {filter === "returned" ? `${t.paidOn} ${fmt(total)}` : `Удалено на ${fmt(total)}` /* TODO: i18n */}
               </p>
-              <p className="text-xs text-muted-foreground">{visible.length} {t.completedTx}</p>
+              <p className="text-xs text-muted-foreground">
+                {(() => {
+                  const n = visible.length;
+                  const mod10 = n % 10;
+                  const mod100 = n % 100;
+                  let word = "закрытых займов";
+                  if (mod10 === 1 && mod100 !== 11) word = "закрытый займ";
+                  else if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) word = "закрытых займа";
+                  return `${n} ${word}`;
+                })()}
+              </p>
             </div>
           </div>
         </div>
