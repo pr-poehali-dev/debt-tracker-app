@@ -106,7 +106,7 @@ export default function ChatWindow({ debtId, rentalId, title, contactName, conta
     return "";
   }
 
-  async function blobToFile(blob: Blob, name: string): Promise<"shared" | "downloaded" | "cancelled"> {
+  async function blobToFile(blob: Blob, name: string): Promise<"shared" | "downloaded" | "cancelled" | "unsupported"> {
     const safeName = (name || "file").replace(/[\\/:*?"<>|]/g, "_");
     const nav = navigator as Navigator & {
       canShare?: (data: ShareData) => boolean;
@@ -128,6 +128,10 @@ export default function ChatWindow({ debtId, rentalId, title, contactName, conta
         /* fallback на обычное скачивание */
       }
     }
+
+    const ua = navigator.userAgent || "";
+    const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    if (isIOS) return "unsupported";
 
     const objUrl = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -184,44 +188,53 @@ export default function ChatWindow({ debtId, rentalId, title, contactName, conta
     setDownloading(true);
     const isImg = /\.(jpe?g|png|gif|webp|bmp)$/i.test(url) || /\.(jpe?g|png|gif|webp|bmp)$/i.test(fileName);
     const label = isImg ? "Фото" : "Файл";
+    let attemptedResult: "shared" | "downloaded" | "cancelled" | "unsupported" | null = null;
     try {
       // 1) Пробуем fetch (работает если CDN отдаёт CORS-заголовки)
       try {
         const res = await fetch(url, { mode: "cors", credentials: "omit", cache: "no-store" });
         if (res.ok) {
           const blob = await res.blob();
-          const result = await blobToFile(blob, fileName);
-          if (result === "downloaded" || result === "shared") toast.success(`${label} сохранён`);
-          return;
+          attemptedResult = await blobToFile(blob, fileName);
+          if (attemptedResult === "downloaded" || attemptedResult === "shared") {
+            toast.success(`${label} сохранён`);
+            return;
+          }
+          if (attemptedResult === "cancelled") return;
         }
       } catch (_e) { /* fallback */ }
 
       // 2) Для изображений — рисуем в canvas и сохраняем
-      if (isImg) {
+      if (isImg && attemptedResult !== "unsupported") {
         try {
           const blob = await loadImageAsBlob(url);
           const ext = (blob.type.split("/")[1] || "jpg").replace("jpeg", "jpg");
           const baseName = fileName.replace(/\.[^.]+$/, "");
-          const result = await blobToFile(blob, `${baseName}.${ext}`);
-          if (result === "downloaded" || result === "shared") toast.success(`${label} сохранён`);
-          return;
+          attemptedResult = await blobToFile(blob, `${baseName}.${ext}`);
+          if (attemptedResult === "downloaded" || attemptedResult === "shared") {
+            toast.success(`${label} сохранён`);
+            return;
+          }
+          if (attemptedResult === "cancelled") return;
         } catch (_e) { /* последний fallback */ }
       }
 
-      // 3) Крайний случай — показываем подсказку «сохрани вручную» прямо в приложении
+      // 3) iOS без Share API — показываем модалку с long-press
       if (isImg) {
         setSaveHint({ url, name: fileName });
-      } else {
-        const a = document.createElement("a");
-        a.href = url;
-        a.target = "_blank";
-        a.rel = "noopener";
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        toast(`${label} открыт — сохрани вручную`);
+        return;
       }
+
+      // 4) Файлы — открываем по ссылке
+      const a = document.createElement("a");
+      a.href = url;
+      a.target = "_blank";
+      a.rel = "noopener";
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      toast(`${label} открыт — сохрани вручную`);
     } catch (e) {
       console.error("[download] error:", e);
       toast.error(`Не удалось сохранить ${label.toLowerCase()}`);
