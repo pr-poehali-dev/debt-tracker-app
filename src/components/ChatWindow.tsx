@@ -66,6 +66,7 @@ export default function ChatWindow({ debtId, rentalId, title, contactName, conta
   const [uploading, setUploading] = useState(false);
   const [previewImage, setPreviewImage] = useState<{ url: string; name: string } | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const [saveHint, setSaveHint] = useState<{ url: string; name: string } | null>(null);
   const longPressTimerRef = useRef<number | null>(null);
   const longPressFiredRef = useRef(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -190,8 +191,7 @@ export default function ChatWindow({ debtId, rentalId, title, contactName, conta
         if (res.ok) {
           const blob = await res.blob();
           const result = await blobToFile(blob, fileName);
-          if (result === "downloaded") toast.success(`${label} сохранён`);
-          else if (result === "shared") toast.success(`${label} сохранён`);
+          if (result === "downloaded" || result === "shared") toast.success(`${label} сохранён`);
           return;
         }
       } catch (_e) { /* fallback */ }
@@ -208,9 +208,20 @@ export default function ChatWindow({ debtId, rentalId, title, contactName, conta
         } catch (_e) { /* последний fallback */ }
       }
 
-      // 3) Крайний случай — открыть в новой вкладке
-      window.open(url, "_blank", "noopener,noreferrer");
-      toast(`${label} открыт в новой вкладке — сохрани вручную`);
+      // 3) Крайний случай — показываем подсказку «сохрани вручную» прямо в приложении
+      if (isImg) {
+        setSaveHint({ url, name: fileName });
+      } else {
+        const a = document.createElement("a");
+        a.href = url;
+        a.target = "_blank";
+        a.rel = "noopener";
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        toast(`${label} открыт — сохрани вручную`);
+      }
     } catch (e) {
       console.error("[download] error:", e);
       toast.error(`Не удалось сохранить ${label.toLowerCase()}`);
@@ -936,6 +947,70 @@ export default function ChatWindow({ debtId, rentalId, title, contactName, conta
                   <span>Сохранить фото</span>
                 </>}
           </button>
+        </div>
+      )}
+
+      {saveHint && (
+        <div
+          className="fixed inset-0 z-[10020] flex items-end sm:items-center justify-center p-0 sm:p-4"
+          onClick={() => setSaveHint(null)}
+        >
+          <div className="absolute inset-0 bg-black/85 backdrop-blur-md" />
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="relative w-full max-w-md rounded-t-3xl sm:rounded-3xl overflow-hidden border border-purple-500/30 shadow-2xl max-h-[90vh] flex flex-col"
+            style={{ background: "#1a1d2e", paddingBottom: "env(safe-area-inset-bottom)" }}
+          >
+            <div className="px-5 py-4 flex items-center justify-between border-b border-white/10">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-purple-500/15 flex items-center justify-center">
+                  <Icon name="Download" size={18} className="text-purple-300" />
+                </div>
+                <div>
+                  <p className="font-semibold text-white">Сохранить фото</p>
+                  <p className="text-[11px] text-white/60">Сделай длинное нажатие</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSaveHint(null)}
+                className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/5"
+                aria-label="Закрыть"
+              >
+                <Icon name="X" size={18} className="text-white/70" />
+              </button>
+            </div>
+
+            <div className="p-4 flex-1 overflow-y-auto space-y-3">
+              <div className="rounded-xl overflow-hidden bg-black flex items-center justify-center" style={{ maxHeight: "45vh" }}>
+                <img
+                  src={saveHint.url}
+                  alt=""
+                  className="w-full h-auto max-h-[45vh] object-contain select-none"
+                  style={{ WebkitTouchCallout: "default", WebkitUserSelect: "auto", userSelect: "auto" } as React.CSSProperties}
+                  draggable={false}
+                />
+              </div>
+
+              <div className="p-3 rounded-xl flex gap-2 items-start" style={{ background: "rgba(168,85,247,0.10)", border: "1px solid rgba(168,85,247,0.25)" }}>
+                <Icon name="Hand" size={16} className="text-purple-300 mt-0.5 flex-shrink-0" />
+                <div className="text-[12px] text-white/85 leading-relaxed">
+                  <b>Удерживай палец на фото выше</b> — появится меню. Выбери:
+                  <ul className="mt-1 ml-4 list-disc space-y-0.5 text-white/75">
+                    <li>«Сохранить в Фото» — фото попадёт в галерею</li>
+                    <li>или «Поделиться» — отправить в Telegram, Почту и т.д.</li>
+                  </ul>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setSaveHint(null)}
+                className="w-full py-3 rounded-xl text-sm font-semibold text-white"
+                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
+              >
+                Закрыть
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>,
