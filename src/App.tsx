@@ -10,6 +10,7 @@ import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import AdminPanel from "./pages/AdminPanel";
 import PwaIconGenerator from "./components/PwaIconGenerator";
+import InstallPrompt from "./components/InstallPrompt";
 import func2url from "../backend/func2url.json";
 
 const queryClient = new QueryClient();
@@ -216,6 +217,7 @@ const App = () => {
         <Toaster />
         <Sonner />
         <PwaIconGenerator />
+        <InstallPrompt />
         {!ready && <SplashScreen onDone={() => setReady(true)} />}
         <div style={{ opacity: ready ? 1 : 0, transition: "opacity 0.4s ease" }}>
           {authChecked && (
