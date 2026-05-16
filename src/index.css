@@ -5,6 +5,9 @@
 html,
 body {
   overscroll-behavior-y: contain;
+  touch-action: pan-x pan-y;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 @keyframes slide-up {
