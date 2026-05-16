@@ -1966,10 +1966,10 @@ export function Dashboard({ onNav, contacts, t, lentDebts, borrowedDebts, active
               <p className="text-[10px] text-muted-foreground">{t.titleRental}</p>
             </div>
             <p className="text-xl font-black font-heading mb-0.5" style={{ color: "#5eead4" }}>
-              {activeRentalCount}
+              {activeRentalCount === 0 ? "нет аренд" : `${activeRentalCount} ${pluralRu(activeRentalCount, PLURALS.rentals)}`}
             </p>
             <p className="text-[10px] text-muted-foreground">
-              {activeRentalCount === 0 ? "нет аренд" /* TODO: i18n */ : `${fmt(totalRentalAmount)}/мес` /* TODO: i18n */}
+              {activeRentalCount === 0 ? "\u00A0" : `${fmt(totalRentalAmount)}/мес` /* TODO: i18n */}
             </p>
           </div>
         </button>
