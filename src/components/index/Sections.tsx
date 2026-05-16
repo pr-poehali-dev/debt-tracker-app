@@ -2779,14 +2779,16 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
                 </button>
               </>
             )}
-            <button
-              onClick={() => setShowAndroidGuide(true)}
-              className="mt-2 w-full py-2 rounded-xl text-xs font-semibold transition-all active:scale-95 flex items-center justify-center gap-2"
-              style={{ background: "rgba(59,130,246,0.12)", color: "#93c5fd", border: "1px solid rgba(59,130,246,0.25)" }}
-            >
-              <Icon name="Settings2" size={12} />
-              Настройки уведомлений Android
-            </button>
+            {installPlatform !== "ios" && (
+              <button
+                onClick={() => setShowAndroidGuide(true)}
+                className="mt-2 w-full py-2 rounded-xl text-xs font-semibold transition-all active:scale-95 flex items-center justify-center gap-2"
+                style={{ background: "rgba(59,130,246,0.12)", color: "#93c5fd", border: "1px solid rgba(59,130,246,0.25)" }}
+              >
+                <Icon name="Settings2" size={12} />
+                Настройки уведомлений Android
+              </button>
+            )}
             {diagReport && (
               <div className="mt-2 p-3 rounded-xl text-[10px] font-mono whitespace-pre-wrap leading-relaxed" style={{ background: "rgba(0,0,0,0.4)", color: "#a7f3d0", border: "1px solid rgba(255,255,255,0.1)" }}>
                 {diagReport}
