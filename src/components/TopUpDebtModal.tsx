@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
+import { type Lang, getT, type Translations } from "@/i18n";
 
 interface Props {
   debtId: string;
@@ -8,13 +9,16 @@ interface Props {
   token: string;
   onClose: () => void;
   onSent?: () => void;
+  t?: Translations;
+  lang?: Lang;
 }
 
 function fmt(n: number) {
   return n.toLocaleString("ru-RU") + " ₽";
 }
 
-export default function TopUpDebtModal({ debtId, debtTitle, currentAmount, token, onClose, onSent }: Props) {
+export default function TopUpDebtModal({ debtId, debtTitle, currentAmount, token, onClose, onSent, t: tProp, lang }: Props) {
+  const t = tProp ?? getT(lang ?? "ru");
   const [amount, setAmount] = useState<string>("");
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
@@ -26,7 +30,7 @@ export default function TopUpDebtModal({ debtId, debtTitle, currentAmount, token
 
   async function send() {
     if (!numAmount || numAmount <= 0) {
-      setError("Введите сумму больше нуля");
+      setError(t.topUpAmountError);
       return;
     }
     setLoading(true);
@@ -40,13 +44,13 @@ export default function TopUpDebtModal({ debtId, debtTitle, currentAmount, token
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Не удалось отправить запрос");
+        throw new Error(data.error || t.errorRequestFailed);
       }
       setSuccess(true);
       onSent?.();
       setTimeout(onClose, 1500);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Ошибка");
+      setError(e instanceof Error ? e.message : t.errorGeneric);
     } finally {
       setLoading(false);
     }
@@ -61,7 +65,7 @@ export default function TopUpDebtModal({ debtId, debtTitle, currentAmount, token
       >
         <div className="bg-gradient-to-r from-purple-500 to-indigo-600 p-5">
           <div className="flex items-center justify-between gap-3">
-            <span className="text-xs px-3 py-1 rounded-full font-medium bg-white/20 text-white">Увеличить долг</span>
+            <span className="text-xs px-3 py-1 rounded-full font-medium bg-white/20 text-white">{t.topUpTitle}</span>
             <button onClick={onClose} disabled={loading} aria-label="Закрыть" className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center hover:bg-white/30 transition-colors disabled:opacity-50 flex-shrink-0">
               <Icon name="X" size={20} className="text-white" />
             </button>
@@ -77,7 +81,7 @@ export default function TopUpDebtModal({ debtId, debtTitle, currentAmount, token
                 <Icon name="Check" size={28} className="text-purple-400" />
               </div>
               <p className="font-semibold text-foreground">Запрос отправлен</p>
-              <p className="text-xs text-muted-foreground max-w-xs">Заёмщик увидит уведомление и подтвердит или отклонит увеличение долга</p>
+              <p className="text-xs text-muted-foreground max-w-xs">{t.topUpHint}</p>
             </div>
           ) : (
             <>

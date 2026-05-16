@@ -64,7 +64,7 @@ const DEMO_RENTALS: Rental[] = [
   },
 ];
 
-function PaymentCalendar({ rental, token, userId, onClose }: { rental: Rental; token: string; userId: number; onClose: () => void }) {
+function PaymentCalendar({ rental, token, userId, onClose, t }: { rental: Rental; token: string; userId: number; onClose: () => void; t?: ReturnType<typeof getT> }) {
   const [payments, setPayments] = useState<{ month: string; role: string; status: string; amount: number | null }[]>([]);
   const [loading, setLoading] = useState(true);
   const [ready, setReady] = useState(false);
@@ -100,7 +100,7 @@ function PaymentCalendar({ rental, token, userId, onClose }: { rental: Rental; t
     return { year: d.getFullYear(), month: d.getMonth(), key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}` };
   });
 
-  const MONTHS_RU = ["Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"];
+  const MONTHS_RU = t?.monthsShort ?? ["Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"];
 
   function getStatus(monthKey: string, role: string) {
     return payments.find(p => p.month === monthKey && p.role === role)?.status || null;
@@ -129,10 +129,10 @@ function PaymentCalendar({ rental, token, userId, onClose }: { rental: Rental; t
         <div className="flex items-center justify-between">
           <div className="min-w-0">
             <p className="font-bold text-foreground truncate">{rental.title}</p>
-            <p className="text-xs text-muted-foreground">История платежей · {rental.payment_day}-е число</p>
+            <p className="text-xs text-muted-foreground">{(t?.rentalHistoryTitle ?? "История платежей · {day}-е число").replace("{day}", String(rental.payment_day))}</p>
           </div>
           <button onClick={onClose}
-            aria-label="Закрыть"
+            aria-label={t?.close ?? "Закрыть"}
             className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 hover:bg-white/15 transition-colors"
             style={{ background: "rgba(255,255,255,0.12)" }}>
             <Icon name="X" size={20} className="text-foreground" />
@@ -144,9 +144,9 @@ function PaymentCalendar({ rental, token, userId, onClose }: { rental: Rental; t
         ) : (
           <div className="space-y-2">
             <div className="grid grid-cols-3 gap-1 text-[10px] text-muted-foreground font-medium px-1">
-              <span>Месяц</span>
-              <span className="text-center">Арендодатель</span>
-              <span className="text-center">Арендатор</span>
+              <span>{t?.rentalColMonth ?? "Месяц"}</span>
+              <span className="text-center">{t?.rentalColLandlord ?? "Арендодатель"}</span>
+              <span className="text-center">{t?.rentalColTenant ?? "Арендатор"}</span>
             </div>
             {months.map(({ year, month, key }) => {
               const landlordStatus = getStatus(key, "landlord");
@@ -160,7 +160,7 @@ function PaymentCalendar({ rental, token, userId, onClose }: { rental: Rental; t
 
               const renderCell = (role: "landlord" | "tenant", status: string | null) => {
                 if (status === "paid") {
-                  return <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium" style={{ background: "rgba(34,197,94,0.15)", color: "#4ade80" }}><Icon name="Check" size={9} />Оплачено</span>;
+                  return <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium" style={{ background: "rgba(34,197,94,0.15)", color: "#4ade80" }}><Icon name="Check" size={9} />{t?.rentalPaidStatus ?? "Оплачено"}</span>;
                 }
                 if (role === myRole && canPay) {
                   if (paying === key) {
@@ -173,7 +173,7 @@ function PaymentCalendar({ rental, token, userId, onClose }: { rental: Rental; t
                       style={{ background: isFuture ? "rgba(168,85,247,0.15)" : "rgba(20,184,166,0.18)", color: isFuture ? "#c084fc" : "#5eead4", border: `1px solid ${isFuture ? "rgba(168,85,247,0.3)" : "rgba(20,184,166,0.35)"}` }}
                     >
                       <Icon name={isFuture ? "Zap" : "CheckCircle2"} size={10} />
-                      {isFuture ? "Заранее" : "Оплатить"}
+                      {isFuture ? (t?.rentalPayEarly ?? "Заранее") : (t?.rentalPay ?? "Оплатить")}
                     </button>
                   );
                 }
@@ -1069,7 +1069,7 @@ export default function RentalSection({ userId, token, myName, isDemo, openNew, 
       {(() => {
         const r = calendarRentalId != null ? rentals.find(x => x.id === calendarRentalId) : null;
         if (!r) return null;
-        return <PaymentCalendar rental={r} token={token} userId={userId} onClose={() => setCalendarRentalId(null)} />;
+        return <PaymentCalendar rental={r} token={token} userId={userId} onClose={() => setCalendarRentalId(null)} t={t} />;
       })()}
 
       {loading ? (
@@ -1082,12 +1082,12 @@ export default function RentalSection({ userId, token, myName, isDemo, openNew, 
             <Icon name="Home" size={32} style={{ color: "#5eead4" }} />
           </div>
           <div>
-            <p className="font-semibold text-foreground mb-1">Нет активных аренд</p>
-            <p className="text-xs text-muted-foreground">Нажмите + чтобы добавить первую аренду</p>
+            <p className="font-semibold text-foreground mb-1">{t?.rentalEmptyTitle ?? "Нет активных аренд"}</p>
+            <p className="text-xs text-muted-foreground">{t?.rentalEmptyAddHint ?? "Нажмите + чтобы добавить первую аренду"}</p>
           </div>
           <button onClick={() => setShowNew(true)}
             className="mt-2 px-5 py-2.5 rounded-xl text-sm font-medium text-white gradient-purple glow-purple">
-            Добавить аренду
+            {t?.rentalAddBtn ?? "Добавить аренду"}
           </button>
         </div>
       ) : (

@@ -3,18 +3,22 @@ import { createPortal } from "react-dom";
 import Icon from "@/components/ui/icon";
 import type { PersonalLoan, ExtraPayment } from "@/components/PersonalLoanModal";
 import { computeSchedule } from "@/lib/loanSchedule";
+import { type Lang, getT, type Translations } from "@/i18n";
 
 interface Props {
   loan: PersonalLoan;
   onClose: () => void;
   onSave: (loan: PersonalLoan) => void;
+  t?: Translations;
+  lang?: Lang;
 }
 
 function fmt(n: number) {
   return n.toLocaleString("ru-RU") + " ₽";
 }
 
-export default function ExtraPaymentModal({ loan, onClose, onSave }: Props) {
+export default function ExtraPaymentModal({ loan, onClose, onSave, t: tProp, lang }: Props) {
+  const t = tProp ?? getT(lang ?? "ru");
   const [mode, setMode] = useState<"reducePayment" | "reduceTerm">("reducePayment");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 7));
@@ -51,8 +55,8 @@ export default function ExtraPaymentModal({ loan, onClose, onSave }: Props) {
   }
 
   function handleSave() {
-    if (sum <= 0) { setError("Введите сумму"); return; }
-    if (sum > before.remaining) { setError(`Сумма больше остатка (${fmt(before.remaining)})`); return; }
+    if (sum <= 0) { setError(t.epAmountError); return; }
+    if (sum > before.remaining) { setError(`${t.epAmountTooBig} (${fmt(before.remaining)})`); return; }
     const extra: ExtraPayment = {
       id: Date.now().toString(),
       date,
@@ -82,7 +86,7 @@ export default function ExtraPaymentModal({ loan, onClose, onSave }: Props) {
 
         <div className="px-5 pb-3 flex items-center justify-between border-b border-white/5">
           <div>
-            <p className="font-semibold text-foreground">Погасить частично</p>
+            <p className="font-semibold text-foreground">{t.epTitle}</p>
             <p className="text-xs text-muted-foreground">{loan.title}</p>
           </div>
           <button onClick={onClose} aria-label="Закрыть" className="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-white/15 transition-colors flex-shrink-0" style={{ background: "rgba(255,255,255,0.12)" }}>
@@ -96,14 +100,14 @@ export default function ExtraPaymentModal({ loan, onClose, onSave }: Props) {
         >
           {/* Текущий остаток */}
           <div className="glass rounded-2xl p-4" style={{ borderLeft: "3px solid rgba(56,189,248,0.4)" }}>
-            <p className="text-xs text-muted-foreground mb-1">Текущий остаток</p>
+            <p className="text-xs text-muted-foreground mb-1">{t.epRemaining}</p>
             <p className="text-2xl font-bold font-heading" style={{ color: "#7dd3fc" }}>{fmt(before.remaining)}</p>
-            <p className="text-xs text-muted-foreground mt-1">Платёж сейчас: {fmt(before.currentMonthly)} / мес.</p>
+            <p className="text-xs text-muted-foreground mt-1">{t.epCurrentPayment} {fmt(before.currentMonthly)} {t.epPerMonth}</p>
           </div>
 
           {/* Режим */}
           <div>
-            <label className="text-xs text-muted-foreground mb-2 block">Что уменьшить</label>
+            <label className="text-xs text-muted-foreground mb-2 block">{t.epChoose}</label>
             <div className="grid grid-cols-2 gap-2">
               <button onClick={() => setMode("reducePayment")}
                 className="glass rounded-2xl p-3 text-left transition-all"
@@ -112,10 +116,10 @@ export default function ExtraPaymentModal({ loan, onClose, onSave }: Props) {
                   background: mode === "reducePayment" ? "rgba(56,189,248,0.08)" : undefined,
                 }}>
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm font-medium text-foreground">Уменьшить платёж</span>
+                  <span className="text-sm font-medium text-foreground">{t.epReducePayment}</span>
                   {mode === "reducePayment" && <Icon name="CheckCircle2" size={16} className="text-sky-400" />}
                 </div>
-                <p className="text-[11px] text-muted-foreground">Срок прежний, платёж меньше</p>
+                <p className="text-[11px] text-muted-foreground">{t.epReducePaymentDesc}</p>
               </button>
               <button onClick={() => setMode("reduceTerm")}
                 className="glass rounded-2xl p-3 text-left transition-all"
@@ -124,17 +128,17 @@ export default function ExtraPaymentModal({ loan, onClose, onSave }: Props) {
                   background: mode === "reduceTerm" ? "rgba(56,189,248,0.08)" : undefined,
                 }}>
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm font-medium text-foreground">Уменьшить срок</span>
+                  <span className="text-sm font-medium text-foreground">{t.epReduceTerm}</span>
                   {mode === "reduceTerm" && <Icon name="CheckCircle2" size={16} className="text-sky-400" />}
                 </div>
-                <p className="text-[11px] text-muted-foreground">Платёж прежний, срок меньше</p>
+                <p className="text-[11px] text-muted-foreground">{t.epReduceTermDesc}</p>
               </button>
             </div>
           </div>
 
           {/* Сумма */}
           <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Сумма досрочного платежа</label>
+            <label className="text-xs text-muted-foreground mb-1 block">{t.epAmount}</label>
             <input
               value={amount}
               onChange={e => { setAmount(e.target.value); setError(""); }}
@@ -174,7 +178,7 @@ export default function ExtraPaymentModal({ loan, onClose, onSave }: Props) {
                 <>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Новый платёж</span>
-                    <span className="font-bold text-sky-400">{fmt(newMonthly)} <span className="text-xs text-muted-foreground">/ мес.</span></span>
+                    <span className="font-bold text-sky-400">{fmt(newMonthly)} <span className="text-xs text-muted-foreground">{t.epPerMonth}</span></span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Экономия в месяц</span>

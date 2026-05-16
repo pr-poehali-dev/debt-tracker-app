@@ -11,7 +11,7 @@ import { computeSchedule } from "@/lib/loanSchedule";
 import ManualReturnModal from "@/components/ManualReturnModal";
 import InviteFriendModal from "@/components/InviteFriendModal";
 import { ensurePushSubscription, getPushStatus, isSubscribedToPush, unsubscribeFromPush, hardResetPush } from "@/lib/push";
-import { pluralRu, PLURALS } from "@/lib/plural";
+import { pluralRu, PLURALS, plural } from "@/lib/plural";
 
 // ─── Section: DebtList ────────────────────────────────────────────────────────
 
@@ -253,7 +253,7 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
               aria-pressed={sortBy === "newest"}
             >
               <Icon name="Sparkles" size={11} />
-              Сначала новые
+              {t.dashSortNewest}
             </button>
             <button
               type="button"
@@ -262,7 +262,7 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
               aria-pressed={sortBy === "dueSoon"}
             >
               <Icon name="AlarmClock" size={11} />
-              Срок горит
+              {t.dashSortDeadline}
             </button>
           </div>
         </div>
@@ -668,6 +668,7 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
       {extraLoan && onPersonalLoanUpdate && (
         <ExtraPaymentModal
           loan={extraLoan}
+          t={t}
           onClose={() => setExtraLoan(null)}
           onSave={(updated) => {
             onPersonalLoanUpdate(personalLoans.map(l => l.id === updated.id ? updated : l));
@@ -1552,7 +1553,7 @@ function SwipeRevealCard({ onDelete, animationDelay, children }: { onDelete?: ()
   );
 }
 
-export function ArchiveSection({ contacts, t, locale, archiveDebts, token = "", onOpenChat, onPurgeDebt }: { contacts: Contact[]; t: ReturnType<typeof getT>; locale: string; archiveDebts: Debt[]; token?: string; onOpenChat?: (debtId: string, title: string) => void; onPurgeDebt?: (debtDbId: string) => Promise<void> | void }) {
+export function ArchiveSection({ contacts, t, lang, locale, archiveDebts, token = "", onOpenChat, onPurgeDebt }: { contacts: Contact[]; t: ReturnType<typeof getT>; lang: Lang; locale: string; archiveDebts: Debt[]; token?: string; onOpenChat?: (debtId: string, title: string) => void; onPurgeDebt?: (debtDbId: string) => Promise<void> | void }) {
   const [filter, setFilter] = useState<"returned" | "deleted">("returned");
   const [search, setSearch] = useState("");
   const [selectedDebt, setSelectedDebt] = useState<Debt | null>(null);
@@ -1632,9 +1633,7 @@ export function ArchiveSection({ contacts, t, locale, archiveDebts, token = "", 
         <div className="px-1 mb-3 flex items-start gap-2">
           <Icon name="Info" size={13} className={`mt-0.5 flex-shrink-0 ${filter === "returned" ? "text-green-400/80" : "text-red-400/80"}`} />
           <p className="text-[11px] text-muted-foreground leading-snug">
-            {filter === "returned"
-              ? "Займы, по которым деньги полностью возвращены и подтверждены. Это история закрытых сделок."
-              : "Записи, которые отменили до закрытия — например, ошибочно созданные или удалённые одной из сторон."}
+            {filter === "returned" ? t.archiveDescReturned : t.archiveDescDeleted}
           </p>
         </div>
       )}
@@ -1646,10 +1645,10 @@ export function ArchiveSection({ contacts, t, locale, archiveDebts, token = "", 
             </div>
             <div>
               <p className={`font-semibold ${filter === "returned" ? "text-green-400" : "text-red-400"}`}>
-                {filter === "returned" ? `${t.paidOn} ${fmt(total)}` : `Удалено на ${fmt(total)}` /* TODO: i18n */}
+                {filter === "returned" ? `${t.paidOn} ${fmt(total)}` : `${t.archiveDeletedOn} ${fmt(total)}`}
               </p>
               <p className="text-xs text-muted-foreground">
-                {`${visible.length} ${pluralRu(visible.length, PLURALS.closedLoans)}`}
+                {`${visible.length} ${plural(lang, visible.length, "closedLoans")}`}
               </p>
             </div>
           </div>
@@ -1659,10 +1658,12 @@ export function ArchiveSection({ contacts, t, locale, archiveDebts, token = "", 
         <div className="glass rounded-2xl p-8 flex flex-col items-center text-center gap-3">
           <Icon name={q ? "SearchX" : filter === "returned" ? "Archive" : "Trash2"} size={32} className="text-purple-400 opacity-50" />
           <p className="font-semibold text-foreground">
-            {q ? "Ничего не найдено" /* TODO: i18n */ : filter === "returned" ? t.archiveEmpty : "Удалённых займов нет" /* TODO: i18n */}
+            {q ? (lang === "ru" ? "Ничего не найдено" : "Nothing found") : filter === "returned" ? t.archiveEmpty : (lang === "ru" ? "Удалённых займов нет" : "No deleted loans")}
           </p>
           <p className="text-xs text-muted-foreground">
-            {q ? `Нет совпадений по запросу «${search}»` /* TODO: i18n */ : filter === "returned" ? t.archiveEmptyDesc : "Здесь появятся займы, удалённые кредитором" /* TODO: i18n */}
+            {q
+              ? (lang === "ru" ? `Нет совпадений по запросу «${search}»` : `No matches for "${search}"`)
+              : filter === "returned" ? t.archiveEmptyDesc : (lang === "ru" ? "Здесь появятся займы, удалённые кредитором" : "Loans deleted by the lender will appear here")}
           </p>
         </div>
       )}
@@ -1689,26 +1690,27 @@ export function ArchiveSection({ contacts, t, locale, archiveDebts, token = "", 
                 {d.note && <p className="text-xs text-muted-foreground">{d.note}</p>}
                 <p className="text-xs text-muted-foreground mt-0.5">
                   {d.createdAt
-                    ? `Выдан ${new Date(d.createdAt).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" })}`
+                    ? `${t.archiveIssuedOn} ${new Date(d.createdAt).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" })}`
                     : d.dueDate
                       ? new Date(d.dueDate).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" })
-                      : "Бессрочно"}
+                      : (lang === "ru" ? "Бессрочно" : "No deadline")}
                 </p>
                 {d.archivedAt && (
                   <p className="text-[11px] text-green-400/70 mt-0.5 flex items-center gap-1">
                     <Icon name="Check" size={11} />
-                    {isDeleted ? "Удалён" : "Закрыт"} {new Date(d.archivedAt).toLocaleDateString(locale, { day: "numeric", month: "long" })}
+                    {isDeleted ? t.deletedBadge : t.archiveClosedOn} {new Date(d.archivedAt).toLocaleDateString(locale, { day: "numeric", month: "long" })}
                   </p>
                 )}
                 {isDeleted && (() => {
                   const byLender = d.deletedByLender || d.archivedDir === "borrowed";
-                  const whoName = byLender
-                    ? (d.deletedByLenderName || d.counterpartyName || "кредитором")
-                    : "вами";
+                  const lenderWord = lang === "ru" ? "кредитором" : "lender";
+                  const youWord = lang === "ru" ? "вами" : "you";
+                  const whoName = byLender ? (d.deletedByLenderName || d.counterpartyName || lenderWord) : youWord;
+                  const prefix = lang === "ru" ? "Удалён" : "Deleted by";
                   return (
                     <p className="text-[11px] text-red-400/80 mt-0.5 flex items-center gap-1">
                       <Icon name={byLender ? "UserMinus" : "User"} size={11} />
-                      <span>Удалён {byLender ? `${whoName === "кредитором" ? "кредитором" : whoName}` : "вами"}</span>
+                      <span>{prefix} {whoName}</span>
                     </p>
                   );
                 })()}
@@ -1718,7 +1720,7 @@ export function ArchiveSection({ contacts, t, locale, archiveDebts, token = "", 
                 {isDeleted ? (
                   <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-md" style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", color: "#f87171" }}>
                     <Icon name="Trash2" size={10} />
-                    {/* TODO: i18n */}Удалён
+                    {t.deletedBadge}
                   </span>
                 ) : (
                   <StatusBadge status="paid" t={t} />
@@ -1738,13 +1740,11 @@ export function ArchiveSection({ contacts, t, locale, archiveDebts, token = "", 
               <div className="w-14 h-14 rounded-full bg-red-500/15 flex items-center justify-center">
                 <Icon name="Trash2" size={26} className="text-red-400" />
               </div>
-              <p className="font-semibold text-foreground text-lg">Удалить навсегда?</p>
+              <p className="font-semibold text-foreground text-lg">{t.purgeTitle}</p>
               <p className="text-sm text-muted-foreground">
                 «{confirmPurge.name}» — {fmt(confirmPurge.amount)}
               </p>
-              <p className="text-xs text-muted-foreground">
-                Запись будет стёрта без возможности восстановления.
-              </p>
+              <p className="text-xs text-muted-foreground">{t.purgeDesc}</p>
             </div>
             <div className="px-5 pb-5 flex gap-2">
               <button
@@ -1768,7 +1768,7 @@ export function ArchiveSection({ contacts, t, locale, archiveDebts, token = "", 
                 disabled={purging}
                 className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-gradient-to-r from-red-500 to-rose-600 text-white font-semibold text-sm shadow-lg shadow-red-500/20 hover:opacity-90 transition-opacity disabled:opacity-50"
               >
-                {purging ? <Icon name="Loader2" size={16} className="animate-spin" /> : <><Icon name="Trash2" size={16} />Удалить навсегда</>}
+                {purging ? <Icon name="Loader2" size={16} className="animate-spin" /> : <><Icon name="Trash2" size={16} />{t.purgeBtn}</>}
               </button>
             </div>
           </div>
@@ -1900,7 +1900,7 @@ export function ContactsSection({
 }
 
 // ─── Section: Dashboard ───────────────────────────────────────────────────────
-export function Dashboard({ onNav, contacts, t, lentDebts, borrowedDebts, activeRentalCount = 0, totalRentalAmount = 0, personalLoans = [], onOpenReport }: { onNav: (s: Section) => void; contacts: Contact[]; t: ReturnType<typeof getT>; lentDebts: Debt[]; borrowedDebts: Debt[]; activeRentalCount?: number; totalRentalAmount?: number; personalLoans?: PersonalLoan[]; onOpenReport?: () => void }) {
+export function Dashboard({ onNav, contacts, t, lang, lentDebts, borrowedDebts, activeRentalCount = 0, totalRentalAmount = 0, personalLoans = [], onOpenReport }: { onNav: (s: Section) => void; contacts: Contact[]; t: ReturnType<typeof getT>; lang: Lang; lentDebts: Debt[]; borrowedDebts: Debt[]; activeRentalCount?: number; totalRentalAmount?: number; personalLoans?: PersonalLoan[]; onOpenReport?: () => void }) {
   const totalLent = lentDebts.filter(d => d.status !== "paid").reduce((s, d) => s + d.amount, 0);
   const personalRemaining = personalLoans.reduce((s, l) => {
     const monthsTotal = Math.max(1, Math.round((new Date(l.dueDate + "-01").getTime() - new Date(l.startDate + "-01").getTime()) / (30 * 86400000)) + 1);
@@ -1966,10 +1966,10 @@ export function Dashboard({ onNav, contacts, t, lentDebts, borrowedDebts, active
               <p className="text-[10px] text-muted-foreground">{t.titleRental}</p>
             </div>
             <p className="text-xl font-black font-heading mb-0.5" style={{ color: "#5eead4" }}>
-              {activeRentalCount === 0 ? "нет аренд" : `${activeRentalCount} ${pluralRu(activeRentalCount, PLURALS.rentals)}`}
+              {activeRentalCount === 0 ? t.dashNoRentals : `${activeRentalCount} ${plural(lang, activeRentalCount, "rentals")}`}
             </p>
             <p className="text-[10px] text-muted-foreground">
-              {activeRentalCount === 0 ? "\u00A0" : `${fmt(totalRentalAmount)}/мес` /* TODO: i18n */}
+              {activeRentalCount === 0 ? "\u00A0" : `${fmt(totalRentalAmount)}${t.perMonthShort}`}
             </p>
           </div>
         </button>
@@ -1990,7 +1990,7 @@ export function Dashboard({ onNav, contacts, t, lentDebts, borrowedDebts, active
           <p className="text-xs text-muted-foreground mt-1">
             {(() => {
               const n = lentDebts.filter(d => d.status !== "paid").length;
-              return `${n} ${pluralRu(n, PLURALS.activeDebts)}`;
+              return `${n} ${plural(lang, n, "activeDebts")}`;
             })()}
           </p>
         </button>
@@ -2007,7 +2007,7 @@ export function Dashboard({ onNav, contacts, t, lentDebts, borrowedDebts, active
           </div>
           <p className="text-2xl font-black font-heading text-gradient-blue">{fmt(totalBorrowed)}</p>
           <p className="text-xs text-muted-foreground mt-1">
-            {`${borrowedActiveCount} ${pluralRu(borrowedActiveCount, PLURALS.activeDebts)}`}
+            {`${borrowedActiveCount} ${plural(lang, borrowedActiveCount, "activeDebts")}`}
           </p>
         </button>
 
@@ -2041,7 +2041,7 @@ export function Dashboard({ onNav, contacts, t, lentDebts, borrowedDebts, active
               <Icon name="Wallet" size={32} className="text-purple-400" />
             </div>
             <div>
-              <p className="font-semibold text-foreground mb-1">{/* TODO: i18n */}Долгов пока нет</p>
+              <p className="font-semibold text-foreground mb-1">{t.dashEmptyDebts}</p>
               <p className="text-xs text-muted-foreground">{t.emptyDebtsHint}</p>
             </div>
           </div>
@@ -2696,14 +2696,14 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
               className={pushSubbed && pushStatus === "granted" ? "text-purple-400" : "text-muted-foreground"} />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-foreground">{/* TODO: i18n */}{isAdmin ? "Push-уведомления" : "Уведомления"}</p>
+            <p className="font-semibold text-foreground">{isAdmin ? t.pushAdminTitle : t.notifEnabledTitle}</p>
             <p className="text-xs text-muted-foreground">
-              {pushStatus === "loading" && "Проверяем настройки…"}
-              {pushStatus === "unsupported" && "Браузер не поддерживает push"}
-              {pushStatus === "denied" && "Разрешения заблокированы в браузере"}
-              {pushStatus === "default" && "Уведомления не включены"}
-              {pushStatus === "granted" && pushSubbed && "Включены — придут даже когда приложение закрыто"}
-              {pushStatus === "granted" && !pushSubbed && "Разрешение есть, но подписка отключена"}
+              {pushStatus === "loading" && t.pushStateLoading}
+              {pushStatus === "unsupported" && t.pushStateUnsupported}
+              {pushStatus === "denied" && t.pushStateDenied}
+              {pushStatus === "default" && t.pushStateDefault}
+              {pushStatus === "granted" && pushSubbed && t.notifEnabledDesc}
+              {pushStatus === "granted" && !pushSubbed && t.pushStateGrantedNoSub}
             </p>
           </div>
           <span className="text-[10px] font-bold px-2 py-1 rounded-full flex-shrink-0" style={{
@@ -2712,15 +2712,13 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
           }}>
             {pushStatus === "loading" ? "..." :
               pushStatus === "unsupported" ? "—" :
-              pushStatus === "denied" ? "Заблокированы" :
-              pushSubbed && pushStatus === "granted" ? "Включены" : "Выключены"}
+              pushStatus === "denied" ? t.pushBadgeBlocked :
+              pushSubbed && pushStatus === "granted" ? t.notifEnabledBadge : t.pushBadgeOff}
           </span>
         </div>
 
         {pushStatus === "denied" ? (
-          <p className="text-[11px] text-muted-foreground leading-relaxed">
-            Чтобы включить — откройте настройки сайта в браузере и разрешите уведомления вручную.
-          </p>
+          <p className="text-[11px] text-muted-foreground leading-relaxed">{t.pushDeniedHelp}</p>
         ) : pushStatus !== "loading" && pushStatus !== "unsupported" && (
           <button
             onClick={togglePush}
@@ -2736,9 +2734,9 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
             {pushBusy ? (
               <Icon name="Loader2" size={14} className="animate-spin" />
             ) : pushSubbed && pushStatus === "granted" ? (
-              <><Icon name="BellOff" size={14} /> Отключить уведомления</>
+              <><Icon name="BellOff" size={14} /> {t.notifTurnOff}</>
             ) : (
-              <><Icon name="BellRing" size={14} /> Включить уведомления</>
+              <><Icon name="BellRing" size={14} /> {t.notifTurnOn}</>
             )}
           </button>
         )}
@@ -2748,9 +2746,7 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
             {typeof window !== "undefined" && !window.matchMedia("(display-mode: standalone)").matches && (
               <div className="mt-2 p-2.5 rounded-xl flex gap-2 items-start" style={{ background: "rgba(245,158,11,0.10)", border: "1px solid rgba(245,158,11,0.25)" }}>
                 <Icon name="Info" size={14} className="text-amber-400 mt-0.5 flex-shrink-0" />
-                <p className="text-[11px] text-amber-200 leading-snug">
-                  Для надёжной доставки уведомлений установи приложение на главный экран (кнопка «Установить» сверху). Иначе телефон может задерживать push, когда браузер закрыт.
-                </p>
+                <p className="text-[11px] text-amber-200 leading-snug">{t.pushInstallHint}</p>
               </div>
             )}
             {isAdmin && (
@@ -2762,7 +2758,7 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
                   style={{ background: "rgba(168,85,247,0.12)", color: "#c4b5fd", border: "1px solid rgba(168,85,247,0.25)" }}
                 >
                   {testPushBusy ? <Icon name="Loader2" size={12} className="animate-spin" /> : <Icon name="Send" size={12} />}
-                  {testPushMsg || "Отправить тестовое уведомление"}
+                  {testPushMsg || t.pushTestSend}
                 </button>
                 <button
                   onClick={runDiagnostics}
@@ -2771,7 +2767,7 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
                   style={{ background: "rgba(245,158,11,0.10)", color: "#fbbf24", border: "1px solid rgba(245,158,11,0.25)" }}
                 >
                   {diagBusy ? <Icon name="Loader2" size={12} className="animate-spin" /> : <Icon name="Stethoscope" size={12} />}
-                  Диагностика push
+                  {t.pushDiagnostics}
                 </button>
                 <button
                   onClick={fullResetPush}
@@ -2780,7 +2776,7 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
                   style={{ background: "rgba(34,197,94,0.10)", color: "#86efac", border: "1px solid rgba(34,197,94,0.25)" }}
                 >
                   {resetBusy ? <Icon name="Loader2" size={12} className="animate-spin" /> : <Icon name="RefreshCw" size={12} />}
-                  {resetMsg || "Пересоздать подписку"}
+                  {resetMsg || t.pushRecreate}
                 </button>
               </>
             )}
@@ -2791,7 +2787,7 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
                 style={{ background: "rgba(59,130,246,0.12)", color: "#93c5fd", border: "1px solid rgba(59,130,246,0.25)" }}
               >
                 <Icon name="Settings2" size={12} />
-                Настройки уведомлений Android
+                {t.pushAndroidSettings}
               </button>
             )}
             {installPlatform === "ios" && (
@@ -2801,7 +2797,7 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
                 style={{ background: "rgba(244,114,182,0.12)", color: "#f9a8d4", border: "1px solid rgba(244,114,182,0.25)" }}
               >
                 <Icon name="Settings2" size={12} />
-                Настройки уведомлений iOS
+                {t.notifIosSettings}
               </button>
             )}
             {diagReport && (
@@ -2812,16 +2808,16 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
                   className="mt-2 px-2 py-1 rounded-md text-[10px] font-bold"
                   style={{ background: "rgba(168,85,247,0.2)", color: "#c4b5fd" }}
                 >
-                  Скопировать
+                  {t.pushCopy}
                 </button>
               </div>
             )}
             <div className="mt-3 grid grid-cols-2 gap-2 text-[10px]">
               {[
-                { icon: "MessageCircle", label: "Сообщения" },
-                { icon: "HandCoins", label: "Возвраты" },
-                { icon: "CheckCircle2", label: "Подтверждения" },
-                { icon: "CalendarClock", label: "Напоминания" },
+                { icon: "MessageCircle", label: t.notifTagMessages },
+                { icon: "HandCoins", label: t.notifTagReturns },
+                { icon: "CheckCircle2", label: t.notifTagConfirms },
+                { icon: "CalendarClock", label: t.notifTagReminders },
               ].map(b => (
                 <div key={b.label} className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg" style={{ background: "rgba(168,85,247,0.08)", border: "1px solid rgba(168,85,247,0.15)" }}>
                   <Icon name={b.icon} size={11} className="text-purple-400" />
@@ -2863,8 +2859,8 @@ export function SettingsSection({ theme, onThemeChange, profile, onProfileChange
           <Icon name="UserPlus" size={18} className="text-pink-400" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-foreground">Пригласить друга</p>
-          <p className="text-xs text-muted-foreground">Ссылка и QR-код для приглашения</p>
+          <p className="font-semibold text-foreground">{t.inviteFriend}</p>
+          <p className="text-xs text-muted-foreground">{t.inviteFriendDesc}</p>
         </div>
         <Icon name="ChevronRight" size={18} className="text-muted-foreground flex-shrink-0" />
       </button>
