@@ -120,6 +120,62 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
     } catch { /* без звука */ }
   }
 
+  function exportPaymentHistory() {
+    if (!debt || history.length === 0) return;
+    const counterparty = debt.counterpartyName || (dir === "lent" ? "Должник" : "Кредитор");
+    const statusMap: Record<string, string> = { accepted: "подтверждён", rejected: "отклонён", pending: "ожидает" };
+
+    const header = ["Дата", "Сумма ₽", "Статус", "От кого", "Комментарий"];
+    const rows = history.map(p => {
+      const d = new Date(p.created_at);
+      const dateStr = d.toLocaleDateString(locale) + " " + d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
+      return [dateStr, p.amount.toString().replace(".", ","), statusMap[p.status] || p.status, p.from_name || "", (p.note || "").replace(/\r?\n/g, " ")];
+    });
+
+    const escape = (v: string) => {
+      const s = String(v);
+      return /[";\n,]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const csv = "\uFEFF" + [header, ...rows].map(r => r.map(escape).join(";")).join("\r\n");
+
+    const acceptedSum = history.filter(h => h.status === "accepted").reduce((s, h) => s + h.amount, 0);
+    const summary = [
+      "",
+      `Долг;${debt.name}`,
+      `Контрагент;${counterparty}`,
+      `Общая сумма;${(total ?? debt.amount).toString().replace(".", ",")} ₽`,
+      `Оплачено;${acceptedSum.toString().replace(".", ",")} ₽`,
+      `Остаток;${Math.max(0, (total ?? debt.amount) - acceptedSum).toString().replace(".", ",")} ₽`,
+    ].join("\r\n");
+    const fullCsv = csv + "\r\n" + summary + "\r\n";
+
+    const safeTitle = (debt.name || "debt").replace(/[^a-zA-Zа-яА-Я0-9_-]+/g, "_").slice(0, 40);
+    const today = new Date().toISOString().slice(0, 10);
+    const filename = `payments_${safeTitle}_${today}.csv`;
+    const blob = new Blob([fullCsv], { type: "text/csv;charset=utf-8" });
+
+    const nav = navigator as Navigator & { canShare?: (data: { files: File[] }) => boolean; share?: (data: { files?: File[]; title?: string; text?: string }) => Promise<void> };
+    try {
+      const file = new File([blob], filename, { type: "text/csv" });
+      if (nav.canShare && nav.canShare({ files: [file] }) && nav.share) {
+        nav.share({ files: [file], title: "История платежей", text: `${debt.name} — ${counterparty}` }).catch(() => downloadBlob(blob, filename));
+        return;
+      }
+    } catch { /* fallback */ }
+    downloadBlob(blob, filename);
+  }
+
+  function downloadBlob(blob: Blob, filename: string) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
   useEffect(() => {
     const prev = prevHistoryRef.current;
     if (prev.length > 0 && dir === "borrowed") {
@@ -718,18 +774,32 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
               const hasPayments = history.filter(h => h.status === "accepted").length > 0;
               return (
               <div className="glass rounded-2xl px-4 py-3">
-                <button type="button" onClick={() => setShowHistory(v => !v)} className="w-full flex items-center gap-2 mb-2 text-left">
-                  <div className="w-8 h-8 rounded-xl bg-emerald-500/15 flex items-center justify-center flex-shrink-0">
-                    <Icon name="History" size={16} className="text-emerald-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-muted-foreground">История платежей</p>
-                    <p className="text-sm font-medium text-foreground truncate">
-                      {hasPayments ? `Остаток: ${fmt(remaining)}` : "Ещё нет платежей"}
-                    </p>
-                  </div>
-                  <Icon name={showHistory ? "ChevronUp" : "ChevronDown"} size={16} className="text-muted-foreground flex-shrink-0" />
-                </button>
+                <div className="w-full flex items-center gap-2 mb-2">
+                  <button type="button" onClick={() => setShowHistory(v => !v)} className="flex-1 flex items-center gap-2 text-left min-w-0">
+                    <div className="w-8 h-8 rounded-xl bg-emerald-500/15 flex items-center justify-center flex-shrink-0">
+                      <Icon name="History" size={16} className="text-emerald-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-muted-foreground">История платежей</p>
+                      <p className="text-sm font-medium text-foreground truncate">
+                        {hasPayments ? `Остаток: ${fmt(remaining)}` : "Ещё нет платежей"}
+                      </p>
+                    </div>
+                    <Icon name={showHistory ? "ChevronUp" : "ChevronDown"} size={16} className="text-muted-foreground flex-shrink-0" />
+                  </button>
+                  {hasPayments && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); exportPaymentHistory(); }}
+                      title="Скачать историю"
+                      aria-label="Скачать историю платежей"
+                      className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 active:scale-95 transition-transform"
+                      style={{ background: "rgba(52,211,153,0.12)", border: "1px solid rgba(52,211,153,0.25)", color: "#34d399" }}
+                    >
+                      <Icon name="Download" size={16} />
+                    </button>
+                  )}
+                </div>
                 {hasPayments && (
                   <div className="mb-2">
                     <div className="h-2 rounded-full bg-emerald-500/10 overflow-hidden">
