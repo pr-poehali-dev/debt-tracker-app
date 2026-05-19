@@ -11,6 +11,7 @@ import NotFound from "./pages/NotFound";
 import AdminPanel from "./pages/AdminPanel";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentFail from "./pages/PaymentFail";
+import Legal from "./pages/Legal";
 import PwaIconGenerator from "./components/PwaIconGenerator";
 import InstallPrompt from "./components/InstallPrompt";
 import func2url from "../backend/func2url.json";
@@ -223,9 +224,12 @@ const App = () => {
         {!ready && <SplashScreen onDone={() => setReady(true)} />}
         <div style={{ opacity: ready ? 1 : 0, transition: "opacity 0.4s ease" }}>
           {authChecked && (
-            user
-              ? <BrowserRouter>
-                  <Routes>
+            <BrowserRouter>
+              <Routes>
+                <Route path="/legal" element={<Legal />} />
+                <Route path="/legal/:page" element={<Legal />} />
+                {user ? (
+                  <>
                     <Route path="/" element={<Index user={user} onLogout={handleLogout} />} />
                     <Route path="/payment/success" element={<PaymentSuccess />} />
                     <Route path="/payment/fail" element={<PaymentFail />} />
@@ -235,9 +239,12 @@ const App = () => {
                         : <NotFound />
                     } />
                     <Route path="*" element={<NotFound />} />
-                  </Routes>
-                </BrowserRouter>
-              : <Auth onAuth={handleAuth} />
+                  </>
+                ) : (
+                  <Route path="*" element={<Auth onAuth={handleAuth} />} />
+                )}
+              </Routes>
+            </BrowserRouter>
           )}
         </div>
       </TooltipProvider>

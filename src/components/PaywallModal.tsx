@@ -150,8 +150,15 @@ export default function PaywallModal({ onClose, reason }: Props) {
           )}
 
           <p className="text-[11px] text-muted-foreground text-center mt-3">
-            Оплата через T-Bank Acquiring. Подписка продлевается каждый месяц, отменить можно в любой момент.
+            Оплата через <a href="https://www.tbank.ru" target="_blank" rel="noopener noreferrer" className="underline">T-Pay (Т-Банк)</a>. Подписка продлевается каждый период, отменить можно в любой момент.
           </p>
+
+          <div className="flex flex-wrap gap-x-3 gap-y-1 justify-center mt-2 text-[10px]">
+            <a href="/legal/offer" target="_blank" className="text-muted-foreground hover:text-foreground underline">Оферта</a>
+            <a href="/legal/privacy" target="_blank" className="text-muted-foreground hover:text-foreground underline">Политика</a>
+            <a href="/legal/refund" target="_blank" className="text-muted-foreground hover:text-foreground underline">Возврат</a>
+            <a href="/legal/contacts" target="_blank" className="text-muted-foreground hover:text-foreground underline">Контакты</a>
+          </div>
         </div>
       </div>
     </div>

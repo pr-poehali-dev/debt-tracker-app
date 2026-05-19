@@ -538,6 +538,22 @@ export default function Auth({ onAuth }: Props) {
 
         </div>
       </div>
+
+      <div style={{
+        marginTop: 24, textAlign: "center",
+        fontSize: 12, color: "rgba(180,170,210,0.6)",
+        display: "flex", flexWrap: "wrap", justifyContent: "center",
+        gap: "8px 14px", maxWidth: 360,
+      }}>
+        <a href="/legal/offer" style={{ color: "#a78bfa", textDecoration: "none" }}>Оферта</a>
+        <a href="/legal/privacy" style={{ color: "#a78bfa", textDecoration: "none" }}>Политика</a>
+        <a href="/legal/refund" style={{ color: "#a78bfa", textDecoration: "none" }}>Возврат</a>
+        <a href="/legal/contacts" style={{ color: "#a78bfa", textDecoration: "none" }}>Контакты</a>
+        <a href="/legal/requisites" style={{ color: "#a78bfa", textDecoration: "none" }}>Реквизиты</a>
+      </div>
+      <div style={{ marginTop: 10, fontSize: 11, color: "rgba(180,170,210,0.45)", textAlign: "center" }}>
+        Оплата через <a href="https://www.tbank.ru" target="_blank" rel="noopener noreferrer" style={{ color: "#a78bfa" }}>Т-Банк (T-Pay)</a> · ИП Еловых И.И., ИНН 501602881175
+      </div>
     </div>
   );
 }
