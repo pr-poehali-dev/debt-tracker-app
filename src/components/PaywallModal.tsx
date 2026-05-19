@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { useSubscription, PaywallReason } from "@/hooks/useSubscription";
 import Icon from "@/components/ui/icon";
+import urls from "../../backend/func2url.json";
 
 interface Props {
   onClose: () => void;
@@ -44,10 +46,35 @@ export default function PaywallModal({ onClose, reason }: Props) {
   const { info } = useSubscription();
   const price = info?.price_rub ?? 199;
   const { title, subtitle } = reasonHeader(reason);
+  const [loading, setLoading] = useState(false);
+  const [errorText, setErrorText] = useState<string | null>(null);
 
-  function handleBuy() {
-    // Интеграция T-Pay будет на Шаге 2 — ключи терминала
-    alert("Оплата через T-Pay будет доступна сразу после подключения терминала. Спасибо за интерес!");
+  async function handleBuy() {
+    setErrorText(null);
+    setLoading(true);
+    try {
+      const token = localStorage.getItem("df-token") || "";
+      const returnUrl = window.location.origin;
+      const res = await fetch(urls["payments"], {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "X-Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({ plan: "pro_month", return_url: returnUrl }),
+      });
+      const data = await res.json();
+      if (res.ok && data.payment_url) {
+        window.location.href = data.payment_url;
+        return;
+      }
+      setErrorText(data.error || "Не удалось создать счёт. Попробуйте позже.");
+    } catch {
+      setErrorText("Нет соединения с платёжным сервисом");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -100,14 +127,30 @@ export default function PaywallModal({ onClose, reason }: Props) {
           <button
             type="button"
             onClick={handleBuy}
-            className="w-full py-3.5 rounded-2xl font-bold text-white text-base shadow-lg active:scale-[0.98] transition-transform"
+            disabled={loading}
+            className="w-full py-3.5 rounded-2xl font-bold text-white text-base shadow-lg active:scale-[0.98] transition-transform disabled:opacity-60"
             style={{ background: "linear-gradient(135deg,#a855f7,#7c3aed)", boxShadow: "0 8px 24px rgba(168,85,247,0.35)" }}
           >
-            Подключить Pro за {price} ₽
+            {loading ? (
+              <span className="inline-flex items-center gap-2 justify-center">
+                <Icon name="Loader2" size={16} className="animate-spin" />
+                Переходим к оплате…
+              </span>
+            ) : (
+              <>Подключить Pro за {price} ₽</>
+            )}
           </button>
 
+          {errorText && (
+            <div className="mt-3 rounded-xl px-3 py-2 text-xs text-rose-300 flex items-start gap-2"
+                 style={{ background: "rgba(244,63,94,0.1)", border: "1px solid rgba(244,63,94,0.3)" }}>
+              <Icon name="AlertCircle" size={14} className="flex-shrink-0 mt-0.5" />
+              <span>{errorText}</span>
+            </div>
+          )}
+
           <p className="text-[11px] text-muted-foreground text-center mt-3">
-            Подписка автоматически продлевается каждый месяц. Отменить можно в любой момент.
+            Оплата через T-Bank Acquiring. Подписка продлевается каждый месяц, отменить можно в любой момент.
           </p>
         </div>
       </div>

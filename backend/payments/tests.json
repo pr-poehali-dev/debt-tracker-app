@@ -1,0 +1,32 @@
+{
+  "tests": [
+    {
+      "name": "OPTIONS CORS",
+      "method": "OPTIONS",
+      "path": "/",
+      "expectedStatus": 200
+    },
+    {
+      "name": "POST without auth",
+      "method": "POST",
+      "path": "/",
+      "body": {"plan": "pro_month"},
+      "expectedStatus": 401,
+      "expectedBody": {"error": "string"},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "GET status without auth",
+      "method": "GET",
+      "path": "/?order_id=test",
+      "expectedStatus": 401
+    },
+    {
+      "name": "Webhook with empty body returns ERR",
+      "method": "POST",
+      "path": "/?action=notification",
+      "body": {},
+      "expectedStatus": 200
+    }
+  ]
+}
