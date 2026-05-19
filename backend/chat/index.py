@@ -47,6 +47,30 @@ def get_user_from_token(token_str, conn):
         row = cur.fetchone()
     return (row[0], row[1]) if row else (None, None)
 
+
+FREE_MAX_MESSAGES_PER_CHAT = 100
+
+
+def get_user_plan(conn, user_id: int) -> str:
+    """Возвращает 'pro' или 'free' для пользователя."""
+    with conn.cursor() as cur:
+        cur.execute(
+            f"""SELECT plan, expires_at FROM {SCHEMA}.user_subscriptions WHERE user_id = %s LIMIT 1""",
+            (user_id,)
+        )
+        row = cur.fetchone()
+        if not row:
+            return "free"
+        plan, expires_at = row
+        if plan == "pro" and expires_at is not None:
+            cur.execute(
+                f"""SELECT (expires_at < NOW()) FROM {SCHEMA}.user_subscriptions WHERE user_id = %s""",
+                (user_id,)
+            )
+            if cur.fetchone()[0]:
+                return "free"
+        return plan or "free"
+
 def send_push_notification(conn, recipient_user_id, title, body_text, url=None, tag=None):
     try:
         from pywebpush import webpush, WebPushException
@@ -345,6 +369,32 @@ def handler(event: dict, context) -> dict:
             user_id, user_name = get_user_from_token(auth, conn)
             if not user_id:
                 return err("Не авторизован", 401)
+
+            # Лимит на отправленные сообщения в одном чате для free
+            plan = get_user_plan(conn, user_id)
+            if plan == "free":
+                with conn.cursor() as cur_lim:
+                    if debt_id:
+                        cur_lim.execute(
+                            f"""SELECT COUNT(*) FROM {SCHEMA}.messages
+                                WHERE debt_id = %s AND sender_user_id = %s""",
+                            (debt_id, user_id)
+                        )
+                    else:
+                        cur_lim.execute(
+                            f"""SELECT COUNT(*) FROM {SCHEMA}.messages
+                                WHERE rental_id = %s AND sender_user_id = %s""",
+                            (int(rental_id), user_id)
+                        )
+                    sent_count = int(cur_lim.fetchone()[0])
+                if sent_count >= FREE_MAX_MESSAGES_PER_CHAT:
+                    return json_resp({
+                        "error": "limit_reached",
+                        "limit_type": "messages",
+                        "limit": FREE_MAX_MESSAGES_PER_CHAT,
+                        "current": sent_count,
+                        "message": f"На бесплатном тарифе можно отправить до {FREE_MAX_MESSAGES_PER_CHAT} сообщений в одном чате. Перейдите на Pro, чтобы снять ограничение."
+                    }, 402)
 
             with conn.cursor() as cur:
                 if debt_id:

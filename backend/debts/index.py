@@ -198,6 +198,31 @@ def get_user_id_from_token(token_str, conn):
         row = cur.fetchone()
     return row[0] if row else None
 
+
+FREE_MAX_ACTIVE_DEBTS = 5
+
+
+def get_user_plan(conn, user_id: int) -> str:
+    """Возвращает 'pro' или 'free'. Если запись отсутствует — 'free'."""
+    with conn.cursor() as cur:
+        cur.execute(
+            f"""SELECT plan, expires_at FROM {SCHEMA}.user_subscriptions WHERE user_id = %s LIMIT 1""",
+            (user_id,)
+        )
+        row = cur.fetchone()
+        if not row:
+            return "free"
+        plan, expires_at = row
+        if plan == "pro" and expires_at is not None:
+            cur.execute(
+                f"""SELECT (expires_at < NOW()) FROM {SCHEMA}.user_subscriptions WHERE user_id = %s""",
+                (user_id,)
+            )
+            is_expired = cur.fetchone()[0]
+            if is_expired:
+                return "free"
+        return plan or "free"
+
 def row_to_debt(row):
     return {
         "id": str(row[0]),
@@ -242,6 +267,26 @@ def handler(event: dict, context) -> dict:
         token = gen_token()
         with get_conn() as conn:
             lender_user_id = get_user_id_from_token(auth_header, conn)
+            # Лимит для free-тарифа на количество активных долгов
+            if lender_user_id:
+                plan = get_user_plan(conn, lender_user_id)
+                if plan == "free":
+                    with conn.cursor() as cur:
+                        cur.execute(
+                            f"""SELECT COUNT(*) FROM {SCHEMA}.debts
+                                WHERE (lender_user_id = %s OR borrower_user_id = %s)
+                                  AND status NOT IN ('archived', 'deleted', 'paid')""",
+                            (lender_user_id, lender_user_id)
+                        )
+                        active_count = int(cur.fetchone()[0])
+                    if active_count >= FREE_MAX_ACTIVE_DEBTS:
+                        return json_resp({
+                            "error": "limit_reached",
+                            "limit_type": "debts",
+                            "limit": FREE_MAX_ACTIVE_DEBTS,
+                            "current": active_count,
+                            "message": f"На бесплатном тарифе можно вести до {FREE_MAX_ACTIVE_DEBTS} активных долгов. Перейдите на Pro, чтобы снять ограничение."
+                        }, 402)
             with conn.cursor() as cur:
                 for _ in range(5):
                     cur.execute(f"SELECT 1 FROM {SCHEMA}.debts WHERE share_token = %s", (token,))

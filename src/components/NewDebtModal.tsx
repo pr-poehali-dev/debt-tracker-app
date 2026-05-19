@@ -570,9 +570,10 @@ interface Props {
   myName?: string;
   myPhone?: string;
   onCreated?: (debt: Record<string, string | number | null>) => void;
+  onLimitReached?: (info: { type: string; message?: string; limit?: number; current?: number }) => void;
 }
 
-export default function NewDebtModal({ open, onClose, myName = "", myPhone = "", onCreated }: Props) {
+export default function NewDebtModal({ open, onClose, myName = "", myPhone = "", onCreated, onLimitReached }: Props) {
   const { t, lang } = useT();
   const [step, setStep] = useState<"form" | "qr">("form");
   const [loading, setLoading] = useState(false);
@@ -641,6 +642,22 @@ export default function NewDebtModal({ open, onClose, myName = "", myPhone = "",
           total_with_interest: returnCalc?.total || undefined,
         }),
       });
+      if (r.status === 402) {
+        try {
+          const errData = await r.json();
+          if (errData?.error === "limit_reached") {
+            onLimitReached?.({
+              type: errData.limit_type || "debts",
+              message: errData.message,
+              limit: errData.limit,
+              current: errData.current,
+            });
+            onClose();
+            return;
+          }
+        } catch { /* ignore */ }
+        return;
+      }
       const d = await r.json();
       if (d.share_token) {
         if (saveAsContact && form.borrower_name.trim()) {

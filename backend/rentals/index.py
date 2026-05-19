@@ -141,6 +141,30 @@ def get_user_id_from_token(token_str, conn):
     return row[0] if row else None
 
 
+FREE_MAX_ACTIVE_RENTALS = 2
+
+
+def get_user_plan(conn, user_id: int) -> str:
+    """Возвращает 'pro' или 'free' для текущего пользователя."""
+    with conn.cursor() as cur:
+        cur.execute(
+            f"""SELECT plan, expires_at FROM {SCHEMA}.user_subscriptions WHERE user_id = %s LIMIT 1""",
+            (user_id,)
+        )
+        row = cur.fetchone()
+        if not row:
+            return "free"
+        plan, expires_at = row
+        if plan == "pro" and expires_at is not None:
+            cur.execute(
+                f"""SELECT (expires_at < NOW()) FROM {SCHEMA}.user_subscriptions WHERE user_id = %s""",
+                (user_id,)
+            )
+            if cur.fetchone()[0]:
+                return "free"
+        return plan or "free"
+
+
 def row_to_rental(row):
     return {
         "id": str(row[0]),
@@ -248,6 +272,26 @@ def handler(event: dict, context) -> dict:
         token = gen_token()
         with get_conn() as conn:
             landlord_user_id = get_user_id_from_token(auth_header, conn)
+            # Лимит для free-тарифа на количество аренд
+            if landlord_user_id:
+                plan = get_user_plan(conn, landlord_user_id)
+                if plan == "free":
+                    with conn.cursor() as cur:
+                        cur.execute(
+                            f"""SELECT COUNT(*) FROM {SCHEMA}.rentals
+                                WHERE (landlord_user_id = %s OR tenant_user_id = %s)
+                                  AND (status IS NULL OR status NOT IN ('archived', 'deleted'))""",
+                            (landlord_user_id, landlord_user_id)
+                        )
+                        active_count = int(cur.fetchone()[0])
+                    if active_count >= FREE_MAX_ACTIVE_RENTALS:
+                        return json_resp({
+                            "error": "limit_reached",
+                            "limit_type": "rentals",
+                            "limit": FREE_MAX_ACTIVE_RENTALS,
+                            "current": active_count,
+                            "message": f"На бесплатном тарифе можно вести до {FREE_MAX_ACTIVE_RENTALS} аренд. Перейдите на Pro, чтобы снять ограничение."
+                        }, 402)
             with conn.cursor() as cur:
                 for _ in range(5):
                     cur.execute(f"SELECT 1 FROM {SCHEMA}.rentals WHERE share_token = %s", (token,))

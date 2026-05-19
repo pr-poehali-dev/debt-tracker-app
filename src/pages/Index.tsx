@@ -20,13 +20,55 @@ import {
 } from "@/components/index/Sections";
 import func2url from "../../backend/func2url.json";
 import { normalizePhone } from "@/lib/phone";
+import { SubscriptionProvider, useSubscription } from "@/hooks/useSubscription";
+import PaywallModal from "@/components/PaywallModal";
 
 // ─── Root ─────────────────────────────────────────────────────────────────────
 interface AuthUser { id: number; full_name: string; phone: string; email: string; }
 
 export default function Index({ user, onLogout }: { user: AuthUser; onLogout: () => void }) {
+  const token = localStorage.getItem("df-token") || "";
+  return (
+    <SubscriptionProvider token={user.id === 0 ? null : token}>
+      <IndexInner user={user} onLogout={onLogout} />
+      <PaywallGate />
+    </SubscriptionProvider>
+  );
+}
+
+function PaywallGate() {
+  const { paywallReason, hidePaywall } = useSubscription();
+  if (!paywallReason) return null;
+  return <PaywallModal reason={paywallReason} onClose={hidePaywall} />;
+}
+
+function PlanBadge({ onClick }: { onClick: () => void }) {
+  const { info } = useSubscription();
+  if (!info) return null;
+  const isPro = info.plan === "pro";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider active:scale-95 transition-transform"
+      style={isPro
+        ? { background: "linear-gradient(135deg,#a855f7,#7c3aed)", color: "#fff", boxShadow: "0 2px 8px rgba(168,85,247,0.35)" }
+        : { background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", color: "#9ca3af" }}
+      title={isPro ? "Тариф Pro" : "Перейти на Pro"}
+    >
+      <Icon name={isPro ? "Sparkles" : "Crown"} size={10} />
+      {isPro ? "Pro" : "Free"}
+    </button>
+  );
+}
+
+function IndexInner({ user, onLogout }: { user: AuthUser; onLogout: () => void }) {
   const isDemo = user.id === 0;
   const token = localStorage.getItem("df-token") || "";
+  const { showPaywall } = useSubscription();
+  const handleLimitReached = (info: { type: string; message?: string; limit?: number; current?: number }) => {
+    showPaywall({ type: info.type as "debts" | "rentals" | "messages" | "manual", message: info.message, limit: info.limit, current: info.current });
+  };
   const initSection = new URLSearchParams(window.location.search).get("section") as Section | null;
   const [section, setSection] = useState<Section>(initSection || "dashboard");
   const [contacts, setContacts] = useState<Contact[]>(isDemo ? DEMO_CONTACTS : INIT_CONTACTS);
@@ -1288,7 +1330,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
       }}
     >
       <div className="mesh-bg" />
-      <NewDebtModal open={showNewDebt} onClose={() => setShowNewDebt(false)} myName={profile.name} myPhone={profile.phone} onCreated={handleDebtCreated} />
+      <NewDebtModal open={showNewDebt} onClose={() => setShowNewDebt(false)} myName={profile.name} myPhone={profile.phone} onCreated={handleDebtCreated} onLimitReached={handleLimitReached} />
       {showPersonalLoan && <PersonalLoanModal onClose={() => setShowPersonalLoan(false)} onSave={handlePersonalLoanSave} t={t} lang={lang} />}
       {rentalInvite && (
         <RentalInviteModal token={rentalInvite} authToken={token} onClose={() => {
@@ -1321,6 +1363,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
           contactAvatarUrl={activeChat.contactAvatarUrl}
           token={token}
           onClose={() => setActiveChat(null)}
+          onLimitReached={handleLimitReached}
         />
       )}
 
@@ -1338,8 +1381,9 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
       <header className="relative z-10 px-4 pt-5 pb-3">
         <div className="max-w-lg mx-auto flex items-center justify-between">
           <div>
-            <h1 className="font-heading font-black text-xl">
+            <h1 className="font-heading font-black text-xl flex items-center gap-2">
               {section === "dashboard" ? <span className="text-gradient-purple">Debt-Debt</span> : sectionTitles[section]}
+              <PlanBadge onClick={() => showPaywall(null)} />
             </h1>
             {section === "dashboard" && <p className="text-xs text-muted-foreground">{t.appSubtitle}</p>}
           </div>
@@ -1418,7 +1462,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
           {section === "calendar"      && <CalendarSection contacts={contacts} t={t} debts={[...lentDebts.map(d => ({ ...d, archivedDir: "lent" as const })), ...borrowedDebts.map(d => ({ ...d, archivedDir: "borrowed" as const }))]} rentals={rentals} userId={user.id} locale={locale} token={token} onNav={setSection} onOpenChat={(id, title) => { const d = [...lentDebts, ...borrowedDebts].find(x => x.debtDbId === id); const cn = d ? (contacts.find(c => c.id === d.contactId)?.name || d.counterpartyName) : undefined; setActiveChat({ debtId: id, title, contactName: cn, contactAvatarUrl: d?.counterpartyAvatarUrl }); }} onMarkPaid={handleMarkPaid} onPaymentAccepted={handlePaymentAccepted} />}
           {section === "notifications" && <NotificationsSection notifs={notifs} onMarkAllRead={handleMarkAllRead} onMarkRead={handleMarkRead} t={t} token={token} contacts={contacts} allDebts={[...lentDebts, ...borrowedDebts, ...archiveDebts]} onOpenChat={(debtId, rentalId, title) => { const d = debtId ? [...lentDebts, ...borrowedDebts, ...archiveDebts].find(x => x.debtDbId === debtId) : undefined; const cn = d ? (contacts.find(c => c.id === d.contactId)?.name || d.counterpartyName) : undefined; setActiveChat({ debtId: debtId || undefined, rentalId: rentalId || undefined, title, contactName: cn, contactAvatarUrl: d?.counterpartyAvatarUrl }); }} onOpenSupport={(ticketId) => { setSupportTicketId(ticketId); setShowSupport(true); }} onPaymentAccepted={handlePaymentAccepted} />}
           {section === "archive"       && <ArchiveSection contacts={contacts} t={t} lang={lang} locale={locale} archiveDebts={archiveDebts} token={token} onOpenChat={(id, title) => { const d = archiveDebts.find(x => x.debtDbId === id); const cn = d ? (contacts.find(c => c.id === d.contactId)?.name || d.counterpartyName) : undefined; setActiveChat({ debtId: id, title, contactName: cn, contactAvatarUrl: d?.counterpartyAvatarUrl }); }} onPurgeDebt={handlePurgeArchivedDebt} />}
-          {section === "rental"        && <RentalSection userId={user.id} token={token} myName={profile.name} isDemo={isDemo} openNew={showNewRental} onNewClose={() => setShowNewRental(false)} t={t} rentals={rentals} setRentals={setRentals} />}
+          {section === "rental"        && <RentalSection userId={user.id} token={token} myName={profile.name} isDemo={isDemo} openNew={showNewRental} onNewClose={() => setShowNewRental(false)} t={t} rentals={rentals} setRentals={setRentals} onLimitReached={handleLimitReached} />}
           {section === "contacts"      && (
             <ContactsSection
               contacts={contactsWithTotals}

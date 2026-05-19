@@ -30,6 +30,7 @@ interface Props {
   contactAvatarUrl?: string;
   token: string;
   onClose: () => void;
+  onLimitReached?: (info: { type: string; message?: string; limit?: number; current?: number }) => void;
 }
 
 let notifSound: AudioContext | null = null;
@@ -53,7 +54,7 @@ function playNotifSound() {
   } catch (_e) { /* звук не поддерживается */ }
 }
 
-export default function ChatWindow({ debtId, rentalId, title, contactName, contactAvatarUrl, token, onClose }: Props) {
+export default function ChatWindow({ debtId, rentalId, title, contactName, contactAvatarUrl, token, onClose, onLimitReached }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(true);
@@ -584,6 +585,20 @@ export default function ChatWindow({ debtId, rentalId, title, contactName, conta
     if (res.ok) {
       const msg = await res.json();
       setMessages(prev => [...prev, msg]);
+    } else if (res.status === 402) {
+      try {
+        const data = await res.json();
+        if (data?.error === "limit_reached") {
+          onLimitReached?.({
+            type: data.limit_type || "messages",
+            message: data.message,
+            limit: data.limit,
+            current: data.current,
+          });
+        }
+      } catch { /* ignore */ }
+      if (wasAttachment) setAttachment(wasAttachment);
+      setText(t);
     } else {
       if (wasAttachment) setAttachment(wasAttachment);
       setText(t);

@@ -47,6 +47,7 @@ interface Props {
   t?: ReturnType<typeof getT>;
   rentals?: Rental[];
   setRentals?: React.Dispatch<React.SetStateAction<Rental[]>>;
+  onLimitReached?: (info: { type: string; message?: string; limit?: number; current?: number }) => void;
 }
 
 const DEMO_RENTALS: Rental[] = [
@@ -923,7 +924,7 @@ function checkAndNotify(rentals: Rental[], myName: string) {
   });
 }
 
-export default function RentalSection({ userId, token, myName, isDemo, openNew, onNewClose, t, rentals: rentalsProp, setRentals: setRentalsProp }: Props) {
+export default function RentalSection({ userId, token, myName, isDemo, openNew, onNewClose, t, rentals: rentalsProp, setRentals: setRentalsProp, onLimitReached }: Props) {
   const useExternal = !!setRentalsProp;
   const [localRentals, setLocalRentals] = useState<Rental[]>(isDemo ? DEMO_RENTALS : []);
   const rentals = useExternal ? (rentalsProp ?? []) : localRentals;
@@ -1063,6 +1064,7 @@ export default function RentalSection({ userId, token, myName, isDemo, openNew, 
           token={token}
           onClose={() => { setShowNew(false); onNewClose?.(); }}
           onCreated={handleCreated}
+          onLimitReached={onLimitReached}
         />
       )}
 
@@ -1109,11 +1111,12 @@ export default function RentalSection({ userId, token, myName, isDemo, openNew, 
   );
 }
 
-function NewRentalModal({ myName, token, onClose, onCreated }: {
+function NewRentalModal({ myName, token, onClose, onCreated, onLimitReached }: {
   myName: string;
   token: string;
   onClose: () => void;
   onCreated: (r: Rental) => void;
+  onLimitReached?: (info: { type: string; message?: string; limit?: number; current?: number }) => void;
 }) {
   const [form, setForm] = useState({
     title: "",
@@ -1146,7 +1149,22 @@ function NewRentalModal({ myName, token, onClose, onCreated }: {
         note: form.note || undefined,
       }),
     });
-    if (res.ok) {
+    if (res.status === 402) {
+      try {
+        const data = await res.json();
+        if (data?.error === "limit_reached") {
+          onLimitReached?.({
+            type: data.limit_type || "rentals",
+            message: data.message,
+            limit: data.limit,
+            current: data.current,
+          });
+          setLoading(false);
+          onClose();
+          return;
+        }
+      } catch { /* ignore */ }
+    } else if (res.ok) {
       const rental = await res.json();
       onCreated(rental);
     }
