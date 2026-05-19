@@ -121,44 +121,37 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
   }
 
   function exportPaymentHistory() {
-    if (!debt || history.length === 0) return;
-    const counterparty = debt.counterpartyName || (dir === "lent" ? "Должник" : "Кредитор");
-    const statusMap: Record<string, string> = { accepted: "подтверждён", rejected: "отклонён", pending: "ожидает" };
+    if (!debt) return;
+    const accepted = history.filter(h => h.status === "accepted");
+    if (accepted.length === 0) return;
 
-    const header = ["Дата", "Сумма ₽", "Статус", "От кого", "Комментарий"];
-    const rows = history.map(p => {
+    const totalAmount = total ?? debt.amount;
+    const paidSum = accepted.reduce((s, h) => s + h.amount, 0);
+    const remaining = Math.max(0, totalAmount - paidSum);
+
+    const lines: string[] = [];
+    lines.push(`Общий долг: ${fmt(totalAmount)}`);
+    lines.push("");
+    for (const p of accepted) {
       const d = new Date(p.created_at);
-      const dateStr = d.toLocaleDateString(locale) + " " + d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
-      return [dateStr, p.amount.toString().replace(".", ","), statusMap[p.status] || p.status, p.from_name || "", (p.note || "").replace(/\r?\n/g, " ")];
-    });
+      const dateStr = d.toLocaleDateString(locale);
+      lines.push(`${dateStr} — ${fmt(p.amount)}`);
+    }
+    lines.push("");
+    lines.push(`Остаток: ${fmt(remaining)}`);
 
-    const escape = (v: string) => {
-      const s = String(v);
-      return /[";\n,]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-    };
-    const csv = "\uFEFF" + [header, ...rows].map(r => r.map(escape).join(";")).join("\r\n");
-
-    const acceptedSum = history.filter(h => h.status === "accepted").reduce((s, h) => s + h.amount, 0);
-    const summary = [
-      "",
-      `Долг;${debt.name}`,
-      `Контрагент;${counterparty}`,
-      `Общая сумма;${(total ?? debt.amount).toString().replace(".", ",")} ₽`,
-      `Оплачено;${acceptedSum.toString().replace(".", ",")} ₽`,
-      `Остаток;${Math.max(0, (total ?? debt.amount) - acceptedSum).toString().replace(".", ",")} ₽`,
-    ].join("\r\n");
-    const fullCsv = csv + "\r\n" + summary + "\r\n";
+    const text = lines.join("\r\n") + "\r\n";
 
     const safeTitle = (debt.name || "debt").replace(/[^a-zA-Zа-яА-Я0-9_-]+/g, "_").slice(0, 40);
     const today = new Date().toISOString().slice(0, 10);
-    const filename = `payments_${safeTitle}_${today}.csv`;
-    const blob = new Blob([fullCsv], { type: "text/csv;charset=utf-8" });
+    const filename = `payments_${safeTitle}_${today}.txt`;
+    const blob = new Blob(["\uFEFF" + text], { type: "text/plain;charset=utf-8" });
 
     const nav = navigator as Navigator & { canShare?: (data: { files: File[] }) => boolean; share?: (data: { files?: File[]; title?: string; text?: string }) => Promise<void> };
     try {
-      const file = new File([blob], filename, { type: "text/csv" });
+      const file = new File([blob], filename, { type: "text/plain" });
       if (nav.canShare && nav.canShare({ files: [file] }) && nav.share) {
-        nav.share({ files: [file], title: "История платежей", text: `${debt.name} — ${counterparty}` }).catch(() => downloadBlob(blob, filename));
+        nav.share({ files: [file], title: "История платежей" }).catch(() => downloadBlob(blob, filename));
         return;
       }
     } catch { /* fallback */ }
