@@ -183,6 +183,7 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
               borrowerDismissed: isLender && d.borrower_dismissed ? true : undefined,
               pendingPaymentsCount: d.pending_payments_count != null ? Number(d.pending_payments_count) : 0,
               pendingTopUpsCount: d.pending_topups_count != null ? Number(d.pending_topups_count) : 0,
+              paidAmount: d.paid_amount != null ? Number(d.paid_amount) : 0,
               counterpartyName: String(isLender ? (d.borrower_name || "") : (d.lender_name || "")) || undefined,
               archivedDir: (status === "archived" || isDeleted) ? (isLender ? "lent" : "borrowed") : undefined,
               createdAt: d.created_at ? String(d.created_at) : undefined,
@@ -1173,8 +1174,8 @@ export default function Index({ user, onLogout }: { user: AuthUser; onLogout: ()
       setRefreshTick(t => t + 1);
       return;
     }
-    setLentDebts(prev => prev.map(d => d.debtDbId === debtDbId ? { ...d, amount: newAmount, pendingPaymentsCount: Math.max(0, (d.pendingPaymentsCount || 1) - 1) } : d));
-    setBorrowedDebts(prev => prev.map(d => d.debtDbId === debtDbId ? { ...d, amount: newAmount, pendingPaymentsCount: Math.max(0, (d.pendingPaymentsCount || 1) - 1) } : d));
+    setLentDebts(prev => prev.map(d => d.debtDbId === debtDbId ? { ...d, amount: newAmount, paidAmount: Math.max(0, (d.paidAmount || 0) + Math.max(0, d.amount - newAmount)), pendingPaymentsCount: Math.max(0, (d.pendingPaymentsCount || 1) - 1) } : d));
+    setBorrowedDebts(prev => prev.map(d => d.debtDbId === debtDbId ? { ...d, amount: newAmount, paidAmount: Math.max(0, (d.paidAmount || 0) + Math.max(0, d.amount - newAmount)), pendingPaymentsCount: Math.max(0, (d.pendingPaymentsCount || 1) - 1) } : d));
     setRefreshTick(t => t + 1);
   }
 

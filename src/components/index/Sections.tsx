@@ -442,6 +442,7 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                 <div className="text-right flex-shrink-0 flex flex-col items-end gap-1">
                   {(() => {
                     const totalWithInterest = d.interestRate && d.createdAt ? calcAmountOnDate(d.amount, d.interestRate, d.interestType || "simple", d.createdAt) : null;
+                    const hasPaid = (d.paidAmount || 0) > 0 && d.status !== "paid";
                     return (
                       <>
                         <p className="text-lg font-bold font-heading" style={{ color: d.status === "overdue" ? "#f87171" : col ? col.text : dir === "lent" ? "#c084fc" : "#7dd3fc" }}>
@@ -449,6 +450,12 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                         </p>
                         {totalWithInterest && totalWithInterest !== d.amount && (
                           <p className="text-xs text-muted-foreground">{fmt(d.amount)} + {d.interestRate}%</p>
+                        )}
+                        {hasPaid && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium" style={{ background: "rgba(16,185,129,0.12)", color: "#34d399" }}>
+                            <Icon name="Check" size={9} />
+                            Оплачено {fmt(d.paidAmount || 0)}
+                          </span>
                         )}
                       </>
                     );

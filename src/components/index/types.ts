@@ -34,6 +34,7 @@ export interface Debt {
   borrowerDismissed?: boolean;
   pendingPaymentsCount?: number;
   pendingTopUpsCount?: number;
+  paidAmount?: number;
   counterpartyName?: string;
   archivedDir?: "lent" | "borrowed";
   createdAt?: string;
