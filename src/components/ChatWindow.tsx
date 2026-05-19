@@ -188,6 +188,9 @@ export default function ChatWindow({ debtId, rentalId, title, contactName, conta
     setDownloading(true);
     const isImg = /\.(jpe?g|png|gif|webp|bmp)$/i.test(url) || /\.(jpe?g|png|gif|webp|bmp)$/i.test(fileName);
     const label = isImg ? "Фото" : "Файл";
+    const ua = navigator.userAgent || "";
+    const isAndroid = /Android/i.test(ua);
+    const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
     let attemptedResult: "shared" | "downloaded" | "cancelled" | "unsupported" | null = null;
     try {
       // 1) Пробуем fetch (работает если CDN отдаёт CORS-заголовки)
@@ -204,7 +207,7 @@ export default function ChatWindow({ debtId, rentalId, title, contactName, conta
         }
       } catch (_e) { /* fallback */ }
 
-      // 2) Для изображений — рисуем в canvas и сохраняем
+      // 2) Для изображений — рисуем в canvas и сохраняем (требует CORS на CDN)
       if (isImg && attemptedResult !== "unsupported") {
         try {
           const blob = await loadImageAsBlob(url);
@@ -219,13 +222,34 @@ export default function ChatWindow({ debtId, rentalId, title, contactName, conta
         } catch (_e) { /* последний fallback */ }
       }
 
-      // 3) iOS без Share API — показываем модалку с long-press
-      if (isImg) {
+      // 3) Android: открываем фото в новой вкладке — там Chrome даст
+      //    меню «Сохранить изображение». Атрибут download на cross-origin
+      //    Android Chrome игнорирует, поэтому именно открываем превью.
+      if (isAndroid) {
+        const w = window.open(url, "_blank", "noopener,noreferrer");
+        if (w) {
+          toast(isImg ? "Долгое нажатие → Сохранить изображение" : `${label} открыт — сохрани вручную`);
+        } else {
+          // Если попап заблокирован — кладём ссылку как обычную
+          const a = document.createElement("a");
+          a.href = url;
+          a.target = "_blank";
+          a.rel = "noopener noreferrer";
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          toast(isImg ? "Долгое нажатие → Сохранить изображение" : `${label} открыт — сохрани вручную`);
+        }
+        return;
+      }
+
+      // 4) iOS без Share API — показываем модалку с long-press
+      if (isImg && isIOS) {
         setSaveHint({ url, name: fileName });
         return;
       }
 
-      // 4) Файлы — открываем по ссылке
+      // 5) Файлы / прочие — открываем по ссылке
       const a = document.createElement("a");
       a.href = url;
       a.target = "_blank";
