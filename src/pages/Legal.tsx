@@ -5,8 +5,12 @@ const MERCHANT = {
   name: "Еловых Иван Иванович",
   inn: "501602881175",
   email: "elovyh@list.ru",
+  phone: "+7 968 006-66-66",
+  address: "141282, Россия, Московская обл., г. Ивантеевка, г. Пушкино, ул. Новая Слобода, д. 3, кв. 50",
   site: "debt-debt.ru",
   status: "Самозанятый (плательщик НПД)",
+  merchantId: "200000001749046",
+  terminalId: "25890975",
 };
 
 const SECTIONS: Record<string, { title: string; body: JSX.Element }> = {
@@ -14,13 +18,15 @@ const SECTIONS: Record<string, { title: string; body: JSX.Element }> = {
     title: "Контакты",
     body: (
       <>
-        <p>Если у вас есть вопросы по работе сервиса Debt-Debt, оплате подписки или возврату средств — свяжитесь с нами:</p>
+        <p>Если у вас есть вопросы по работе сервиса Debt-Debt, оплате подписки или возврату средств — свяжитесь с нами любым удобным способом:</p>
         <ul>
           <li><b>Email:</b> <a href={`mailto:${MERCHANT.email}`}>{MERCHANT.email}</a></li>
-          <li><b>Сайт:</b> debt-debt.ru</li>
+          <li><b>Телефон:</b> <a href={`tel:${MERCHANT.phone.replace(/\s|-/g, "")}`}>{MERCHANT.phone}</a></li>
+          <li><b>Сайт:</b> {MERCHANT.site}</li>
+          <li><b>Адрес:</b> {MERCHANT.address}</li>
           <li><b>Время ответа:</b> до 24 часов в рабочие дни</li>
         </ul>
-        <p>По всем вопросам пишите на email — мы отвечаем максимально быстро.</p>
+        <p>По всем вопросам можно писать на email или звонить — мы стараемся отвечать максимально быстро.</p>
       </>
     ),
   },
@@ -33,8 +39,17 @@ const SECTIONS: Record<string, { title: string; body: JSX.Element }> = {
           <li><b>ФИО:</b> {MERCHANT.name}</li>
           <li><b>Статус:</b> {MERCHANT.status}</li>
           <li><b>ИНН:</b> {MERCHANT.inn}</li>
-          <li><b>Email:</b> {MERCHANT.email}</li>
+          <li><b>Email:</b> <a href={`mailto:${MERCHANT.email}`}>{MERCHANT.email}</a></li>
+          <li><b>Телефон:</b> {MERCHANT.phone}</li>
+          <li><b>Адрес:</b> {MERCHANT.address}</li>
           <li><b>Сайт:</b> {MERCHANT.site}</li>
+        </ul>
+        <h3>Платёжные реквизиты</h3>
+        <ul>
+          <li><b>Банк-эквайер:</b> АО «Т-Банк»</li>
+          <li><b>Merchant ID:</b> {MERCHANT.merchantId}</li>
+          <li><b>Terminal ID:</b> {MERCHANT.terminalId}</li>
+          <li><b>Способы оплаты:</b> банковские карты VISA, MasterCard, МИР, СБП, T-Pay</li>
         </ul>
       </>
     ),
