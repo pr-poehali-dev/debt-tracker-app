@@ -129,7 +129,13 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
     const paidSum = accepted.reduce((s, h) => s + h.amount, 0);
     const remaining = Math.max(0, totalAmount - paidSum);
 
+    const counterparty = debt.counterpartyName || (dir === "lent" ? "Должник" : "Кредитор");
+    const roleLabel = dir === "lent" ? "Должник" : "Кредитор";
+
     const lines: string[] = [];
+    lines.push(`Долг: ${debt.name}`);
+    lines.push(`${roleLabel}: ${counterparty}`);
+    lines.push("");
     lines.push(`Общий долг: ${fmt(totalAmount)}`);
     lines.push("");
     for (const p of accepted) {
