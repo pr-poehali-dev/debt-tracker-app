@@ -354,16 +354,30 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
         </button>
 
         {/* Header */}
-        <div className={`bg-gradient-to-r ${gradientClass} px-5 pb-8 pt-5 rounded-t-3xl`}>
-          <div className="flex items-center justify-start mb-4 gap-2">
-            <span className={`text-xs px-3 py-1 rounded-full font-medium ${status.cls}`}>{status.label}</span>
-          </div>
-          <p className="text-white/70 text-sm mb-1">{dir === "lent" ? "Вы дали в долг" : "Вы взяли в долг"}</p>
-          <p className="text-3xl font-bold text-white font-heading">{fmt(total ?? debt.amount)}</p>
-          {hasInterest && (
-            <p className="text-white/60 text-sm mt-1">{fmt(debt.amount)} + {debt.interestRate}% ({debt.interestType === "compound" ? "сложные" : "простые"})</p>
-          )}
-        </div>
+        {(() => {
+          const headerPaidTotal = history.filter(h => h.status === "accepted").reduce((s, h) => s + h.amount, 0);
+          const headerTotalAmount = total ?? debt.amount;
+          const headerRemaining = Math.max(0, headerTotalAmount - headerPaidTotal);
+          const showRemaining = headerPaidTotal > 0 && headerRemaining < headerTotalAmount;
+          return (
+            <div className={`bg-gradient-to-r ${gradientClass} px-5 pb-8 pt-5 rounded-t-3xl`}>
+              <div className="flex items-center justify-start mb-4 gap-2">
+                <span className={`text-xs px-3 py-1 rounded-full font-medium ${status.cls}`}>{status.label}</span>
+              </div>
+              <p className="text-white/70 text-sm mb-1">{dir === "lent" ? "Вы дали в долг" : "Вы взяли в долг"}</p>
+              <p className="text-3xl font-bold text-white font-heading">{fmt(headerTotalAmount)}</p>
+              {hasInterest && (
+                <p className="text-white/60 text-sm mt-1">{fmt(debt.amount)} + {debt.interestRate}% ({debt.interestType === "compound" ? "сложные" : "простые"})</p>
+              )}
+              {showRemaining && (
+                <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/15 backdrop-blur-sm">
+                  <Icon name="Wallet" size={12} className="text-white/90" />
+                  <span className="text-white/90 text-xs font-medium">Остаток: {fmt(headerRemaining)}</span>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Avatar overlap */}
         <div className="flex justify-center -mt-6 mb-2 relative z-10">
