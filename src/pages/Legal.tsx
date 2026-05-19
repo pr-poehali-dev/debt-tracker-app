@@ -23,7 +23,6 @@ const SECTIONS: Record<string, { title: string; body: JSX.Element }> = {
           <li><b>Email:</b> <a href={`mailto:${MERCHANT.email}`}>{MERCHANT.email}</a></li>
           <li><b>Телефон:</b> <a href={`tel:${MERCHANT.phone.replace(/\s|-/g, "")}`}>{MERCHANT.phone}</a></li>
           <li><b>Сайт:</b> {MERCHANT.site}</li>
-          <li><b>Адрес:</b> {MERCHANT.address}</li>
           <li><b>Время ответа:</b> до 24 часов в рабочие дни</li>
         </ul>
         <p>По всем вопросам можно писать на email или звонить — мы стараемся отвечать максимально быстро.</p>
@@ -41,8 +40,8 @@ const SECTIONS: Record<string, { title: string; body: JSX.Element }> = {
           <li><b>ИНН:</b> {MERCHANT.inn}</li>
           <li><b>Email:</b> <a href={`mailto:${MERCHANT.email}`}>{MERCHANT.email}</a></li>
           <li><b>Телефон:</b> {MERCHANT.phone}</li>
-          <li><b>Адрес:</b> {MERCHANT.address}</li>
           <li><b>Сайт:</b> {MERCHANT.site}</li>
+          <li><b>Регион:</b> Россия</li>
         </ul>
         <h3>Платёжные реквизиты</h3>
         <ul>
