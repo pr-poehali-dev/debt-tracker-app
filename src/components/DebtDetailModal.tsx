@@ -96,6 +96,8 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
   const [newDueDate, setNewDueDate] = useState("");
   const [savingDue, setSavingDue] = useState(false);
   const [statusToast, setStatusToast] = useState<{ kind: "accepted" | "rejected"; amount: number } | null>(null);
+  const [sendingToChat, setSendingToChat] = useState(false);
+  const [chatToast, setChatToast] = useState<"sent" | "error" | null>(null);
   const prevHistoryRef = useRef<PaymentItem[]>([]);
 
   function playStatusSound(kind: "accepted" | "rejected") {
@@ -122,31 +124,9 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
 
   function exportPaymentHistory() {
     if (!debt) return;
-    const accepted = history.filter(h => h.status === "accepted");
-    if (accepted.length === 0) return;
-
-    const totalAmount = total ?? debt.amount;
-    const paidSum = accepted.reduce((s, h) => s + h.amount, 0);
-    const remaining = Math.max(0, totalAmount - paidSum);
-
-    const counterparty = debt.counterpartyName || (dir === "lent" ? "Должник" : "Кредитор");
-    const roleLabel = dir === "lent" ? "Должник" : "Кредитор";
-
-    const lines: string[] = [];
-    lines.push(`Долг: ${debt.name}`);
-    lines.push(`${roleLabel}: ${counterparty}`);
-    lines.push("");
-    lines.push(`Общий долг: ${fmt(totalAmount)}`);
-    lines.push("");
-    for (const p of accepted) {
-      const d = new Date(p.created_at);
-      const dateStr = d.toLocaleDateString(locale);
-      lines.push(`${dateStr} — ${fmt(p.amount)}`);
-    }
-    lines.push("");
-    lines.push(`Остаток: ${fmt(remaining)}`);
-
-    const text = lines.join("\r\n") + "\r\n";
+    const raw = buildHistoryText();
+    if (!raw) return;
+    const text = raw.replace(/\n/g, "\r\n") + "\r\n";
 
     const safeTitle = (debt.name || "debt").replace(/[^a-zA-Zа-яА-Я0-9_-]+/g, "_").slice(0, 40);
     const today = new Date().toISOString().slice(0, 10);
@@ -173,6 +153,58 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
     a.click();
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function buildHistoryText(): string | null {
+    if (!debt) return null;
+    const accepted = history.filter(h => h.status === "accepted");
+    if (accepted.length === 0) return null;
+    const totalAmount = total ?? debt.amount;
+    const paidSum = accepted.reduce((s, h) => s + h.amount, 0);
+    const remaining = Math.max(0, totalAmount - paidSum);
+    const counterparty = debt.counterpartyName || (dir === "lent" ? "Должник" : "Кредитор");
+    const roleLabel = dir === "lent" ? "Должник" : "Кредитор";
+    const lines: string[] = [];
+    lines.push(`Долг: ${debt.name}`);
+    lines.push(`${roleLabel}: ${counterparty}`);
+    lines.push("");
+    lines.push(`Общий долг: ${fmt(totalAmount)}`);
+    lines.push("");
+    for (const p of accepted) {
+      const d = new Date(p.created_at);
+      const dateStr = d.toLocaleDateString(locale);
+      lines.push(`${dateStr} — ${fmt(p.amount)}`);
+    }
+    lines.push("");
+    lines.push(`Остаток: ${fmt(remaining)}`);
+    return lines.join("\n");
+  }
+
+  async function sendHistoryToChat() {
+    if (!debt || !debt.debtDbId || !token || sendingToChat) return;
+    const text = buildHistoryText();
+    if (!text) return;
+    setSendingToChat(true);
+    try {
+      const { default: urls } = await import("../../backend/func2url.json");
+      const res = await fetch(urls["chat"], {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ text, debt_id: debt.debtDbId }),
+      });
+      if (res.ok) {
+        setChatToast("sent");
+        setTimeout(() => setChatToast(null), 2500);
+      } else {
+        setChatToast("error");
+        setTimeout(() => setChatToast(null), 2500);
+      }
+    } catch {
+      setChatToast("error");
+      setTimeout(() => setChatToast(null), 2500);
+    } finally {
+      setSendingToChat(false);
+    }
   }
 
   useEffect(() => {
@@ -392,6 +424,23 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
             {statusToast.kind === "accepted"
               ? `Кредитор подтвердил возврат ${fmt(statusToast.amount)}`
               : `Кредитор отклонил возврат ${fmt(statusToast.amount)}`}
+          </span>
+        </div>
+      )}
+      {chatToast && (
+        <div
+          className="fixed top-4 left-1/2 -translate-x-1/2 z-[110] flex items-center gap-2 px-4 py-2.5 rounded-2xl shadow-2xl animate-fade-in"
+          style={{
+            background: chatToast === "sent"
+              ? "linear-gradient(135deg,#a855f7,#7c3aed)"
+              : "linear-gradient(135deg,#ef4444,#b91c1c)",
+            color: "#fff",
+            maxWidth: "92vw",
+          }}
+        >
+          <Icon name={chatToast === "sent" ? "Send" : "XCircle"} size={18} />
+          <span className="text-sm font-medium">
+            {chatToast === "sent" ? "История отправлена в чат" : "Не удалось отправить"}
           </span>
         </div>
       )}
@@ -786,6 +835,21 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
                     </div>
                     <Icon name={showHistory ? "ChevronUp" : "ChevronDown"} size={16} className="text-muted-foreground flex-shrink-0" />
                   </button>
+                  {hasPayments && onOpenChat && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); sendHistoryToChat(); }}
+                      disabled={sendingToChat}
+                      title="Отправить историю в чат"
+                      aria-label="Отправить историю в чат"
+                      className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 active:scale-95 transition-transform disabled:opacity-50"
+                      style={{ background: "rgba(168,85,247,0.12)", border: "1px solid rgba(168,85,247,0.25)", color: "#c084fc" }}
+                    >
+                      {sendingToChat
+                        ? <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                        : <Icon name="Send" size={16} />}
+                    </button>
+                  )}
                   {hasPayments && (
                     <button
                       type="button"
