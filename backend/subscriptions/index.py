@@ -23,6 +23,36 @@ PRO_LIMITS = {
 
 PLAN_PRICE_RUB = 199
 
+AVAILABLE_PLANS = [
+    {
+        "code": "pro_month",
+        "title": "Месяц",
+        "subtitle": "Pro на 30 дней",
+        "amount_rub": 199,
+        "period_days": 30,
+        "per_month_rub": 199,
+        "badge": None,
+    },
+    {
+        "code": "pro_6month",
+        "title": "6 месяцев",
+        "subtitle": "Pro на полгода",
+        "amount_rub": 350,
+        "period_days": 182,
+        "per_month_rub": 58,
+        "badge": "Выгодно −71%",
+    },
+    {
+        "code": "pro_year",
+        "title": "Год",
+        "subtitle": "Pro на 12 месяцев",
+        "amount_rub": 690,
+        "period_days": 365,
+        "per_month_rub": 58,
+        "badge": "Лучшая цена",
+    },
+]
+
 
 def get_conn():
     return psycopg2.connect(os.environ["DATABASE_URL"])
@@ -148,6 +178,7 @@ def handler(event: dict, context) -> dict:
                 "limits": limits,
                 "usage": usage,
                 "price_rub": PLAN_PRICE_RUB,
+                "plans": AVAILABLE_PLANS,
             })
 
         return err("Метод не поддерживается", 405)

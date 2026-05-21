@@ -19,7 +19,8 @@ TBANK_API = "https://securepay.tinkoff.ru/v2/"
 
 PLANS = {
     "pro_month": {"amount_rub": 199, "period_days": 30, "label": "Подписка Debt-Debt Pro (1 месяц)"},
-    "pro_year": {"amount_rub": 1990, "period_days": 365, "label": "Подписка Debt-Debt Pro (1 год)"},
+    "pro_6month": {"amount_rub": 350, "period_days": 182, "label": "Подписка Debt-Debt Pro (6 месяцев)"},
+    "pro_year": {"amount_rub": 690, "period_days": 365, "label": "Подписка Debt-Debt Pro (1 год)"},
     "pdf_export": {"amount_rub": 99, "period_days": 0, "label": "Экспорт договора и истории в PDF"},
 }
 

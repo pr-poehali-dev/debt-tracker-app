@@ -14,6 +14,16 @@ export interface SubscriptionUsage {
   active_rentals: number;
 }
 
+export interface PlanOption {
+  code: string;
+  title: string;
+  subtitle: string;
+  amount_rub: number;
+  period_days: number;
+  per_month_rub: number;
+  badge: string | null;
+}
+
 export interface SubscriptionInfo {
   plan: Plan;
   source: string;
@@ -21,6 +31,7 @@ export interface SubscriptionInfo {
   limits: SubscriptionLimits;
   usage: SubscriptionUsage;
   price_rub: number;
+  plans?: PlanOption[];
 }
 
 interface SubscriptionContextValue {

@@ -64,13 +64,25 @@ function sourceLabel(src: string): string {
   return "Активна";
 }
 
+const DEFAULT_PLANS = [
+  { code: "pro_month", title: "Месяц", subtitle: "Pro на 30 дней", amount_rub: 199, period_days: 30, per_month_rub: 199, badge: null },
+  { code: "pro_6month", title: "6 месяцев", subtitle: "Pro на полгода", amount_rub: 350, period_days: 182, per_month_rub: 58, badge: "Выгодно −71%" },
+  { code: "pro_year", title: "Год", subtitle: "Pro на 12 месяцев", amount_rub: 690, period_days: 365, per_month_rub: 58, badge: "Лучшая цена" },
+];
+
 export default function PaywallModal({ onClose, reason }: Props) {
   const { info } = useSubscription();
-  const price = info?.price_rub ?? 199;
+  const plans = info?.plans && info.plans.length > 0 ? info.plans : DEFAULT_PLANS;
   const { title, subtitle } = reasonHeader(reason);
   const [loading, setLoading] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<string>(() => {
+    const six = plans.find((p) => p.code === "pro_6month");
+    return six ? six.code : plans[0]?.code || "pro_month";
+  });
   const isPro = info?.plan === "pro";
+  const current = plans.find((p) => p.code === selectedPlan) || plans[0];
+  const price = current?.amount_rub ?? 199;
 
   async function handleBuy() {
     setErrorText(null);
@@ -85,7 +97,7 @@ export default function PaywallModal({ onClose, reason }: Props) {
           Authorization: `Bearer ${token}`,
           "X-Authorization": `Bearer ${token}`,
         },
-        body: JSON.stringify({ plan: "pro_month", return_url: returnUrl }),
+        body: JSON.stringify({ plan: selectedPlan, return_url: returnUrl }),
       });
       const data = await res.json();
       if (res.ok && data.payment_url) {
@@ -207,15 +219,51 @@ export default function PaywallModal({ onClose, reason }: Props) {
         </div>
 
         <div className="px-5 pb-5">
-          <div className="rounded-2xl p-4 mb-3 border border-purple-500/30" style={{ background: "rgba(168,85,247,0.08)" }}>
-            <div className="flex items-baseline justify-between mb-1">
-              <span className="text-xs text-muted-foreground">Подписка Pro</span>
-              <span className="text-xs text-muted-foreground">в месяц</span>
-            </div>
-            <div className="flex items-baseline gap-1">
-              <span className="text-3xl font-black font-heading text-foreground">{price}</span>
-              <span className="text-lg font-bold text-foreground">₽</span>
-            </div>
+          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 pb-2">Выберите период</div>
+          <div className="space-y-2 mb-4">
+            {plans.map((p) => {
+              const active = p.code === selectedPlan;
+              return (
+                <button
+                  key={p.code}
+                  type="button"
+                  onClick={() => setSelectedPlan(p.code)}
+                  className="w-full text-left rounded-2xl p-3.5 border transition-all active:scale-[0.99]"
+                  style={{
+                    background: active ? "rgba(168,85,247,0.15)" : "rgba(255,255,255,0.03)",
+                    borderColor: active ? "#a855f7" : "rgba(255,255,255,0.10)",
+                    boxShadow: active ? "0 0 0 1px #a855f7" : "none",
+                  }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
+                      style={{ border: active ? "2px solid #a855f7" : "2px solid rgba(255,255,255,0.25)" }}
+                    >
+                      {active && <div className="w-2.5 h-2.5 rounded-full" style={{ background: "#a855f7" }} />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-bold text-foreground">{p.title}</span>
+                        {p.badge && (
+                          <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full"
+                                style={{ background: "linear-gradient(135deg,#22c55e,#16a34a)", color: "#fff" }}>
+                            {p.badge}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground mt-0.5">
+                        {p.per_month_rub < p.amount_rub ? `≈ ${p.per_month_rub} ₽ / мес` : p.subtitle}
+                      </div>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <div className="text-lg font-black font-heading text-foreground leading-none">{p.amount_rub} ₽</div>
+                      <div className="text-[10px] text-muted-foreground mt-1">разово</div>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
           </div>
 
           <button
@@ -231,7 +279,7 @@ export default function PaywallModal({ onClose, reason }: Props) {
                 Переходим к оплате…
               </span>
             ) : (
-              <>Подключить Pro за {price} ₽</>
+              <>Оплатить {price} ₽</>
             )}
           </button>
 
