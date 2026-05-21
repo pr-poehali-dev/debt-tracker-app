@@ -4,15 +4,36 @@ import urls from "../../backend/func2url.json";
 
 type Status = "checking" | "paid" | "pending" | "failed" | "unknown";
 
+function formatDate(iso: string | null): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  return d.toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" });
+}
+
 export default function PaymentSuccess() {
   const [status, setStatus] = useState<Status>("checking");
   const [amount, setAmount] = useState<number | null>(null);
+  const [expiresAt, setExpiresAt] = useState<string | null>(null);
 
   useEffect(() => {
     const orderId = new URLSearchParams(window.location.search).get("order_id");
     const token = localStorage.getItem("df-token") || "";
     let cancelled = false;
     let attempts = 0;
+
+    async function fetchSubscription() {
+      if (!token) return;
+      try {
+        const sres = await fetch(urls["subscriptions"], {
+          headers: { Authorization: `Bearer ${token}`, "X-Authorization": `Bearer ${token}` },
+        });
+        if (sres.ok) {
+          const sdata = await sres.json();
+          if (!cancelled && sdata?.expires_at) setExpiresAt(sdata.expires_at);
+        }
+      } catch { /* ignore */ }
+    }
 
     async function poll() {
       attempts += 1;
@@ -35,7 +56,10 @@ export default function PaymentSuccess() {
         }
         if (data.amount_rub) setAmount(data.amount_rub);
         const s: string = data.status || "";
-        if (s === "CONFIRMED") setStatus("paid");
+        if (s === "CONFIRMED") {
+          setStatus("paid");
+          fetchSubscription();
+        }
         else if (["REJECTED", "AUTH_FAIL", "DEADLINE_EXPIRED", "CANCELED", "REVERSED", "init_failed"].includes(s)) setStatus("failed");
         else if (attempts < 8) {
           setStatus("pending");
@@ -50,6 +74,8 @@ export default function PaymentSuccess() {
     poll();
     return () => { cancelled = true; };
   }, []);
+
+  const expiresStr = formatDate(expiresAt);
 
   const config: Record<Status, { icon: string; color: string; title: string; subtitle: string }> = {
     checking: { icon: "Loader2", color: "#a855f7", title: "Проверяем оплату…", subtitle: "Это займёт пару секунд" },
@@ -74,6 +100,35 @@ export default function PaymentSuccess() {
           <h1 className="text-2xl font-black font-heading text-foreground">{c.title}</h1>
           <p className="text-sm text-muted-foreground">{c.subtitle}</p>
         </div>
+
+        {status === "paid" && (
+          <div className="rounded-2xl p-4 text-left border border-purple-500/30" style={{ background: "rgba(168,85,247,0.10)" }}>
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                    style={{ background: "linear-gradient(135deg,#a855f7,#7c3aed)", color: "#fff" }}>
+                <Icon name="Sparkles" size={10} /> Pro
+              </span>
+              <span className="text-sm font-bold text-foreground">У вас подписка Pro</span>
+            </div>
+            {expiresStr && (
+              <p className="text-xs text-muted-foreground">Действует до <span className="text-foreground font-semibold">{expiresStr}</span></p>
+            )}
+            <div className="mt-3 grid grid-cols-2 gap-2 text-[11px]">
+              {[
+                { i: "Infinity", t: "Безлимит долгов" },
+                { i: "Home", t: "Безлимит аренд" },
+                { i: "MessageCircle", t: "Безлимит чата" },
+                { i: "Fingerprint", t: "Биометрия" },
+              ].map((f) => (
+                <div key={f.t} className="flex items-center gap-1.5 text-muted-foreground">
+                  <Icon name={f.i} size={12} className="text-purple-400" />
+                  <span>{f.t}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <a
           href="/"
           className="block w-full py-3 rounded-2xl font-bold text-white text-base active:scale-[0.98] transition-transform"

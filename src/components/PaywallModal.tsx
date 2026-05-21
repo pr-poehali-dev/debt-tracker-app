@@ -42,12 +42,35 @@ function reasonHeader(reason: PaywallReason | null): { title: string; subtitle: 
   return { title: "Pro — без ограничений", subtitle: "Все возможности приложения" };
 }
 
+function formatExpires(iso: string | null): string {
+  if (!iso) return "бессрочно";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" });
+}
+
+function daysLeft(iso: string | null): number | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  return Math.max(0, Math.ceil((d.getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+}
+
+function sourceLabel(src: string): string {
+  if (src === "paid") return "Оплачено";
+  if (src === "grandfather") return "Подарочный доступ";
+  if (src === "trial") return "Пробный период";
+  if (src === "promo") return "По промокоду";
+  return "Активна";
+}
+
 export default function PaywallModal({ onClose, reason }: Props) {
   const { info } = useSubscription();
   const price = info?.price_rub ?? 199;
   const { title, subtitle } = reasonHeader(reason);
   const [loading, setLoading] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
+  const isPro = info?.plan === "pro";
 
   async function handleBuy() {
     setErrorText(null);
@@ -75,6 +98,77 @@ export default function PaywallModal({ onClose, reason }: Props) {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (isPro && (!reason || reason.type === "manual")) {
+    const expires = info?.expires_at || null;
+    const left = daysLeft(expires);
+    return (
+      <div className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div className="absolute inset-0 bg-black/75 backdrop-blur-md" onClick={onClose} />
+        <div
+          className="relative w-full max-w-md rounded-t-3xl sm:rounded-3xl animate-fade-in border border-white/10 shadow-2xl max-h-[90vh] overflow-y-auto"
+          style={{ background: "#1a1d2e" }}
+        >
+          <div className="px-5 pt-5 pb-6 bg-gradient-to-br from-purple-600 via-fuchsia-600 to-indigo-600 rounded-t-3xl">
+            <div className="flex items-start justify-between mb-3">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/20 text-white text-[11px] font-bold uppercase tracking-wider">
+                <Icon name="Sparkles" size={12} /> Pro активна
+              </span>
+              <button
+                onClick={onClose}
+                aria-label="Закрыть"
+                className="w-9 h-9 rounded-2xl flex items-center justify-center bg-black/30 hover:bg-black/50 transition-colors"
+              >
+                <Icon name="X" size={18} className="text-white" />
+              </button>
+            </div>
+            <h2 className="text-2xl font-black text-white font-heading mb-1">У вас подписка Pro</h2>
+            <p className="text-white/85 text-sm">{sourceLabel(info?.source || "")} · {info?.usage ? `${info.usage.active_debts} долгов, ${info.usage.active_rentals} аренд` : "все функции доступны"}</p>
+          </div>
+
+          <div className="px-5 pt-5 pb-2 space-y-3">
+            <div className="rounded-2xl p-4 border border-purple-500/30" style={{ background: "rgba(168,85,247,0.08)" }}>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs text-muted-foreground">Действует до</span>
+                {left !== null && (
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: left > 7 ? "rgba(34,197,94,0.15)" : "rgba(245,158,11,0.15)", color: left > 7 ? "#22c55e" : "#f59e0b" }}>
+                    {left > 0 ? `осталось ${left} дн.` : "истекает сегодня"}
+                  </span>
+                )}
+              </div>
+              <div className="text-xl font-black font-heading text-foreground">{formatExpires(expires)}</div>
+            </div>
+
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 pt-1">Что включено</div>
+            <div className="space-y-2.5">
+              {FEATURES.map((f) => (
+                <div key={f.text} className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-purple-500/15 flex items-center justify-center flex-shrink-0">
+                    <Icon name={f.icon} size={18} className="text-purple-400" />
+                  </div>
+                  <p className="text-sm text-foreground">{f.text}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="px-5 pb-5 pt-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full py-3 rounded-2xl font-bold text-white text-base active:scale-[0.98] transition-transform"
+              style={{ background: "linear-gradient(135deg,#a855f7,#7c3aed)" }}
+            >
+              Отлично, спасибо!
+            </button>
+            <p className="text-[11px] text-muted-foreground text-center mt-3">
+              Подписка продлевается автоматически. Управление и отмена — через <a href="/legal/refund" target="_blank" className="underline">страницу возврата</a> или в поддержке.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
