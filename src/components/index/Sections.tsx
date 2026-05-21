@@ -36,8 +36,10 @@ function playPaymentSound() {
   } catch { /* ignore */ }
 }
 
-export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPaid, onDeleteDebt, onAddNew, personalLoans = [], onPersonalLoanUpdate, token = "", userId, onPaymentAccepted, onTopUpDecided }: { debts: Debt[]; dir: "lent" | "borrowed"; contacts: Contact[]; t: ReturnType<typeof getT>; locale: string; onOpenChat?: (debtId: string, title: string) => void; onMarkPaid?: (debtId: string) => void; onDeleteDebt?: (debtId: string) => Promise<void> | void; onAddNew?: () => void; personalLoans?: PersonalLoan[]; onPersonalLoanUpdate?: (loans: PersonalLoan[]) => void; token?: string; userId?: number; onPaymentAccepted?: (debtId: string, newAmount: number, fullyPaid: boolean) => void; onTopUpDecided?: (debtId: string, decision: "accepted" | "rejected", newAmount: number | null) => void }) {
+export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPaid, onDeleteDebt, onAddNew, personalLoans = [], onPersonalLoanUpdate, token = "", userId, userName, onPaymentAccepted, onTopUpDecided, onDecisionMade }: { debts: Debt[]; dir: "lent" | "borrowed"; contacts: Contact[]; t: ReturnType<typeof getT>; locale: string; onOpenChat?: (debtId: string, title: string) => void; onMarkPaid?: (debtId: string) => void; onDeleteDebt?: (debtId: string) => Promise<void> | void; onAddNew?: () => void; personalLoans?: PersonalLoan[]; onPersonalLoanUpdate?: (loans: PersonalLoan[]) => void; token?: string; userId?: number; userName?: string; onPaymentAccepted?: (debtId: string, newAmount: number, fullyPaid: boolean) => void; onTopUpDecided?: (debtId: string, decision: "accepted" | "rejected", newAmount: number | null) => void; onDecisionMade?: (debtDbId: string, decision: "accepted" | "rejected") => void }) {
   const [selectedDebt, setSelectedDebt] = useState<Debt | null>(null);
+  const [decidingId, setDecidingId] = useState<string | null>(null);
+  const [confirmReject, setConfirmReject] = useState<Debt | null>(null);
   const [expandedLoan, setExpandedLoan] = useState<string | null>(null);
   const [extraLoan, setExtraLoan] = useState<PersonalLoan | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -90,6 +92,34 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
     onMarkPaid(debtDbId);
     playPaymentSound();
     showToast(d ? t.debtMarkedPaidNamed.replace("{name}", d.name) : t.debtMarkedPaid);
+  }
+
+  async function decideDebt(d: Debt, decision: "accepted" | "rejected") {
+    if (!d.debtDbId || !d.shareToken || !userId) return;
+    setDecidingId(d.debtDbId);
+    try {
+      const { default: urls } = await import("../../../backend/func2url.json");
+      const res = await fetch(`${urls["debts"]}?token=${d.shareToken}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          borrower_decision: decision,
+          borrower_user_id: userId,
+          borrower_name: userName || undefined,
+        }),
+      });
+      if (res.ok) {
+        if (onDecisionMade) onDecisionMade(d.debtDbId, decision);
+        showToast(decision === "accepted" ? "Долг принят" : "Долг отклонён");
+        if (decision === "accepted") playPaymentSound();
+      } else {
+        showToast("Не удалось сохранить. Попробуйте ещё раз");
+      }
+    } catch {
+      showToast("Ошибка сети. Попробуйте ещё раз");
+    } finally {
+      setDecidingId(null);
+    }
   }
   const total = debts.filter(d => d.status !== "paid").reduce((s, d) => s + d.amount, 0);
   const overdue = debts.filter(d => d.status === "overdue").length;
@@ -192,6 +222,43 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
           </div>
         );
       })()}
+      {confirmReject && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/75 backdrop-blur-md" onClick={decidingId ? undefined : () => setConfirmReject(null)} />
+          <div className="relative w-full max-w-sm rounded-3xl overflow-hidden animate-fade-in border border-white/10 shadow-2xl" style={{ background: "#1a1d2e" }}>
+            <div className="p-5 flex flex-col items-center text-center gap-3">
+              <div className="w-14 h-14 rounded-full bg-red-500/15 flex items-center justify-center">
+                <Icon name="X" size={26} className="text-red-400" />
+              </div>
+              <p className="font-semibold text-foreground text-lg">Отклонить долг?</p>
+              <p className="text-sm text-muted-foreground">
+                «{confirmReject.name}» — {fmt(confirmReject.amount)}
+              </p>
+              <p className="text-xs text-muted-foreground">Кредитор увидит, что вы не подтвердили долг. Это действие нельзя отменить.</p>
+            </div>
+            <div className="px-5 pb-5 flex gap-2">
+              <button
+                onClick={() => setConfirmReject(null)}
+                disabled={!!decidingId}
+                className="flex-1 py-3 rounded-2xl bg-white/5 text-foreground font-medium text-sm border border-white/10 hover:bg-white/10 transition-colors disabled:opacity-50"
+              >
+                {t.cancel}
+              </button>
+              <button
+                onClick={async () => {
+                  const target = confirmReject;
+                  await decideDebt(target, "rejected");
+                  setConfirmReject(null);
+                }}
+                disabled={!!decidingId}
+                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-gradient-to-r from-red-500 to-rose-600 text-white font-semibold text-sm shadow-lg shadow-red-500/20 hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                {decidingId ? <Icon name="Loader2" size={16} className="animate-spin" /> : <><Icon name="X" size={16} />Отклонить</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {debts.length > 0 && (
         <div className="grid grid-cols-3 gap-3 mb-6">
           <div className={`glass rounded-2xl p-4 col-span-3 sm:col-span-1 ${dir === "lent" ? "glow-purple" : "glow-blue"}`}>
@@ -437,6 +504,34 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                       <Icon name="EyeOff" size={11} />
                       <span>{t.debtDeletedByBorrower}</span>
                     </p>
+                  )}
+                  {dir === "borrowed" && d.debtDbId && d.shareToken && !d.borrowerDecision && d.status !== "paid" && userId && (
+                    <div className="flex gap-2 mt-2.5">
+                      <button
+                        onClick={e => { e.stopPropagation(); decideDebt(d, "accepted"); }}
+                        disabled={decidingId === d.debtDbId}
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 h-9 px-3 rounded-lg text-xs font-semibold transition-all active:scale-95 disabled:opacity-50"
+                        style={{ background: "linear-gradient(135deg, #22c55e, #16a34a)", color: "#fff", boxShadow: "0 4px 12px rgba(34,197,94,0.25)" }}
+                      >
+                        {decidingId === d.debtDbId ? (
+                          <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                        ) : (
+                          <>
+                            <Icon name="Check" size={14} />
+                            <span>Принять</span>
+                          </>
+                        )}
+                      </button>
+                      <button
+                        onClick={e => { e.stopPropagation(); setConfirmReject(d); }}
+                        disabled={decidingId === d.debtDbId}
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 h-9 px-3 rounded-lg text-xs font-semibold transition-all active:scale-95 disabled:opacity-50"
+                        style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.35)", color: "#f87171" }}
+                      >
+                        <Icon name="X" size={14} />
+                        <span>Отклонить</span>
+                      </button>
+                    </div>
                   )}
                 </div>
                 <div className="text-right flex-shrink-0 flex flex-col items-end gap-1">
