@@ -134,6 +134,16 @@ def init_payment(conn, user_id: int, plan_code: str, return_url: str) -> dict:
             "status": 503,
         }
 
+    # Получаем email/phone пользователя — нужны для чека онлайн-кассы (54-ФЗ)
+    user_email = ""
+    user_phone = ""
+    with conn.cursor() as cur:
+        cur.execute(f"SELECT email, phone FROM {SCHEMA}.users WHERE id = %s", (user_id,))
+        urow = cur.fetchone()
+        if urow:
+            user_email = (urow[0] or "").strip()
+            user_phone = (urow[1] or "").strip()
+
     order_id = gen_order_id()
     amount_kop = int(plan["amount_rub"]) * 100
     success_url = (return_url.rstrip("/") + f"/payment/success?order_id={order_id}") if return_url else None
@@ -160,6 +170,37 @@ def init_payment(conn, user_id: int, plan_code: str, return_url: str) -> dict:
         init_body["SuccessURL"] = success_url
     if fail_url:
         init_body["FailURL"] = fail_url
+
+    # Чек для онлайн-кассы (54-ФЗ). Без него боевой терминал с кассой не принимает Init.
+    receipt = {
+        "Taxation": "usn_income",
+        "Items": [
+            {
+                "Name": plan["label"][:128],
+                "Price": amount_kop,
+                "Quantity": 1.0,
+                "Amount": amount_kop,
+                "Tax": "none",
+                "PaymentMethod": "full_payment",
+                "PaymentObject": "service",
+            }
+        ],
+    }
+    if user_email:
+        receipt["Email"] = user_email
+    if user_phone:
+        # Нормализуем телефон к виду +7XXXXXXXXXX
+        digits = "".join(ch for ch in user_phone if ch.isdigit())
+        if digits:
+            if len(digits) == 11 and digits.startswith("8"):
+                digits = "7" + digits[1:]
+            if not digits.startswith("7") and len(digits) == 10:
+                digits = "7" + digits
+            receipt["Phone"] = "+" + digits
+    # Если ни email, ни телефона нет — банк отклонит чек
+    if "Email" not in receipt and "Phone" not in receipt:
+        receipt["Email"] = "noreply@debt-debt.ru"
+    init_body["Receipt"] = receipt
 
     init_body["Token"] = tbank_sign(init_body, password)
     resp = tbank_request("Init", init_body)
