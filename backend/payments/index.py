@@ -163,6 +163,7 @@ def init_payment(conn, user_id: int, plan_code: str, return_url: str) -> dict:
 
     init_body["Token"] = tbank_sign(init_body, password)
     resp = tbank_request("Init", init_body)
+    print(f"[payments] Init terminal={terminal[:6]}... order={order_id} amount={amount_kop} resp={json.dumps(resp, ensure_ascii=False)}")
 
     if resp.get("Success") and resp.get("PaymentURL"):
         with conn.cursor() as cur:
@@ -185,7 +186,10 @@ def init_payment(conn, user_id: int, plan_code: str, return_url: str) -> dict:
             (order_id,)
         )
         conn.commit()
-    return {"error": resp.get("Message") or "Не удалось создать счёт", "status": 502}
+    error_msg = resp.get("Message") or "Не удалось создать счёт"
+    if resp.get("Details"):
+        error_msg += f": {resp.get('Details')}"
+    return {"error": error_msg, "status": 502}
 
 
 def handle_notification(conn, body_raw: str) -> dict:
