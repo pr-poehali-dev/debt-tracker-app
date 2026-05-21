@@ -109,7 +109,8 @@ def get_user_plan(conn, user_id: int):
                 f"""SELECT (expires_at < NOW()) FROM {SCHEMA}.user_subscriptions WHERE user_id = %s""",
                 (user_id,)
             )
-            is_expired = cur.fetchone()[0]
+            chk = cur.fetchone()
+            is_expired = bool(chk[0]) if chk and chk[0] is not None else False
             if is_expired:
                 cur.execute(
                     f"""UPDATE {SCHEMA}.user_subscriptions SET plan = 'free', updated_at = NOW()

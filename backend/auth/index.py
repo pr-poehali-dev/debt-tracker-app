@@ -288,14 +288,15 @@ def send_farewell_smtp(to_email: str, full_name: str = None):
     return 200
 
 def send_farewell_email(to_email: str, full_name: str = None):
-    """Прощальное письмо. Resend → SMTP fallback. Тихо проглатывает все ошибки."""
+    """Прощальное письмо. Resend → SMTP fallback. Ошибки логирует, но не пробрасывает."""
     try:
         return send_farewell_resend(to_email, full_name)
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[farewell] resend failed for {to_email}: {e}")
     try:
         return send_farewell_smtp(to_email, full_name)
-    except Exception:
+    except Exception as e:
+        print(f"[farewell] smtp failed for {to_email}: {e}")
         return None
 
 def make_session(conn, user_id):

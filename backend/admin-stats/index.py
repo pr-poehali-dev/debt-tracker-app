@@ -5,6 +5,7 @@ import psycopg2
 from datetime import datetime, timezone
 
 ADMIN_PHONE = "+79680066666"
+SCHEMA = "t_p29977622_debt_tracker_app"
 
 CORS = {
     "Access-Control-Allow-Origin": "*",
@@ -29,7 +30,7 @@ def handler(event: dict, context) -> dict:
     cur = conn.cursor()
 
     cur.execute(
-        "SELECT u.id, u.phone FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token = %s AND s.expires_at > %s",
+        f"SELECT u.id, u.phone FROM {SCHEMA}.sessions s JOIN {SCHEMA}.users u ON u.id = s.user_id WHERE s.token = %s AND s.expires_at > %s",
         (token, now),
     )
     row = cur.fetchone()
@@ -45,18 +46,18 @@ def handler(event: dict, context) -> dict:
         conn.close()
         return {"statusCode": 403, "headers": CORS, "body": json.dumps({"error": "Forbidden"})}
 
-    cur.execute("SELECT COUNT(*) FROM users")
+    cur.execute(f"SELECT COUNT(*) FROM {SCHEMA}.users")
     total_users = cur.fetchone()[0]
 
-    cur.execute("SELECT COUNT(DISTINCT user_id) FROM sessions WHERE expires_at > %s", (now,))
+    cur.execute(f"SELECT COUNT(DISTINCT user_id) FROM {SCHEMA}.sessions WHERE expires_at > %s", (now,))
     active_sessions = cur.fetchone()[0]
 
-    cur.execute("SELECT COUNT(*) FROM debts")
+    cur.execute(f"SELECT COUNT(*) FROM {SCHEMA}.debts")
     total_debts = cur.fetchone()[0]
 
-    cur.execute("""
+    cur.execute(f"""
         SELECT u.id, u.full_name, u.email, u.created_at
-        FROM users u
+        FROM {SCHEMA}.users u
         ORDER BY u.created_at DESC
         LIMIT 50
     """)
