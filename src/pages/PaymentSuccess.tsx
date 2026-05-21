@@ -11,17 +11,16 @@ export default function PaymentSuccess() {
   useEffect(() => {
     const orderId = new URLSearchParams(window.location.search).get("order_id");
     const token = localStorage.getItem("df-token") || "";
-    if (!orderId) {
-      setStatus("unknown");
-      return;
-    }
     let cancelled = false;
     let attempts = 0;
 
     async function poll() {
       attempts += 1;
       try {
-        const res = await fetch(`${urls["payments"]}?order_id=${encodeURIComponent(orderId!)}`, {
+        const url = orderId
+          ? `${urls["payments"]}?order_id=${encodeURIComponent(orderId)}`
+          : `${urls["payments"]}?action=last`;
+        const res = await fetch(url, {
           headers: { Authorization: `Bearer ${token}`, "X-Authorization": `Bearer ${token}` },
         });
         if (!res.ok) {
@@ -30,6 +29,10 @@ export default function PaymentSuccess() {
         }
         const data = await res.json();
         if (cancelled) return;
+        if (data.error) {
+          setStatus("unknown");
+          return;
+        }
         if (data.amount_rub) setAmount(data.amount_rub);
         const s: string = data.status || "";
         if (s === "CONFIRMED") setStatus("paid");

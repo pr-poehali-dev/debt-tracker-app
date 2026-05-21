@@ -57,11 +57,18 @@ def get_user_id_from_token(token_str, conn):
 
 def tbank_sign(params: dict, password: str) -> str:
     """Подпись T-Bank: SHA256 от конкатенации значений (по алфавиту ключей) + Password.
-    Из подписи исключаются вложенные объекты (DATA, Receipt, Token, Shops)."""
-    skip = {"Token", "DATA", "Receipt", "Shops"}
+    Из подписи исключаются вложенные объекты (DATA, Receipt, Token, Shops, Items, Receipts).
+    Bool сериализуется как 'true'/'false' (нижний регистр), как требует банк."""
+    skip = {"Token", "DATA", "Receipt", "Shops", "Items", "Receipts"}
     flat = {k: v for k, v in params.items() if k not in skip and not isinstance(v, (dict, list))}
     flat["Password"] = password
-    src = "".join(str(flat[k]) for k in sorted(flat.keys()))
+
+    def _val(v):
+        if isinstance(v, bool):
+            return "true" if v else "false"
+        return str(v)
+
+    src = "".join(_val(flat[k]) for k in sorted(flat.keys()))
     return hashlib.sha256(src.encode("utf-8")).hexdigest()
 
 
@@ -242,14 +249,18 @@ def handle_notification(conn, body_raw: str) -> dict:
     try:
         data = json.loads(body_raw or "{}")
     except Exception:
+        print(f"[payments] notification bad json: {body_raw[:500]}")
         return {"_raw_ok": False}
+
+    print(f"[payments] notification raw: {json.dumps(data, ensure_ascii=False)}")
 
     # Верификация подписи
     incoming_token = data.get("Token", "")
     expected = tbank_sign(data, password)
     if not incoming_token or incoming_token.lower() != expected.lower():
-        print(f"[payments] bad signature for order {data.get('OrderId')}")
-        return {"_raw_ok": False}
+        print(f"[payments] bad signature for order {data.get('OrderId')} expected={expected} got={incoming_token}")
+        # Всё равно возвращаем OK, чтобы банк не зациклился. Подписку активируем через GetState на странице успеха.
+        return {"_raw_ok": True}
 
     order_id = data.get("OrderId")
     status = data.get("Status", "")
@@ -286,22 +297,68 @@ def handle_notification(conn, body_raw: str) -> dict:
     return {"_raw_ok": True}
 
 
-def get_payment_status(conn, order_id: str) -> dict:
+def get_payment_status(conn, order_id: str, user_id: int = None) -> dict:
     with conn.cursor() as cur:
         cur.execute(
-            f"""SELECT order_id, status, amount, plan, created_at FROM {SCHEMA}.payments WHERE order_id = %s""",
+            f"""SELECT order_id, status, amount, plan, created_at, user_id, period_days, provider_id
+                FROM {SCHEMA}.payments WHERE order_id = %s""",
             (order_id,)
         )
         row = cur.fetchone()
     if not row:
         return {"error": "Платёж не найден", "status": 404}
+
+    cur_status = row[1]
+    db_user_id = row[5]
+    period_days = row[6] or 0
+    plan_code = row[3]
+
+    # Если статус ещё в pending — спросим у банка напрямую (резерв на случай если webhook не дошёл)
+    if cur_status in ("pending", "NEW", "AUTHORIZING", "FORM_SHOWED"):
+        terminal = os.environ.get("TBANK_TERMINAL_KEY", "")
+        password = os.environ.get("TBANK_SECRET_KEY", "")
+        if terminal and password:
+            req = {"TerminalKey": terminal, "PaymentId": str(row[7]) if row[7] else None}
+            if not req["PaymentId"]:
+                req = {"TerminalKey": terminal, "OrderId": order_id}
+            req["Token"] = tbank_sign(req, password)
+            state = tbank_request("GetState", req)
+            print(f"[payments] GetState order={order_id} resp={json.dumps(state, ensure_ascii=False)}")
+            new_status = state.get("Status")
+            if state.get("Success") and new_status and new_status != cur_status:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        f"UPDATE {SCHEMA}.payments SET status=%s, updated_at=NOW() WHERE order_id=%s",
+                        (new_status, order_id)
+                    )
+                    conn.commit()
+                if new_status == "CONFIRMED" and cur_status != "CONFIRMED":
+                    apply_payment_to_subscription(conn, db_user_id, plan_code, period_days)
+                    print(f"[payments] CONFIRMED via GetState order {order_id} user {db_user_id}")
+                cur_status = new_status
+
     return {
         "order_id": row[0],
-        "status": row[1],
+        "status": cur_status,
         "amount_rub": float(row[2]),
-        "plan": row[3],
+        "plan": plan_code,
         "created_at": str(row[4]),
     }
+
+
+def get_last_pending_payment(conn, user_id: int) -> dict:
+    """Возвращает последний платёж пользователя (если order_id потерян в URL)."""
+    with conn.cursor() as cur:
+        cur.execute(
+            f"""SELECT order_id FROM {SCHEMA}.payments
+                WHERE user_id = %s AND created_at > NOW() - INTERVAL '1 hour'
+                ORDER BY created_at DESC LIMIT 1""",
+            (user_id,)
+        )
+        row = cur.fetchone()
+    if not row:
+        return {"error": "Платёж не найден", "status": 404}
+    return get_payment_status(conn, row[0], user_id)
 
 
 def handler(event: dict, context) -> dict:
@@ -333,8 +390,18 @@ def handler(event: dict, context) -> dict:
             return err("Не авторизован", 401)
 
         if method == "GET" and qs.get("order_id"):
-            data = get_payment_status(conn, qs["order_id"])
-            return json_resp(data, data.pop("status", 200))
+            data = get_payment_status(conn, qs["order_id"], user_id)
+            http_status = 200
+            if data.get("error"):
+                http_status = data.pop("status", 404) if isinstance(data.get("status"), int) else 404
+            return json_resp(data, http_status)
+
+        if method == "GET" and qs.get("action") == "last":
+            data = get_last_pending_payment(conn, user_id)
+            http_status = 200
+            if data.get("error"):
+                http_status = data.pop("status", 404) if isinstance(data.get("status"), int) else 404
+            return json_resp(data, http_status)
 
         if method == "POST" and not qs.get("action"):
             body = json.loads(event.get("body") or "{}")
