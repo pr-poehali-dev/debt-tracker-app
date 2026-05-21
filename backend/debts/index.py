@@ -267,6 +267,8 @@ def handler(event: dict, context) -> dict:
         token = gen_token()
         with get_conn() as conn:
             lender_user_id = get_user_id_from_token(auth_header, conn)
+            # Находим заёмщика по телефону, чтобы привязать долг к его аккаунту
+            borrower_user_id = find_user_by_phone(conn, body.get("borrower_phone"))
             # Лимит для free-тарифа на количество активных долгов
             if lender_user_id:
                 plan = get_user_plan(conn, lender_user_id)
@@ -298,8 +300,8 @@ def handler(event: dict, context) -> dict:
                     f"""WITH inserted AS (
                             INSERT INTO {SCHEMA}.debts
                             (share_token, title, amount, note, due_date, lender_name, lender_phone,
-                             borrower_name, borrower_phone, lender_user_id, interest_rate, interest_type)
-                            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                             borrower_name, borrower_phone, lender_user_id, borrower_user_id, interest_rate, interest_type)
+                            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                             RETURNING *
                         )
                         SELECT d.id, d.share_token, d.title, d.amount, d.note, d.due_date,
@@ -312,15 +314,14 @@ def handler(event: dict, context) -> dict:
                         LEFT JOIN {SCHEMA}.users ub ON ub.id = d.borrower_user_id""",
                     (token, body["title"], float(body["amount"]), body.get("note"),
                      body.get("due_date"), body["lender_name"], body.get("lender_phone"),
-                     body.get("borrower_name"), body.get("borrower_phone"), lender_user_id,
+                     body.get("borrower_name"), body.get("borrower_phone"), lender_user_id, borrower_user_id,
                      body.get("interest_rate"), body.get("interest_type", "simple"))
                 )
                 row = cur.fetchone()
             conn.commit()
-            # Найти должника по телефону и отправить push
+            # Отправить push найденному должнику
             try:
-                borrower_id = find_user_by_phone(conn, body.get("borrower_phone"))
-                if borrower_id:
+                if borrower_user_id:
                     lender_name = body.get("lender_name") or "Кредитор"
                     amount_str = f"{float(body['amount']):,.0f} ₽".replace(",", " ")
                     notif_title = f"💰 Новый долг от {lender_name}"
@@ -329,11 +330,11 @@ def handler(event: dict, context) -> dict:
                         cur.execute(
                             f"""INSERT INTO {SCHEMA}.notifications (user_id, type, title, body, data)
                                 VALUES (%s, 'debt_created', %s, %s, %s)""",
-                            (borrower_id, notif_title, notif_body,
+                            (borrower_user_id, notif_title, notif_body,
                              json.dumps({"debt_id": str(row[0]), "lender_name": lender_name, "amount": float(body['amount'])}))
                         )
                     conn.commit()
-                    send_push(conn, borrower_id, notif_title, notif_body, "/?section=borrowed")
+                    send_push(conn, borrower_user_id, notif_title, notif_body, "/?section=borrowed")
             except Exception as e:
                 print(f"[push] new-debt notify failed: {e}")
         return json_resp(row_to_debt(row), 201)
