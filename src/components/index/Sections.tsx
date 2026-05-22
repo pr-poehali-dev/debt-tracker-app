@@ -605,6 +605,16 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                         <Icon name="Trash2" size={14} style={{ color: "#f87171" }} />
                       </button>
                     )}
+                    {dir === "borrowed" && d.debtDbId && d.deletedByLender && onDeleteDebt && (
+                      <button
+                        onClick={e => { e.stopPropagation(); setConfirmDelete(d); }}
+                        title={t.delete}
+                        className="inline-flex items-center justify-center w-8 h-8 rounded-lg transition-all active:scale-95"
+                        style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)" }}
+                      >
+                        <Icon name="Trash2" size={14} style={{ color: "#f87171" }} />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
