@@ -630,10 +630,10 @@ export default function NewDebtModal({ open, onClose, myName = "", myPhone = "",
       const r = await fetch(API_URL, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          "Content-Type": "text/plain;charset=UTF-8",
         },
         body: JSON.stringify({
+          auth_token: token,
           title: form.title,
           amount: parseFloat(form.amount.replace(/\s/g, "")),
           lender_name: lenderName,

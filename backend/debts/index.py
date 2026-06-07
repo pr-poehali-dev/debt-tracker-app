@@ -263,6 +263,15 @@ def _handle(event: dict, context) -> dict:
     qs = event.get("queryStringParameters") or {}
     headers = event.get("headers") or {}
     auth_header = headers.get("X-Authorization") or headers.get("Authorization") or ""
+    # Фолбэк: токен может прийти в теле или query (чтобы избежать CORS preflight у части провайдеров)
+    if not auth_header:
+        try:
+            _b = json.loads(event.get("body") or "{}")
+            auth_header = _b.get("auth_token") or ""
+        except Exception:
+            auth_header = ""
+    if not auth_header:
+        auth_header = qs.get("auth_token") or ""
 
     # POST / — создать долг (исключая action-роуты ниже)
     if method == "POST" and not qs.get("action"):

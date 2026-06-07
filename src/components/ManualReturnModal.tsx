@@ -89,9 +89,8 @@ export default function ManualReturnModal({ debtId, debtTitle, defaultAmount, to
     (async () => {
       try {
         const { default: urls } = await import("../../backend/func2url.json");
-        const res = await fetch(`${urls["debts"]}?action=pay&debt_id=${debtId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const authTok = token || (typeof localStorage !== "undefined" ? localStorage.getItem("df-token") || "" : "");
+        const res = await fetch(`${urls["debts"]}?action=pay&debt_id=${debtId}&auth_token=${encodeURIComponent(authTok)}`);
         if (!res.ok) throw new Error();
         const data = await res.json();
         const list: Array<{ amount: number; status: string }> = Array.isArray(data.requests) ? data.requests : [];
@@ -175,8 +174,8 @@ export default function ManualReturnModal({ debtId, debtTitle, defaultAmount, to
         : (noteText || null);
       const res = await fetchWithRetry(`${urls["debts"]}?action=pay`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
-        body: JSON.stringify({ debt_id: debtId, amount: numAmount, note: noteForPayment }),
+        headers: { "Content-Type": "text/plain;charset=UTF-8" },
+        body: JSON.stringify({ debt_id: debtId, amount: numAmount, note: noteForPayment, auth_token: authToken }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
