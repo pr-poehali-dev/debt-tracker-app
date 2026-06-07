@@ -579,6 +579,7 @@ export default function NewDebtModal({ open, onClose, myName = "", myPhone = "",
   const [loading, setLoading] = useState(false);
   const [createdDebt, setCreatedDebt] = useState<Record<string, string | number | null> | null>(null);
   const [copied, setCopied] = useState(false);
+  const [formError, setFormError] = useState("");
 
   const [form, setForm] = useState({
     title: "",
@@ -592,7 +593,7 @@ export default function NewDebtModal({ open, onClose, myName = "", myPhone = "",
   });
   const [saveAsContact, setSaveAsContact] = useState(false);
 
-  function set(k: string, v: string) { setForm(f => ({ ...f, [k]: v })); }
+  function set(k: string, v: string) { setForm(f => ({ ...f, [k]: v })); if (formError) setFormError(""); }
 
   function fmt(n: number) { return n.toLocaleString(lang === "en" ? "en-US" : "ru-RU") + " ₽"; }
 
@@ -618,7 +619,11 @@ export default function NewDebtModal({ open, onClose, myName = "", myPhone = "",
   const returnCalc = calcReturn();
 
   async function create() {
-    if (!form.title || !form.amount) return;
+    const lenderName = (myName || "").trim() || (typeof localStorage !== "undefined" ? (localStorage.getItem("df-user-name") || "") : "");
+    if (!form.title.trim()) { setFormError(lang === "en" ? "Enter a debt title" : "Укажите название долга"); return; }
+    if (!form.amount || !parseFloat(form.amount.replace(/\s/g, ""))) { setFormError(lang === "en" ? "Enter an amount" : "Укажите сумму"); return; }
+    if (!lenderName.trim()) { setFormError(lang === "en" ? "Fill in your name in profile settings" : "Заполните своё имя в настройках профиля"); return; }
+    setFormError("");
     setLoading(true);
     try {
       const token = localStorage.getItem("df-token") || "";
@@ -631,7 +636,7 @@ export default function NewDebtModal({ open, onClose, myName = "", myPhone = "",
         body: JSON.stringify({
           title: form.title,
           amount: parseFloat(form.amount.replace(/\s/g, "")),
-          lender_name: myName,
+          lender_name: lenderName,
           lender_phone: normalizePhone(myPhone) || undefined,
           borrower_name: form.borrower_name || undefined,
           borrower_phone: normalizePhone(form.borrower_phone) || undefined,
@@ -659,6 +664,10 @@ export default function NewDebtModal({ open, onClose, myName = "", myPhone = "",
         return;
       }
       const d = await r.json();
+      if (!r.ok || d.error) {
+        setFormError(d.error === "limit_reached" ? (d.message || "Достигнут лимит долгов") : (d.error || "Не удалось создать долг. Попробуйте ещё раз"));
+        return;
+      }
       if (d.share_token) {
         if (saveAsContact && form.borrower_name.trim()) {
           try {
@@ -704,7 +713,7 @@ export default function NewDebtModal({ open, onClose, myName = "", myPhone = "",
     } else copyLink();
   }
 
-  function close() { setStep("form"); setCreatedDebt(null); setForm({ title: "", amount: "", borrower_name: "", borrower_phone: "", note: "", due_date: "", interest_rate: "", interest_type: "simple" }); setSaveAsContact(false); onClose(); }
+  function close() { setStep("form"); setCreatedDebt(null); setFormError(""); setForm({ title: "", amount: "", borrower_name: "", borrower_phone: "", note: "", due_date: "", interest_rate: "", interest_type: "simple" }); setSaveAsContact(false); onClose(); }
 
   if (!open) return null;
 
@@ -876,6 +885,12 @@ export default function NewDebtModal({ open, onClose, myName = "", myPhone = "",
               <textarea value={form.note} onChange={e => set("note", e.target.value)} placeholder={t.notePlaceholderRu} rows={2} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-purple-500/50 transition-colors resize-none" />
             </div>
 
+            {formError && (
+              <div className="mt-2 flex items-start gap-2 rounded-xl px-3 py-2.5 text-sm" style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", color: "#f87171" }}>
+                <Icon name="AlertCircle" size={16} className="mt-0.5 flex-shrink-0" />
+                <span>{formError}</span>
+              </div>
+            )}
             <button
               onClick={create}
               disabled={loading || !form.title || !form.amount}
