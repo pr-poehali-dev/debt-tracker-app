@@ -112,6 +112,23 @@ export default function ManualReturnModal({ debtId, debtTitle, defaultAmount, to
 
   const numAmount = parseFloat(amount.replace(/\s/g, "").replace(",", "."));
 
+  async function fetchWithRetry(url: string, opts: RequestInit, retries = 2): Promise<Response> {
+    let lastErr: unknown;
+    for (let i = 0; i <= retries; i++) {
+      try {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 30000);
+        const res = await fetch(url, { ...opts, signal: ctrl.signal });
+        clearTimeout(timer);
+        return res;
+      } catch (e) {
+        lastErr = e;
+        if (i < retries) await new Promise(r => setTimeout(r, 800 * (i + 1)));
+      }
+    }
+    throw lastErr;
+  }
+
   async function send() {
     if (!numAmount || numAmount <= 0) {
       setError("Введите сумму больше нуля");
@@ -119,6 +136,11 @@ export default function ManualReturnModal({ debtId, debtTitle, defaultAmount, to
     }
     if (!loadingRemaining && remaining > 0 && numAmount > remaining) {
       setError(`Сумма больше остатка (${fmt(remaining)})`);
+      return;
+    }
+    const authToken = token || (typeof localStorage !== "undefined" ? localStorage.getItem("df-token") || "" : "");
+    if (!authToken) {
+      setError("Сессия истекла. Войдите в приложение заново");
       return;
     }
     setLoading(true);
@@ -130,9 +152,9 @@ export default function ManualReturnModal({ debtId, debtTitle, defaultAmount, to
       let uploaded: { url: string; type: string; name: string; size: number } | null = null;
       if (attachment) {
         const base64 = await readAsBase64(attachment.file);
-        const upRes = await fetch(`${urls["chat"]}?action=upload`, {
+        const upRes = await fetchWithRetry(`${urls["chat"]}?action=upload`, {
           method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
           body: JSON.stringify({
             file_base64: base64,
             file_name: attachment.file.name,
@@ -151,9 +173,9 @@ export default function ManualReturnModal({ debtId, debtTitle, defaultAmount, to
       const noteForPayment = uploaded
         ? (noteText ? `${noteText} (📎 ${uploaded.name})` : `📎 ${uploaded.name}`)
         : (noteText || null);
-      const res = await fetch(`${urls["debts"]}?action=pay`, {
+      const res = await fetchWithRetry(`${urls["debts"]}?action=pay`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
         body: JSON.stringify({ debt_id: debtId, amount: numAmount, note: noteForPayment }),
       });
       if (!res.ok) {
@@ -186,7 +208,11 @@ export default function ManualReturnModal({ debtId, debtTitle, defaultAmount, to
       onSent?.();
       setTimeout(onClose, 1500);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Ошибка");
+      const msg = e instanceof Error ? e.message : "Ошибка";
+      const isNetwork = /failed to fetch|networkerror|load failed|aborted|the operation was aborted|signal/i.test(msg);
+      setError(isNetwork
+        ? "Нет связи с сервером. Проверьте интернет и попробуйте ещё раз"
+        : msg);
     } finally {
       setLoading(false);
     }
