@@ -251,7 +251,14 @@ def row_to_debt(row):
 def handler(event: dict, context) -> dict:
     if event.get("httpMethod") == "OPTIONS":
         return {"statusCode": 200, "headers": cors_headers(), "body": ""}
+    try:
+        return _handle(event, context)
+    except Exception as e:
+        import traceback
+        print(f"[debts] UNHANDLED ERROR: {e}\n{traceback.format_exc()}")
+        return json_resp({"error": "Внутренняя ошибка сервера. Попробуйте ещё раз"}, 500)
 
+def _handle(event: dict, context) -> dict:
     method = event.get("httpMethod", "GET")
     qs = event.get("queryStringParameters") or {}
     headers = event.get("headers") or {}

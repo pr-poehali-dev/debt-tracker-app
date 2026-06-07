@@ -313,7 +313,14 @@ def handler(event: dict, context) -> dict:
     """Авторизация пользователей — регистрация через почту+PIN, вход через PIN"""
     if event.get("httpMethod") == "OPTIONS":
         return {"statusCode": 200, "headers": CORS, "body": ""}
+    try:
+        return _handle(event, context)
+    except Exception as e:
+        import traceback
+        print(f"[auth] UNHANDLED ERROR: {e}\n{traceback.format_exc()}")
+        return err("Внутренняя ошибка сервера. Попробуйте ещё раз", 500)
 
+def _handle(event: dict, context) -> dict:
     method = event.get("httpMethod", "GET")
     qs = event.get("queryStringParameters") or {}
     action = qs.get("action", "")

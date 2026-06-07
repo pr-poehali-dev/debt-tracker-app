@@ -140,7 +140,14 @@ def send_push_notification(conn, recipient_user_id, title, body_text, url=None, 
 def handler(event: dict, context) -> dict:
     if event.get("httpMethod") == "OPTIONS":
         return {"statusCode": 200, "headers": cors(), "body": ""}
+    try:
+        return _handle(event, context)
+    except Exception as e:
+        import traceback
+        print(f"[chat] UNHANDLED ERROR: {e}\n{traceback.format_exc()}")
+        return json_resp({"error": "Внутренняя ошибка сервера. Попробуйте ещё раз"}, 500)
 
+def _handle(event: dict, context) -> dict:
     method = event.get("httpMethod", "GET")
     qs = event.get("queryStringParameters") or {}
     headers = event.get("headers") or {}
