@@ -88,7 +88,7 @@ export default function AdminPanel({ onBack }: Props) {
   useEffect(() => {
     loadStats();
     loadTickets();
-    const iv = setInterval(loadTickets, 10000);
+    const iv = setInterval(loadTickets, 30000);
     return () => clearInterval(iv);
   }, []);
 

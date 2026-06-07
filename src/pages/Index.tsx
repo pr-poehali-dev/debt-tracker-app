@@ -115,10 +115,16 @@ function IndexInner({ user, onLogout }: { user: AuthUser; onLogout: () => void }
 
   useEffect(() => {
     if (isDemo) return;
-    function bump() { setRefreshTick(t => t + 1); }
+    let lastBump = 0;
+    function bump() {
+      const now = Date.now();
+      if (now - lastBump < 10000) return; // не чаще раза в 10 сек
+      lastBump = now;
+      setRefreshTick(t => t + 1);
+    }
     const interval = setInterval(() => {
       if (document.visibilityState === "visible") bump();
-    }, 15000);
+    }, 60000);
     function onVisible() {
       if (document.visibilityState === "visible") bump();
     }

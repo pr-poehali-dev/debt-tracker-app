@@ -311,11 +311,17 @@ export default function DebtDetailModal({ debt, dir, locale, onClose, onOpenChat
 
   useEffect(() => {
     if (!debtDbId) return;
-    function bump() { setTopUpReloadTick(t => t + 1); }
+    let lastBump = 0;
+    function bump() {
+      const now = Date.now();
+      if (now - lastBump < 8000) return;
+      lastBump = now;
+      setTopUpReloadTick(t => t + 1);
+    }
     function onVisible() { if (document.visibilityState === "visible") bump(); }
     const interval = setInterval(() => {
       if (document.visibilityState === "visible") bump();
-    }, 10000);
+    }, 30000);
     window.addEventListener("realtime:message", bump as EventListener);
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("focus", bump);

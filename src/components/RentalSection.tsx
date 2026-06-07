@@ -247,7 +247,7 @@ function RentalCard({ rental, userId, token, onUpdate, onDelete, t, onOpenCalend
       setUnread(mine?.unread || 0);
     }
     fetchUnread();
-    const iv = setInterval(fetchUnread, 15000);
+    const iv = setInterval(fetchUnread, 45000);
     return () => { cancelled = true; clearInterval(iv); };
   }, [rental.id, canChat, token, showChat]);
 
