@@ -1,3 +1,4 @@
+# build: restore-urls-1
 """
 Чат между участниками долга или аренды. v2 — VAPID push
 GET ?debt_id=UUID           — сообщения по долгу

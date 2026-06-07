@@ -1,3 +1,4 @@
+# build: restore-urls-1
 """
 Business: CRUD для контактов пользователя — список, добавление, обновление, удаление. Поиск дубликатов по телефону.
 Args: event - dict с httpMethod, queryStringParameters, body, headers; context - объект с request_id

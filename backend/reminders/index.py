@@ -1,3 +1,4 @@
+# build: restore-urls-1
 """
 Business: Cron-функция — отправляет push-напоминания за день до срока возврата займа и за день до даты аренды
 Args: event - dict с httpMethod; context - объект с request_id

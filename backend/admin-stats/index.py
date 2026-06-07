@@ -1,3 +1,4 @@
+# build: restore-urls-1
 """Статистика для администратора приложения."""
 import os
 import json

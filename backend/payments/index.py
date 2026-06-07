@@ -1,3 +1,4 @@
+# build: restore-urls-1
 """
 API оплаты подписки через T-Bank Acquiring (T-Pay).
 POST /         body={plan, period_days?} — создать счёт, вернуть payment_url

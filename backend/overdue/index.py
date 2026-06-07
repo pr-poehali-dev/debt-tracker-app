@@ -1,3 +1,4 @@
+# build: restore-urls-1
 """
 Business: Cron-функция — раз в день шлёт уведомления о просроченных долгах и просроченных платежах по аренде
 Args: event - dict с httpMethod; context - объект с request_id

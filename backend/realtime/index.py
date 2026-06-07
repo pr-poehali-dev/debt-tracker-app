@@ -1,3 +1,4 @@
+# build: restore-urls-1
 """Long-polling endpoint для real-time событий: уведомления, сообщения, платежи"""
 import json
 import os
