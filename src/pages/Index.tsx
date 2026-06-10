@@ -1375,7 +1375,7 @@ function IndexInner({ user, onLogout }: { user: AuthUser; onLogout: () => void }
 
       {isDemo && (
         <div className="relative z-10 px-4 pt-3">
-          <div className="max-w-lg mx-auto">
+          <div className="w-full sm:max-w-2xl mx-auto">
             <div className="rounded-xl px-3 py-2 flex items-center gap-2 text-xs font-medium" style={{ background: "rgba(245,158,11,0.15)", border: "1px solid rgba(245,158,11,0.3)", color: "#fcd34d" }}>
               <Icon name="Eye" size={14} />
               Демо-режим — данные ненастоящие. Зарегистрируйтесь, чтобы использовать приложение.
@@ -1385,7 +1385,7 @@ function IndexInner({ user, onLogout }: { user: AuthUser; onLogout: () => void }
       )}
 
       <header className="relative z-10 px-4 pt-5 pb-3">
-        <div className="max-w-lg mx-auto flex items-center justify-between">
+        <div className="w-full sm:max-w-2xl mx-auto flex items-center justify-between">
           <div>
             <h1 className="font-heading font-black text-xl flex items-center gap-2">
               {section === "dashboard" ? <span className="text-gradient-purple">Debt-Debt</span> : sectionTitles[section]}
@@ -1461,7 +1461,7 @@ function IndexInner({ user, onLogout }: { user: AuthUser; onLogout: () => void }
         }}
       >
         <PullToRefresh onRefresh={doRefresh} refreshing={refreshing}>
-        <div key={section} className={`max-w-lg mx-auto ${swipeDir === "left" ? "animate-slide-in-right" : swipeDir === "right" ? "animate-slide-in-left" : ""}`}>
+        <div key={section} className={`w-full sm:max-w-2xl mx-auto ${swipeDir === "left" ? "animate-slide-in-right" : swipeDir === "right" ? "animate-slide-in-left" : ""}`}>
           {section === "dashboard"     && <Dashboard onNav={setSection} contacts={contactsWithTotals} t={t} lang={lang} lentDebts={lentDebts} borrowedDebts={borrowedDebts} activeRentalCount={activeRentalCount} totalRentalAmount={totalRentalAmount} personalLoans={personalLoans} onOpenReport={() => setShowReport(true)} />}
           {section === "lent"          && <DebtList debts={lentDebts} dir="lent" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => { const d = lentDebts.find(x => x.debtDbId === id); const cn = d ? (contacts.find(c => c.id === d.contactId)?.name || d.counterpartyName) : undefined; setActiveChat({ debtId: id, title, contactName: cn, contactAvatarUrl: d?.counterpartyAvatarUrl }); }} onMarkPaid={handleMarkPaid} onDeleteDebt={handleDeleteDebt} onAddNew={() => setShowNewDebt(true)} token={token} userId={user.id} onPaymentAccepted={handlePaymentAccepted} onTopUpDecided={handleTopUpDecided} />}
           {section === "borrowed"      && <DebtList debts={borrowedDebts} dir="borrowed" contacts={contacts} t={t} locale={locale} onOpenChat={(id, title) => { const d = borrowedDebts.find(x => x.debtDbId === id); const cn = d ? (contacts.find(c => c.id === d.contactId)?.name || d.counterpartyName) : undefined; setActiveChat({ debtId: id, title, contactName: cn, contactAvatarUrl: d?.counterpartyAvatarUrl }); }} onMarkPaid={handleMarkPaid} onDeleteDebt={handleDeleteDebt} onAddNew={() => setShowPersonalLoan(true)} personalLoans={personalLoans} onPersonalLoanUpdate={(loans) => { setPersonalLoans(loans); localStorage.setItem("df-personal-loans", JSON.stringify(loans)); }} token={token} userId={user.id} userName={profile.name || user.full_name} onPaymentAccepted={handlePaymentAccepted} onTopUpDecided={handleTopUpDecided} onDecisionMade={(debtDbId, decision) => { setBorrowedDebts(prev => prev.map(d => d.debtDbId === debtDbId ? { ...d, borrowerDecision: decision } : d)); }} />}
@@ -1521,7 +1521,7 @@ function IndexInner({ user, onLogout }: { user: AuthUser; onLogout: () => void }
       )}
 
       <nav className="fixed bottom-0 left-0 right-0 z-20 px-2 pb-safe">
-        <div className="max-w-lg mx-auto">
+        <div className="w-full sm:max-w-2xl mx-auto">
           <div className="glass rounded-2xl px-1 py-1.5 flex items-center justify-around" style={{ borderTop: "1px solid rgba(255,255,255,0.06)", backdropFilter: "blur(24px)" }}>
             {navItems.map(item => {
               const active = section === item.id;
