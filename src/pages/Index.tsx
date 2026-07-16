@@ -1436,7 +1436,7 @@ function IndexInner({ user, onLogout }: { user: AuthUser; onLogout: () => void }
       <InstallBanner t={t} />
 
       <main
-        className="relative z-10 flex-1 px-4 pb-32 overflow-y-auto"
+        className="relative z-10 flex-1 px-4 pb-40 overflow-y-auto"
         onTouchStart={(e) => {
           const t = e.touches[0];
           (window as unknown as { __swipeStart?: { x: number; y: number; t: number } }).__swipeStart = { x: t.clientX, y: t.clientY, t: Date.now() };
@@ -1520,7 +1520,7 @@ function IndexInner({ user, onLogout }: { user: AuthUser; onLogout: () => void }
         </div>
       )}
 
-      <nav className="fixed bottom-0 left-0 right-0 z-20 px-2 pb-safe">
+      <nav className="fixed bottom-0 left-0 right-0 z-20 px-2 pb-safe" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 30px)" }}>
         <div className="w-full sm:max-w-2xl mx-auto">
           <div className="glass rounded-2xl px-1 py-1.5 flex items-center justify-around" style={{ borderTop: "1px solid rgba(255,255,255,0.06)", backdropFilter: "blur(24px)" }}>
             {navItems.map(item => {
@@ -1534,6 +1534,9 @@ function IndexInner({ user, onLogout }: { user: AuthUser; onLogout: () => void }
                     const newIdx = navItems.findIndex(n => n.id === item.id);
                     setSwipeDir(newIdx > curIdx ? "left" : "right");
                     setSection(item.id);
+                    if (!isDemo && (item.id === "lent" || item.id === "borrowed" || item.id === "dashboard" || item.id === "calendar")) {
+                      setRefreshTick(t => t + 1);
+                    }
                   }}
                   className={`relative flex flex-col items-center gap-0.5 px-1 py-1 rounded-xl transition-all duration-200 min-w-0 flex-1 ${active ? "gradient-purple glow-purple" : "hover:bg-white/5"}`}
                 >
