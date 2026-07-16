@@ -259,24 +259,36 @@ def handler(event: dict, context) -> dict:
         print(f"[debts] UNHANDLED ERROR: {e}\n{traceback.format_exc()}")
         return json_resp({"error": "Внутренняя ошибка сервера. Попробуйте ещё раз"}, 500)
 
+def _parse_body(event: dict) -> dict:
+    raw = event.get("body") or ""
+    if event.get("isBase64Encoded") and raw:
+        import base64
+        try:
+            raw = base64.b64decode(raw).decode("utf-8")
+        except Exception:
+            pass
+    raw = (raw or "").strip()
+    if not raw:
+        return {}
+    try:
+        return json.loads(raw)
+    except Exception:
+        return {}
+
 def _handle(event: dict, context) -> dict:
     method = event.get("httpMethod", "GET")
     qs = event.get("queryStringParameters") or {}
     headers = event.get("headers") or {}
+    body = _parse_body(event)
     auth_header = headers.get("X-Authorization") or headers.get("Authorization") or ""
     # Фолбэк: токен может прийти в теле или query (чтобы избежать CORS preflight у части провайдеров)
     if not auth_header:
-        try:
-            _b = json.loads(event.get("body") or "{}")
-            auth_header = _b.get("auth_token") or ""
-        except Exception:
-            auth_header = ""
+        auth_header = body.get("auth_token") or ""
     if not auth_header:
         auth_header = qs.get("auth_token") or ""
 
     # POST / — создать долг (исключая action-роуты ниже)
     if method == "POST" and not qs.get("action"):
-        body = json.loads(event.get("body") or "{}")
         for f in ["title", "amount", "lender_name"]:
             if not body.get(f):
                 return err(f"Поле '{f}' обязательно")
@@ -436,7 +448,7 @@ def _handle(event: dict, context) -> dict:
     # PUT ?token=XXX — обновить долг (решение должника, смена статуса)
     if method == "PUT" and qs.get("token"):
         token = qs["token"].upper().strip()
-        body = json.loads(event.get("body") or "{}")
+        body = _parse_body(event)
         fields = []
         vals = []
 
@@ -536,7 +548,7 @@ def _handle(event: dict, context) -> dict:
 
     # POST ?action=pay — должник отправляет запрос на погашение
     if method == "POST" and qs.get("action") == "pay":
-        body = json.loads(event.get("body") or "{}")
+        body = _parse_body(event)
         debt_id = body.get("debt_id")
         amount = body.get("amount")
         note = (body.get("note") or "").strip()
@@ -582,7 +594,7 @@ def _handle(event: dict, context) -> dict:
 
     # PUT ?action=pay — кредитор принимает/отклоняет платёж ИЛИ должник отменяет свой запрос
     if method == "PUT" and qs.get("action") == "pay":
-        body = json.loads(event.get("body") or "{}")
+        body = _parse_body(event)
         req_id = body.get("payment_request_id")
         decision = body.get("decision")  # "accepted" | "rejected" | "cancelled"
         if not req_id or decision not in ("accepted", "rejected", "cancelled"):
@@ -729,7 +741,7 @@ def _handle(event: dict, context) -> dict:
 
     # POST ?action=topup — кредитор отправляет запрос на доложение суммы к существующему долгу
     if method == "POST" and qs.get("action") == "topup":
-        body = json.loads(event.get("body") or "{}")
+        body = _parse_body(event)
         debt_id = body.get("debt_id")
         amount = body.get("amount")
         note = (body.get("note") or "").strip()
@@ -780,7 +792,7 @@ def _handle(event: dict, context) -> dict:
 
     # PUT ?action=topup — заёмщик принимает или отклоняет увеличение долга
     if method == "PUT" and qs.get("action") == "topup":
-        body = json.loads(event.get("body") or "{}")
+        body = _parse_body(event)
         req_id = body.get("topup_request_id")
         decision = body.get("decision")
         if not req_id or decision not in ("accepted", "rejected"):
