@@ -458,15 +458,15 @@ export function DebtList({ debts, dir, contacts, t, locale, onOpenChat, onMarkPa
                     <StatusBadge status={d.status} t={t} />
                     {dir === "lent" && d.debtDbId && (
                       d.borrowerDecision === "accepted" ? (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium" style={{ background: "rgba(34,197,94,0.15)", color: "#4ade80" }}>
+                        <span title="Должник подтвердил долг и согласился с суммой и условиями" className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium cursor-help" style={{ background: "rgba(34,197,94,0.15)", color: "#4ade80" }}>
                           <Icon name="CheckCircle" size={9} /> {t.debtConfirmed}
                         </span>
                       ) : d.borrowerDecision === "rejected" ? (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium" style={{ background: "rgba(244,63,94,0.15)", color: "#fb7185" }}>
+                        <span title="Должник не признал этот долг — отклонил сумму или условия" className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium cursor-help" style={{ background: "rgba(244,63,94,0.15)", color: "#fb7185" }}>
                           <Icon name="XCircle" size={9} /> {t.debtDismissed}
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium" style={{ background: "rgba(245,158,11,0.15)", color: "#fbbf24" }}>
+                        <span title="Должник ещё не подтвердил долг. Отправьте ему ссылку — как только он подтвердит, статус станет зелёным" className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium cursor-help" style={{ background: "rgba(245,158,11,0.15)", color: "#fbbf24" }}>
                           <Icon name="Clock" size={9} /> {t.debtAwaiting}
                         </span>
                       )
