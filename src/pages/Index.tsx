@@ -193,7 +193,7 @@ function IndexInner({ user, onLogout }: { user: AuthUser; onLogout: () => void }
           }
 
           debts.forEach((d) => {
-            const isLender = d.lender_user_id === user.id;
+            const isLender = Number(d.lender_user_id) === Number(user.id);
             const decision = d.borrower_decision as string | null;
             const status = d.status as string;
 
